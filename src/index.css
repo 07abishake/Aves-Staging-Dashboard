@@ -1,0 +1,98 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa;
+}
+.logo {
+  height: 65px;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.sidebar {
+  min-height: 100vh;
+  background-color: #1d1d11 !important;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.1);
+}
+
+.sidebar .nav-link {
+  color: rgb(209 213 219);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 0.5rem 1rem;
+}
+
+.sidebar .nav-link.active {
+  color: #fff;
+  background-color: #2f2f1e;
+}
+
+.sidebar .nav-link:hover {
+  color: #fff;
+}
+
+.main-content {
+  padding: 20px;
+}
+
+.card {
+  margin-bottom: 20px;
+}
+
+.dashboard-stats {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.line {
+  margin: 12px !important;
+}
+.offcanvas-custom {
+  position: fixed;
+  overflow-y: auto;
+  right: -50%; /* Start hidden */
+  top: 0;
+  height: 100%;
+  width: 50%;
+  background-color: white;
+  box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.2);
+  transition: right 0.4s ease-in-out;
+}
+
+.offcanvas-custom.show {
+  right: 0; /* Slide in smoothly */
+}
+.css-qr46ko {
+  max-height: 130px !important;
+}
+.dept-user-select .css-1nmdiq5-menu .css-qr46ko {
+  max-height: 300px !important;
+}
+.loginBtn {
+  background-color: #111827 !important;
+  font-size: 16px !important;
+  font-weight: 400;
+  color: #fff;
+}
+.loginBtn:hover {
+  background-color: #1f2937 !important;
+  font-size: 16px !important;
+  font-weight: 400;
+  color: #fff;
+}
+.report-select .css-qr46ko {
+  max-height: 300px !important;
+}
