@@ -8,6 +8,7 @@ function Navbar() {
     localStorage.removeItem('access_token'); // Remove token from localStorage
     navigate('/'); // Redirect to login page
   };
+  const username = localStorage.getItem('username');
   return (
     <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4">
       <div className="container-fluid">
@@ -18,7 +19,7 @@ function Navbar() {
           <ul className="navbar-nav ms-auto">
             <li className="nav-item dropdown">
               <a className="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                <i className="bi bi-person-circle me-2"></i>Admin User
+                <i className="bi bi-person-circle me-2"></i>{username}
               </a>
               <ul className="dropdown-menu dropdown-menu-end">
                 <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Profile</a></li>
