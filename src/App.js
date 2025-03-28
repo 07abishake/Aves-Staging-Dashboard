@@ -89,6 +89,7 @@ function App() {
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/department" element={<Departments />} />
               <Route path="/teams" element={<Teams />} />
+
               <Route path="/location/add-location" element={<AddLocation />} />
 
               <Route path="/designation" element={<Designation />} />
