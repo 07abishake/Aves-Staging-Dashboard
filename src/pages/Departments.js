@@ -160,6 +160,21 @@ function Departments() {
             setLoading(false);
         }
     };
+    const handleDeleteDesignation = async (userId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this user?");
+        if (!confirmDelete) return; // If user clicks 'Cancel', just exit
+
+        try {
+            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Department/delete/${userId}`);
+            if (response.status === 200) {
+                alert("Desgnation deleted successfully");
+
+            }
+        } catch (error) {
+            console.error("Error deleting designation:", error);
+            alert("Error deleting designation");
+        }
+    };
     console.log("selected dept", selectedDepartmentData)
     return (
         <>{loading ? <div className="d-flex justify-content-center align-items-center flex-column" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
@@ -187,11 +202,12 @@ function Departments() {
                                             <tr>
                                                 <th>Department Name</th>
                                                 <th>Lead Name</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {allDepts.map((dept) => (
-                                                <tr key={dept._id} onClick={() => handleDesignationClick(dept)} >
+                                                <tr key={dept._id}  >
                                                     {/* Department Name & Parent Department */}
                                                     <td>
                                                         <strong>{dept.name}</strong>
@@ -204,6 +220,12 @@ function Departments() {
 
                                                     {/* Lead Name */}
                                                     <td>{dept.leadName ? dept.leadName.username : "-"}</td>
+                                                    <td>
+                                                        {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
+                                                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleDesignationClick(dept)}><i class="bi bi-eye"></i></button>
+                                                        <button className="btn btn-sm btn-outline-primary me-2" ><i class="bi bi-pencil-square"></i></button>
+                                                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteDesignation(dept._id)}><i class="bi bi-trash"></i></button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

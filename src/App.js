@@ -65,7 +65,8 @@ import Departments from './pages/Departments';
 import Designation from './pages/Designation';
 import Login from './pages/Login';
 import Teams from './pages/Teams';
-import AddLocation from './pages/AddLocation';
+import AddLocation from './pages/GeoLocation';
+import LocationForm from './pages/Location';
 
 function App() {
   const location = useLocation();
@@ -98,6 +99,8 @@ function App() {
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/data-admin" element={<DataAdministration />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/location" element={<LocationForm />} />
+
             </Route>
           </Routes>
         </main>

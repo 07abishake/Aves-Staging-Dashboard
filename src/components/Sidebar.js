@@ -166,6 +166,24 @@ function Sidebar() {
           <li className="nav-item">
             <NavLink to="/location/add-location" className="nav-link">
               <i className="bi bi-geo-alt me-2"></i>
+              Geo Location
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink to="/location/add-location" className="nav-link">
+              <i className="bi bi-geo-alt me-2"></i>
+              Patrol
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink to="/location/add-location" className="nav-link">
+              <i className="bi bi-geo-alt me-2"></i>
+              Inventory
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink to="/location" className="nav-link">
+              <i className="bi bi-geo-alt me-2"></i>
               Location
             </NavLink>
           </li>

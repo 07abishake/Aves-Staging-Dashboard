@@ -214,12 +214,23 @@ function UserManagement() {
   const handleDeleteSelected = () => {
     alert(`Deleting ${selectedUsers.length} selected users`);
   };
+  const handleDeleteUser = async (userId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this user?");
+    if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
-  // const filteredUsers = allUsers.filter(user => {
-  //   const searchValue = search.toLowerCase();
-  //   if (statusFilter !== 'All' && user.status !== statusFilter) return false;
-  //   return user.name.toLowerCase().includes(searchValue) || user.email.toLowerCase().includes(searchValue) || user.department.toLowerCase().includes(searchValue) || user.role.toLowerCase().includes(searchValue);
-  // });
+    try {
+      const response = await axios.delete(`http://api.avessecurity.com:6378/api/users/delete/${userId}`);
+      if (response.status === 200) {
+        alert("Location deleted successfully");
+        setAllUsers(allUsers.filter(user => user._id !== userId));
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert("Error deleting user");
+    }
+  };
+
+
   console.log("selectedUsers", selectedSpecUser);
   return (
     <>{loading ?
@@ -275,17 +286,24 @@ function UserManagement() {
                     <th>Email</th>
                     <th>Department</th>
                     <th>Designation</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {allUsers.length > 0 && allUsers.map(user => (
-                    <tr key={user._id} onClick={() => handleSpecificUserClick(user)}>
+                    <tr key={user._id} >
                       <td><input type="checkbox" checked={selectedUsers.includes(user._id)} onChange={() => handleSelectUser(user._id)} /></td>
                       <td>{user.username}</td>
                       <td>{user.EmailId}</td>
                       <td>{user.Department?.name}</td>
                       <td>
                         <span className="badge bg-primary">{`${user.Designation ? user.Designation.Name : "N/A"}`}</span>
+                      </td>
+                      <td>
+                        {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
+                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleSpecificUserClick(user)}><i class="bi bi-eye"></i></button>
+                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleSpecificUserClick(user)}><i class="bi bi-pencil-square"></i></button>
+                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteUser(user._id)}><i class="bi bi-trash"></i></button>
                       </td>
                     </tr>
                   ))}
@@ -493,7 +511,7 @@ function UserManagement() {
             <div className="mb-3">
               <p>Designation: {selectedSpecUser?.Designation?.Name ?? "N/A"}</p>
 
-              <p>Department: {departments.find(d => d.value === selectedSpecUser?.department)?.label || "N/A"}</p>
+              <p>Department: {departments.find(d => d.value === selectedSpecUser?.Department._id)?.label || "N/A"}</p>
               <p>Reporting To: {users.find(user => user.value === selectedSpecUser?.reportTo)?.label || "N/A"}</p>
               <p>Location: {selectedSpecUser?.Location || "N/A"}</p>
             </div>

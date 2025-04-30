@@ -93,7 +93,21 @@ function Designation() {
             setLoading(false);
         }
     };
+    const handleDeleteDesignation = async (userId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this user?");
+        if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
+        try {
+            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Designation/delete/${userId}`);
+            if (response.status === 200) {
+                alert("Desgnation deleted successfully");
+
+            }
+        } catch (error) {
+            console.error("Error deleting designation:", error);
+            alert("Error deleting designation");
+        }
+    };
     return (
         <>{loading ?
             <div className="d-flex justify-content-center align-items-center flex-column" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
@@ -124,14 +138,20 @@ function Designation() {
                                         <thead>
                                             <tr>
                                                 <th>Designation Name</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {designations.length > 0 ? (
                                                 designations.map((designation) => (
-                                                    <tr key={designation._id} onClick={() => handleDesignationClick(designation)} style={{ cursor: "pointer" }}>
+                                                    <tr key={designation._id} style={{ cursor: "pointer" }}>
                                                         <td>{designation.Name}</td>
-
+                                                        <td>
+                                                            {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
+                                                            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleDesignationClick(designation)}><i class="bi bi-eye"></i></button>
+                                                            <button className="btn btn-sm btn-outline-primary me-2" ><i class="bi bi-pencil-square"></i></button>
+                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteDesignation(designation._id)}><i class="bi bi-trash"></i></button>
+                                                        </td>
                                                     </tr>
                                                 ))
                                             ) : (
