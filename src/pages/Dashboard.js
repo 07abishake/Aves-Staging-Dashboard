@@ -1,5 +1,14 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useEffect, useState } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const data = [
   { name: 'Jan', users: 400, messages: 240 },
@@ -10,35 +19,80 @@ const data = [
 ];
 
 function Dashboard() {
+  const token = localStorage.getItem("access_token");
+
+  if (!token) {
+    window.location.href = "/login";
+  }
+
+  const [userStats, setUserStats] = useState({
+    totalUsers: 0,
+    onlineUsers: [],
+    offlineUsers: [],
+  });
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:6378/api/users/Status', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const result = await response.json();
+
+        setUserStats({
+          totalUsers: result.totalUsers || 0,
+          onlineUsers: result.onlineUsers || [],
+          offlineUsers: result.offlineUsers || [],
+        });
+      } catch (err) {
+        console.error('Failed to fetch user status:', err);
+      }
+    };
+
+    fetchStatus();
+  }, [token]);
+
+  const renderUserItem = (user, isOnline, index) => (
+    <li key={index} className="list-group-item d-flex align-items-center">
+      <span
+        className="me-2"
+        style={{
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          backgroundColor: isOnline ? 'green' : 'red',
+          display: 'inline-block',
+        }}
+      ></span>
+      {user.username || `User ${index + 1}`}
+    </li>
+  );
+
   return (
     <div>
       <h2 className="mb-4">Dashboard</h2>
 
       <div className="row">
-        <div className="col-md-6">
+        <div className="col-md-4">
           <div className="dashboard-stats">
-            <h3>1,234</h3>
+            <h3>{userStats.totalUsers}</h3>
             <p className="text-muted">Total Users</p>
           </div>
         </div>
-        <div className="col-md-6">
+        <div className="col-md-4">
           <div className="dashboard-stats">
-            <h3>56</h3>
-            <p className="text-muted">Total Teams</p>
+            <h3>{userStats.onlineUsers.length}</h3>
+            <p className="text-muted">Online Users</p>
           </div>
         </div>
-        {/* <div className="col-md-3">
+        <div className="col-md-4">
           <div className="dashboard-stats">
-            <h3>89%</h3>
-            <p className="text-muted">System Uptime</p>
+            <h3>{userStats.offlineUsers.length}</h3>
+            <p className="text-muted">Offline Users</p>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="dashboard-stats">
-            <h3>12</h3>
-            <p className="text-muted">Pending Tasks</p>
-          </div>
-        </div> */}
       </div>
 
       <div className="row mt-4">
@@ -60,15 +114,30 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
         <div className="col-md-4">
           <div className="card">
             <div className="card-body">
-              <h5 className="card-title">Recent Activities</h5>
+              <h5 className="card-title">Online Users</h5>
               <ul className="list-group list-group-flush">
-                <li className="list-group-item">New user registered</li>
-                <li className="list-group-item">Team created: Marketing</li>
-                <li className="list-group-item">System update completed</li>
-                <li className="list-group-item">New integration added</li>
+                {userStats.onlineUsers.length > 0 ? (
+                  userStats.onlineUsers.map((user, index) =>
+                    renderUserItem(user, true, index)
+                  )
+                ) : (
+                  <li className="list-group-item text-muted">No users online</li>
+                )}
+              </ul>
+
+              <h5 className="card-title mt-4">Offline Users</h5>
+              <ul className="list-group list-group-flush">
+                {userStats.offlineUsers.length > 0 ? (
+                  userStats.offlineUsers.map((user, index) =>
+                    renderUserItem(user, false, index)
+                  )
+                ) : (
+                  <li className="list-group-item text-muted">No users offline</li>
+                )}
               </ul>
             </div>
           </div>

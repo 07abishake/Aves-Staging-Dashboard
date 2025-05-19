@@ -1,6 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 function OrganizationSettings() {
+  const [organization, setOrganization] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          setError('No access token found.');
+          return;
+        }
+
+        const response = await axios.get('https://api.avessecurity.com/api/oraganisation/dashboard', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        setOrganization(response.data);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch organization data.');
+      }
+    };
+
+    fetchOrganization();
+  }, []);
+
+  if (error) {
+    return <div className="alert alert-danger">{error}</div>;
+  }
+
+  if (!organization) {
+    return <div>Loading organization data...</div>;
+  }
+
   return (
     <div>
       <h2 className="mb-4">Organization Settings</h2>
@@ -13,21 +49,20 @@ function OrganizationSettings() {
               <form>
                 <div className="mb-3">
                   <label className="form-label">Company Name</label>
-                  <input type="text" className="form-control" defaultValue="Acme Corporation" />
+                  <input type="text" className="form-control" defaultValue={organization.name} readOnly />
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Domain</label>
-                  <input type="text" className="form-control" defaultValue="acme.com" />
+                  <input type="text" className="form-control" defaultValue={organization.domain} readOnly />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Contact Email</label>
-                  <input type="email" className="form-control" defaultValue="contact@acme.com" />
+                  <label className="form-label">Owner</label>
+                  <input type="text" className="form-control" defaultValue={organization.owner} readOnly />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Phone</label>
-                  <input type="tel" className="form-control" defaultValue="+1 (555) 123-4567" />
+                  <label className="form-label">Valid Until</label>
+                  <input type="text" className="form-control" defaultValue={new Date(organization.validUntil).toLocaleDateString()} readOnly />
                 </div>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
               </form>
             </div>
           </div>
@@ -37,32 +72,23 @@ function OrganizationSettings() {
           <div className="card">
             <div className="card-body">
               <h5 className="card-title">Subscription Details</h5>
-              <div className="mb-4">
-                <p className="mb-1"><strong>Current Plan:</strong> Enterprise</p>
-                <p className="mb-1"><strong>Expiry Date:</strong> December 31, 2024</p>
-                <p className="mb-1"><strong>Status:</strong> <span className="badge bg-success">Active</span></p>
-              </div>
-              <button className="btn btn-outline-primary">Upgrade Plan</button>
+              <p><strong>Valid Until:</strong> {new Date(organization.validUntil).toLocaleDateString()}</p>
+              <p><strong>Status:</strong> <span className="badge bg-success">Active</span></p>
             </div>
           </div>
 
           <div className="card mt-4">
             <div className="card-body">
-              <h5 className="card-title">Network Configuration</h5>
-              <form>
-                <div className="mb-3">
-                  <label className="form-label">Allowed IP Ranges</label>
-                  <textarea className="form-control" rows="3" defaultValue="192.168.1.0/24&#10;10.0.0.0/8"></textarea>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">VPN Access</label>
-                  <div className="form-check">
-                    <input className="form-check-input" type="checkbox" defaultChecked />
-                    <label className="form-check-label">Enable VPN Access</label>
-                  </div>
-                </div>
-                <button type="submit" className="btn btn-primary">Update Configuration</button>
-              </form>
+              <h5 className="card-title">Members</h5>
+              {organization.members.length > 0 ? (
+                <ul>
+                  {organization.members.map((member, idx) => (
+                    <li key={idx}>{member}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No members listed.</p>
+              )}
             </div>
           </div>
         </div>

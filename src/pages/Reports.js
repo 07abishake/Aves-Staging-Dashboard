@@ -186,9 +186,18 @@ function Reports() {
   const [status, setStatus] = useState('');
   const [department, setDepartment] = useState('');
   const [loading, setLoading] = useState(false);
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login";
+    }
+
   // Fetch modules from API
   useEffect(() => {
-    axios.get(`https://api.avessecurity.com/api/collection/getModule`)
+    axios.get(`https://api.avessecurity.com/api/collection/getModule`,{
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
       .then(response => {
         if (Array.isArray(response.data)) {
           const formattedModules = response.data.map(module => ({

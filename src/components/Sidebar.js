@@ -124,7 +124,7 @@ function Sidebar() {
             {orgMenuOpen && (
               <ul className="nav flex-column ms-3">
                 <li className="nav-item">
-                  <NavLink to="/organization/company-info" className="nav-link">Company Info</NavLink>
+                  <NavLink to="/organization" className="nav-link">Company Info</NavLink>
                 </li>
                 <li className="nav-item">
                   <NavLink to="/organization/configuration" className="nav-link">Configuration</NavLink>
@@ -170,7 +170,7 @@ function Sidebar() {
             </NavLink>
           </li>
           <li className="nav-item">
-            <NavLink to="/location/add-location" className="nav-link">
+            <NavLink to="/patrol" className="nav-link">
               <i className="bi bi-geo-alt me-2"></i>
               Patrol
             </NavLink>

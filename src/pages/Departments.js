@@ -21,6 +21,12 @@ function Departments() {
     const [allDepts, setAllDepts] = useState([]);
     const [selectedDepartmentData, setSelectedDepartmentData] = useState(null);
     const [searchUser, setSearchUser] = useState("");
+
+ const token = localStorage.getItem("access_token");
+  if (!token) {
+    window.location.href = "/login";
+  }
+
     const handleDesignationClick = (department) => {
         setSelectedDepartmentData(department);
         setShowViewCanvas(true);
@@ -29,7 +35,11 @@ function Departments() {
         const fetchDepartments = async () => {
             try {
                 setLoading(true)
-                const response = await axios.get("http://api.avessecurity.com:6378/api/Department/getDataDepartment");
+                const response = await axios.get("https://api.avessecurity.com/api/Department/getDataDepartment",{
+                    headers: {
+              Authorization: `Bearer ${token}`,
+            },
+                });
                 if (response.data && response.data.Department) {
                     setAllDepts(response.data.Department);
                 }
@@ -47,7 +57,12 @@ function Departments() {
     useEffect(() => {
         const fetchLeads = async () => {
             try {
-                const response = await axios.get("http://api.avessecurity.com:6378/api/Department/getDropdown");
+                const response = await axios.get("https://api.avessecurity.com/api/Department/getDropdown",{
+
+                    headers:{
+                        Authorization: `Bearer ${token}`,
+                    }
+                });
                 if (response.data && response.data.user) {
                     const leadOptions = response.data.user.map((lead) => ({
                         value: lead._id,
@@ -73,7 +88,11 @@ function Departments() {
     const fetchUsers = debounce(async (query) => {
         if (!query) return;
         try {
-            const response = await axios.get(`http://api.avessecurity.com:6378/api/Designation/getDropdown/${query}`);
+            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (response.data && response.data.Report) {
                 const userOptions = response.data.Report.map((user) => ({
                     value: user._id,
@@ -93,7 +112,11 @@ function Departments() {
     const fetchDepartments = async () => {
         try {
             setLoading(true)
-            const response = await fetch('http://api.avessecurity.com:6378/api/Department/getAll');
+            const response = await fetch('https://api.avessecurity.com/api/Department/getAll',{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (!response.ok) {
                 throw new Error('Failed to fetch departments');
             }
@@ -138,10 +161,12 @@ function Departments() {
         };
 
         try {
-            const response = await fetch("http://api.avessecurity.com:6378/api/Department/Create", {
+            const response = await fetch("https://api.avessecurity.com/api/Department/Create", {
                 method: "POST",
                 headers: {
+
                     "Content-Type": "application/json",
+                      "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify(requestBody),
             });
@@ -165,7 +190,11 @@ function Departments() {
         if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
         try {
-            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Department/delete/${userId}`);
+            const response = await axios.delete(`https://api.avessecurity.com/api/Department/delete/${userId}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (response.status === 200) {
                 alert("Desgnation deleted successfully");
 

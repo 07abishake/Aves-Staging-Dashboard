@@ -51,12 +51,20 @@ const AddLocation = () => {
             }
         );
     }, []);
+ const token = localStorage.getItem("access_token");
+  if(!token){
+    window.location.href = "/login";
+  }
 
     // Fetch Saved Locations from API
     useEffect(() => {
         setLoading(true);
         axios
-            .get("http://api.avessecurity.com:6378/api/geoLocation/getGeoLocation")
+            .get("https://api.avessecurity.com/api/geoLocation/getGeoLocation",{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            })
             .then((response) => {
                 setLocations(response.data.Location);
             })
@@ -137,7 +145,11 @@ const AddLocation = () => {
         }
 
         axios
-            .post("http://api.avessecurity.com:6378/api/geoLocation/createGeoLocation", newLocation)
+            .post("https://api.avessecurity.com/api/geoLocation/createGeoLocation", newLocation,{
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
             .then((response) => {
                 if (response.data) {
                     setLocations((prev) => [...prev, response.data]);

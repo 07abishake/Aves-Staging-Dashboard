@@ -1,14 +1,26 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
 function Navbar() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token'); // Remove token from localStorage
-    navigate('/'); // Redirect to login page
+    localStorage.removeItem('access_token');
+    navigate('/');
   };
-  const username = localStorage.getItem('username');
+
+  let username = '';
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      username = decoded.name || 'User';
+    } catch (error) {
+      console.error('Invalid token:', error);
+    }
+  }
+
   return (
     <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4">
       <div className="container-fluid">

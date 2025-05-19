@@ -12,10 +12,22 @@ function Permissions() {
   const [selectedRoleId, setSelectedRoleId] = useState(null);
   const [AssignedPages, setAssignedPages] = useState(null)
   const [rolefetchname, setRoleFetchName] = useState("")
+
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login";
+    }
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://api.avessecurity.com/api/Roles/getRole`)
+      const response = await axios.get(`https://api.avessecurity.com/api/Roles/getRole`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
       setAllRoles(response.data.Roles)
     } catch (error) {
       console.error("error in fetching roles", error)
@@ -31,7 +43,13 @@ function Permissions() {
     const fetchPermissions = async () => {
       try {
 
-        const response = await axios.get(`http://api.avessecurity.com:6378/api/users/UserFullData/${selectedRoleId}`);
+        const response = await axios.get(`https://api.avessecurity.com/api/users/UserFullData/${selectedRoleId}`,
+           {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+        );
         setPermissions(response.data.role.permissions);
         setAssignedPages(response.data.role.AssignedPage)
         setRoleFetchName(response.data.role.name)
@@ -75,8 +93,13 @@ function Permissions() {
 
     try {
       const response = await axios.put(
-        `http://api.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
-        payload
+        `https://api.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
+        payload,
+         {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       alert("Permissions updated successfully!");
@@ -93,7 +116,13 @@ function Permissions() {
       name: roleName
     }
     try {
-      const response = await axios.post(`http://api.avessecurity.com/api/Roles/createRole`, payload)
+      const response = await axios.post(`https://api.avessecurity.com/api/Roles/createRole`, payload,
+         {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       alert("Role Created Successfully")
       setShowCreateCanvas(false)

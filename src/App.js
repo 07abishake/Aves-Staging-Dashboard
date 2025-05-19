@@ -67,6 +67,7 @@ import Login from './pages/Login';
 import Teams from './pages/Teams';
 import AddLocation from './pages/GeoLocation';
 import LocationForm from './pages/Location';
+import Patrol from './pages/Patrol';
 
 function App() {
   const location = useLocation();
@@ -90,7 +91,7 @@ function App() {
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/department" element={<Departments />} />
               <Route path="/teams" element={<Teams />} />
-
+              <Route path="/patrol" element={<Patrol/>} />
               <Route path="/location/add-location" element={<AddLocation />} />
 
               <Route path="/designation" element={<Designation />} />

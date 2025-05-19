@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Select from "react-select";
 import axios from "axios";
@@ -24,12 +23,20 @@ function Designation() {
         setSelectedDesignation(designation);
         setShowViewCanvas(true);
     };
+     const token = localStorage.getItem("access_token");
+  if(!token){
+    window.location.href = "/login";
+  }
 
     // Fetch users with debounce
     const fetchUsers = debounce(async (query) => {
         if (!query) return;
         try {
-            const response = await axios.get(`http://api.avessecurity.com:6378/api/Designation/getDropdown/${query}`);
+            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            });
             if (response.data && response.data.Report) {
                 const userOptions = response.data.Report.map((user) => ({
                     value: user._id,
@@ -49,7 +56,11 @@ function Designation() {
     const fetchDesignations = async () => {
         try {
             setLoading(true);
-            const response = await axios.get("http://api.avessecurity.com:6378/api/Designation/getDataDesignation");
+            const response = await axios.get("https://api.avessecurity.com/api/Designation/getDataDesignation",{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            });
             if (response.data && response.data.Designation) {
                 setDesignations(response.data.Designation);
             }
@@ -80,7 +91,11 @@ function Designation() {
         };
 
         try {
-            const response = await axios.post("http://api.avessecurity.com:6378/api/Designation/create", payload);
+            const response = await axios.post("https://api.avessecurity.com/api/Designation/create", payload,{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setShowCreateCanvas(false);
             setDesignationName("");
             // alert("Designation created successfully!");
@@ -98,7 +113,11 @@ function Designation() {
         if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
         try {
-            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Designation/delete/${userId}`);
+            const response = await axios.delete(`https://api.avessecurity.com/api/Designation/delete/${userId}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            });
             if (response.status === 200) {
                 alert("Desgnation deleted successfully");
 

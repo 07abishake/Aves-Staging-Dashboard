@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import axios from "axios";
 import debounce from "lodash.debounce";
@@ -23,9 +22,18 @@ function Teams() {
         setSelectedDesignation(designation);
         setShowViewCanvas(true);
     };
+
+     const token = localStorage.getItem("access_token");
+  if(!token){
+    window.location.href = "/login";
+  }
     const fetchLeads = async () => {
         try {
-            const response = await axios.get("http://api.avessecurity.com:6378/api/Department/getDropdown");
+            const response = await axios.get("https://api.avessecurity.com/api/Department/getDropdown",{
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (response.data && response.data.user) {
                 setAddUsers(response.data.user);
             }
@@ -48,7 +56,11 @@ function Teams() {
     const fetchUsers = debounce(async (query) => {
         if (!query) return;
         try {
-            const response = await axios.get(`http://api.avessecurity.com:6378/api/Designation/getDropdown/${query}`);
+            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (response.data && response.data.Report) {
                 const userOptions = response.data.Report.map((user) => ({
                     value: user._id,
@@ -69,7 +81,11 @@ function Teams() {
     const fetchTeam = async () => {
         try {
             setLoading(true)
-            const response = await axios.get(`http://api.avessecurity.com:6378/api/firebase/getAllTeamName/Dashbard`);
+            const response = await axios.get(`https://api.avessecurity.com/api/firebase/getAllTeamName/Dashbard`,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             setTeams(response.data.FireBaseTeam)
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -96,7 +112,11 @@ function Teams() {
         };
 
         try {
-            const response = await axios.post("http://api.avessecurity.com:6378/api/firebase/create-team", payload);
+            const response = await axios.post("https://api.avessecurity.com/api/firebase/create-team", payload,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }   
+            });
             setShowCreateCanvas(false);
             setTeamName("");
             alert("Team created successfully!");
@@ -111,14 +131,23 @@ function Teams() {
     };
     const handleAddUsers = async () => {
         try {
-            await Promise.all(
-                selectedUsers.map(userId =>
-                    axios.post("http://api.avessecurity.com:6378/api/firebase/AddUser-toTeam", {
-                        _id: selectedDesignation?._id, // Team ID
-                        userId
-                    })
-                )
-            );
+        await Promise.all(
+    selectedUsers.map(userId =>
+        axios.post(
+            "https://api.avessecurity.com/api/firebase/AddUser-toTeam",
+            {
+                _id: selectedDesignation?._id, // Team ID
+                userId, // User ID
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            }
+        )
+    )
+);
+
             alert("Users added successfully!");
             fetchLeads()
             // setShowUserList(false);
@@ -136,7 +165,11 @@ function Teams() {
         if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
         try {
-            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Designation/delete/${userId}`);
+            const response = await axios.delete(`https://api.avessecurity.com/api/Designation/delete/${userId}`,{
+                headers:{
+                    Authorization: `Bearer ${token}`,
+                }
+            });
             if (response.status === 200) {
                 alert("Desgnation deleted successfully");
 

@@ -23,7 +23,7 @@ function LocationManager() {
         try {
             const token = localStorage.getItem('access_token');
 
-            const { data } = await axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+            const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -47,7 +47,7 @@ function LocationManager() {
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await axios.delete(`http://api.avessecurity.com:6378/api/Location/deleteLocation/${userId}`, {
+            const response = await axios.delete(`https://api.avessecurity.com/api/Location/deleteLocation/${userId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -71,7 +71,7 @@ function LocationManager() {
 
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('http://api.avessecurity.com:6378/api/Location/createLocation', payload,
+            await axios.post('https://api.avessecurity.com/api/Location/createLocation', payload,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
