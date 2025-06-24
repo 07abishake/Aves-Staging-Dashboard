@@ -7,7 +7,9 @@ function LocationManager() {
     const [showFormCanvas, setShowFormCanvas] = useState(false);
     const [showViewCanvas, setShowViewCanvas] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState(null);
-
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
+    
     // Form state
     const [primaryLocation, setPrimaryLocation] = useState('');
     const [primarySubLocation, setPrimarySubLocation] = useState('');
@@ -19,50 +21,78 @@ function LocationManager() {
         fetchLocations();
     }, []);
 
+
+        const closeViewCanvas = () => {
+        setShowViewCanvas(false);
+        setSelectedLocation(null);
+    };
+
     const fetchLocations = async () => {
         try {
             const token = localStorage.getItem('access_token');
-
             const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
             setLocations(data.Location);
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching locations:', err);
+            alert('Failed to load locations');
         }
     };
 
-    const openFormCanvas = () => {
+    const resetForm = () => {
         setPrimaryLocation('');
         setPrimarySubLocation('');
         setSecondaryLocations([{ SecondaryLocation: '', SubLocation: '', ThirdLocation: [{ ThirdLocation: '', SubLocation: '' }] }]);
+        setEditId(null);
+        setIsEditing(false);
+    };
+
+    const openFormCanvas = (location = null) => {
+        if (location) {
+            // Edit mode
+            setPrimaryLocation(location.PrimaryLocation || '');
+            setPrimarySubLocation(location.SubLocation || '');
+            setSecondaryLocations(location.SecondaryLocation || []);
+            setEditId(location._id);
+            setIsEditing(true);
+        } else {
+            // Add mode
+            resetForm();
+        }
         setShowFormCanvas(true);
     };
 
-    const handleDeleteUser = async (userId) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this user?");
-        if (!confirmDelete) return; // If user clicks 'Cancel', just exit
+    const openViewCanvas = (location) => {
+        setSelectedLocation(location);
+        setShowViewCanvas(true);
+    };
+
+    const handleDelete = async (locationId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this location?");
+        if (!confirmDelete) return;
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await axios.delete(`https://api.avessecurity.com/api/Location/deleteLocation/${userId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                }
+            await axios.delete(`https://api.avessecurity.com/api/Location/deleteLocation/${locationId}`, {
+                headers: { Authorization: `Bearer ${token}` },
             });
-            if (response.status === 200) {
-                alert("User deleted successfully");
-                setLocations(locations.filter(user => user._id !== userId));
-            }
+            alert("Location deleted successfully");
+            setLocations(locations.filter(loc => loc._id !== locationId));
         } catch (error) {
-            console.error("Error deleting user:", error);
-            alert("Error deleting user");
+            console.error("Error deleting location:", error);
+            alert("Error deleting location");
         }
     };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!primaryLocation) {
+            alert('Primary Location is required');
+            return;
+        }
+
         const payload = {
             PrimaryLocation: primaryLocation,
             SubLocation: primarySubLocation,
@@ -71,18 +101,23 @@ function LocationManager() {
 
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('https://api.avessecurity.com/api/Location/createLocation', payload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    }
-                });
-            alert('Location saved successfully');
+            const url = isEditing 
+                ? `https://api.avessecurity.com/api/Location/updateLocation/${editId}`
+                : 'https://api.avessecurity.com/api/Location/createLocation';
+            
+            const method = isEditing ? 'put' : 'post';
+            
+            await axios[method](url, payload, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            
+            alert(`Location ${isEditing ? 'updated' : 'created'} successfully`);
             setShowFormCanvas(false);
             fetchLocations();
+            resetForm();
         } catch (err) {
             console.error(err);
-            alert('Error saving location');
+            alert(`Error ${isEditing ? 'updating' : 'creating'} location: ${err.response?.data?.message || err.message}`);
         }
     };
 
@@ -112,6 +147,10 @@ function LocationManager() {
     };
 
     const removeSecondary = (index) => {
+        if (secondaryLocations.length <= 1) {
+            alert('At least one secondary location is required');
+            return;
+        }
         const updated = [...secondaryLocations];
         updated.splice(index, 1);
         setSecondaryLocations(updated);
@@ -119,26 +158,28 @@ function LocationManager() {
 
     const removeThird = (secondaryIndex, thirdIndex) => {
         const updated = [...secondaryLocations];
+        if (updated[secondaryIndex].ThirdLocation.length <= 1) {
+            alert('At least one third location is required');
+            return;
+        }
         updated[secondaryIndex].ThirdLocation.splice(thirdIndex, 1);
         setSecondaryLocations(updated);
-    };
-
-    const openViewCanvas = (location) => {
-        setSelectedLocation(location);
-        setShowViewCanvas(true);
     };
 
     return (
         <div className="container mt-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h4>Locations</h4>
-                <button className="btn btn-primary" onClick={openFormCanvas}>Add Location</button>
+                <button className="btn btn-primary" onClick={() => openFormCanvas()}>
+                    <i className="bi bi-plus me-2"></i>Add Location
+                </button>
             </div>
 
-            <table className="table table-bordered">
-                <thead>
+            <table className="table table-bordered table-hover">
+                <thead className="">
                     <tr>
                         <th>Primary Location</th>
+                        <th>Sub Location</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -146,175 +187,214 @@ function LocationManager() {
                     {locations.map(loc => (
                         <tr key={loc._id}>
                             <td>{loc.PrimaryLocation}</td>
+                            <td>{loc.SubLocation}</td>
                             <td>
-                                <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openViewCanvas(loc)}><i class="bi bi-eye"></i></button>
-                                <button className="btn btn-sm btn-outline-warning me-2"><i class="bi bi-pencil-square"></i></button>
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteUser(loc._id)}><i class="bi bi-trash"></i></button>
+                                <div className="d-flex">
+                                    <button className="btn btn-sm btn-outline-primary me-2" 
+                                            onClick={() => openViewCanvas(loc)}>
+                                        <i className="bi bi-eye"></i> View
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-warning me-2" 
+                                            onClick={() => openFormCanvas(loc)}>
+                                        <i className="bi bi-pencil"></i> Edit
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-danger" 
+                                            onClick={() => handleDelete(loc._id)}>
+                                        <i className="bi bi-trash"></i> Delete
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
-            {/* Add Location Off-Canvas */}
-            <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} style={{ visibility: showFormCanvas ? 'visible' : 'hidden' }}>
-                <div className="offcanvas-header">
-                    <h5>Add Location</h5>
-                    <button className="btn-close" onClick={() => setShowFormCanvas(false)}></button>
+            {/* Add/Edit Location Off-Canvas */}
+            <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} 
+                 style={{ visibility: showFormCanvas ? 'visible' : 'hidden', width: '600px' }}>
+                <div className="offcanvas-header text-black">
+                    <h5 className="offcanvas-title">{isEditing ? 'Edit Location' : 'Add New Location'}</h5>
+                    <button type="button" className="btn-close btn-close-white" 
+                            onClick={() => {
+                                setShowFormCanvas(false);
+                                resetForm();
+                            }}></button>
                 </div>
                 <div className="offcanvas-body">
                     <form onSubmit={handleSubmit}>
                         <div className="mb-3">
-                            <label>Primary Location</label>
-                            <input className="form-control" value={primaryLocation} onChange={(e) => setPrimaryLocation(e.target.value)} />
+                            <label className="form-label">Primary Location*</label>
+                            <input className="form-control" 
+                                   value={primaryLocation} 
+                                   onChange={(e) => setPrimaryLocation(e.target.value)} 
+                                   required />
                         </div>
                         <div className="mb-3">
-                            <label>Primary SubLocation</label>
-                            <input className="form-control" value={primarySubLocation} onChange={(e) => setPrimarySubLocation(e.target.value)} />
+                            <label className="form-label">Primary SubLocation</label>
+                            <input className="form-control" 
+                                   value={primarySubLocation} 
+                                   onChange={(e) => setPrimarySubLocation(e.target.value)} />
                         </div>
 
-                        {secondaryLocations.map((sec, secIndex) => (
-                            <div key={secIndex} className="border p-3 mb-3 rounded position-relative">
-                                {secondaryLocations.length > 1 && (
-                                    <button type="button" className="btn-close position-absolute top-0 end-0" onClick={() => removeSecondary(secIndex)} />
-                                )}
-                                <input
-                                    className="form-control mb-2"
-                                    placeholder="Secondary Location"
-                                    value={sec.SecondaryLocation}
-                                    onChange={(e) => handleSecondaryChange(secIndex, 'SecondaryLocation', e.target.value)}
-                                />
-                                <input
-                                    className="form-control mb-3"
-                                    placeholder="SubLocation"
-                                    value={sec.SubLocation}
-                                    onChange={(e) => handleSecondaryChange(secIndex, 'SubLocation', e.target.value)}
-                                />
-
-                                {sec.ThirdLocation.map((third, thirdIndex) => (
-                                    <div key={thirdIndex} className="border p-2 mb-2 rounded position-relative ms-3">
-                                        {sec.ThirdLocation.length > 1 && (
-                                            <button type="button" className="btn-close position-absolute top-0 end-0" onClick={() => removeThird(secIndex, thirdIndex)} />
-                                        )}
-                                        <input
-                                            className="form-control mb-2"
-                                            placeholder="Third Location"
-                                            value={third.ThirdLocation}
-                                            onChange={(e) => handleThirdChange(secIndex, thirdIndex, 'ThirdLocation', e.target.value)}
-                                        />
+                        <div className="mb-4">
+                            <h6>Secondary Locations</h6>
+                            {secondaryLocations.map((sec, secIndex) => (
+                                <div key={secIndex} className="border p-3 mb-3 rounded position-relative bg-light">
+                                    {secondaryLocations.length > 1 && (
+                                        <button type="button" 
+                                                className="btn-close position-absolute top-0 end-0 m-2" 
+                                                onClick={() => removeSecondary(secIndex)} />
+                                    )}
+                                    <div className="mb-3">
+                                        <label className="form-label">Secondary Location*</label>
                                         <input
                                             className="form-control"
-                                            placeholder="SubLocation"
-                                            value={third.SubLocation}
-                                            onChange={(e) => handleThirdChange(secIndex, thirdIndex, 'SubLocation', e.target.value)}
+                                            value={sec.SecondaryLocation}
+                                            onChange={(e) => handleSecondaryChange(secIndex, 'SecondaryLocation', e.target.value)}
+                                            required
                                         />
                                     </div>
-                                ))}
-                                <button type="button" className="btn btn-sm btn-secondary ms-2" onClick={() => addThird(secIndex)}>Add Third Location</button>
-                            </div>
-                        ))}
+                                    <div className="mb-3">
+                                        <label className="form-label">SubLocation</label>
+                                        <input
+                                            className="form-control"
+                                            value={sec.SubLocation}
+                                            onChange={(e) => handleSecondaryChange(secIndex, 'SubLocation', e.target.value)}
+                                        />
+                                    </div>
 
-                        <button type="button" className="btn btn-secondary mb-3" onClick={addSecondary}>Add Secondary Location</button>
-                        <div>
-                            <button type="submit" className="btn btn-primary me-2">Submit</button>
-                            <button type="button" className="btn btn-outline-secondary" onClick={() => setShowFormCanvas(false)}>Cancel</button>
+                                    <div className="mb-3">
+                                        <h6>Third Locations</h6>
+                                        {sec.ThirdLocation.map((third, thirdIndex) => (
+                                            <div key={thirdIndex} className="border p-2 mb-2 rounded position-relative ms-3 bg-white">
+                                                {sec.ThirdLocation.length > 1 && (
+                                                    <button type="button" 
+                                                            className="btn-close position-absolute top-0 end-0 m-1" 
+                                                            onClick={() => removeThird(secIndex, thirdIndex)} />
+                                                )}
+                                                <div className="mb-2">
+                                                    <label className="form-label">Third Location</label>
+                                                    <input
+                                                        className="form-control"
+                                                        value={third.ThirdLocation}
+                                                        onChange={(e) => handleThirdChange(secIndex, thirdIndex, 'ThirdLocation', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="form-label">SubLocation</label>
+                                                    <input
+                                                        className="form-control"
+                                                        value={third.SubLocation}
+                                                        onChange={(e) => handleThirdChange(secIndex, thirdIndex, 'SubLocation', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button type="button" 
+                                                className="btn btn-sm btn-outline-secondary mt-2 ms-3" 
+                                                onClick={() => addThird(secIndex)}>
+                                            <i className="bi bi-plus"></i> Add Third Location
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            <button type="button" 
+                                    className="btn btn-outline-secondary" 
+                                    onClick={addSecondary}>
+                                <i className="bi bi-plus"></i> Add Secondary Location
+                            </button>
+                        </div>
+
+                        <div className="d-flex justify-content-end mt-4">
+                            <button type="button" 
+                                    className="btn btn-outline-secondary me-2" 
+                                    onClick={() => {
+                                        setShowFormCanvas(false);
+                                        resetForm();
+                                    }}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn btn-primary">
+                                {isEditing ? (
+                                    <>
+                                        <i className="bi bi-check-circle me-2"></i>Update Location
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-plus-circle me-2"></i>Create Location
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
 
             {/* View Location Off-Canvas */}
-            <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} style={{ visibility: showViewCanvas ? 'visible' : 'hidden' }}>
-                <div className="offcanvas-header">
-                    <h5>View Location</h5>
-                    <button className="btn-close" onClick={() => setShowViewCanvas(false)}></button>
+             <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} 
+                 style={{ visibility: showViewCanvas ? 'visible' : 'hidden', width: '500px' }}>
+                <div className="offcanvas-header  text-black">
+                    <h5 className="offcanvas-title">Location Details</h5>
+                    <button type="button" 
+                            className="btn-close btn-close-black" 
+                            onClick={closeViewCanvas} 
+                            aria-label="Close"></button>
                 </div>
                 <div className="offcanvas-body">
                     {selectedLocation && (
                         <>
-                            <h6><strong>Primary Location:</strong> {selectedLocation.PrimaryLocation}</h6>
-                            <p><strong>SubLocation:</strong> {selectedLocation.SubLocation}</p>
+                            <div className="mb-4">
+                                <h6 className="text-muted">Primary Location</h6>
+                                <h4>{selectedLocation.PrimaryLocation}</h4>
+                                <p className="text-muted">{selectedLocation.SubLocation}</p>
+                            </div>
 
-                            <h6 className="mt-4">Secondary Locations</h6>
-                            <ol className="ps-3">
-                                {selectedLocation.SecondaryLocation.map((sec, idx) => (
-                                    <li key={idx} className="mb-3">
-                                        <div className="accordion" id={`accordion-secondary-${idx}`}>
-                                            <div className="accordion-item">
-                                                <h2 className="accordion-header" id={`heading-secondary-${idx}`}>
-                                                    <button
-                                                        className="accordion-button collapsed"
-                                                        type="button"
-                                                        data-bs-toggle="collapse"
-                                                        data-bs-target={`#collapse-secondary-${idx}`}
-                                                        aria-expanded="false"
-                                                        aria-controls={`collapse-secondary-${idx}`}
-                                                    >
-                                                        {sec.SecondaryLocation}
+                            <div className="mb-4">
+                                <h6 className="text-muted mb-3">Secondary Locations</h6>
+                                {selectedLocation.SecondaryLocation?.length > 0 ? (
+                                    <div className="accordion" id="secondaryLocationsAccordion">
+                                        {selectedLocation.SecondaryLocation.map((sec, idx) => (
+                                            <div key={idx} className="accordion-item mb-2">
+                                                <h2 className="accordion-header">
+                                                    <button className="accordion-button collapsed" 
+                                                            type="button" 
+                                                            data-bs-toggle="collapse" 
+                                                            data-bs-target={`#collapseSec-${idx}`}>
+                                                        {sec.SecondaryLocation || 'Unnamed Secondary Location'}
                                                     </button>
                                                 </h2>
-                                                <div
-                                                    id={`collapse-secondary-${idx}`}
-                                                    className="accordion-collapse collapse"
-                                                    aria-labelledby={`heading-secondary-${idx}`}
-                                                    data-bs-parent={`#accordion-secondary-${idx}`}
-                                                >
+                                                <div id={`collapseSec-${idx}`} 
+                                                     className="accordion-collapse collapse" 
+                                                     data-bs-parent="#secondaryLocationsAccordion">
                                                     <div className="accordion-body">
-                                                        <p><strong>Secondary Location:</strong> {sec.SecondaryLocation}</p>
-                                                        <p><strong>Sub Secondary Location:</strong> {sec.SubLocation}</p>
-
+                                                        <p><strong>SubLocation:</strong> {sec.SubLocation || 'N/A'}</p>
+                                                        
                                                         <h6 className="mt-3">Third Locations</h6>
-                                                        {sec.ThirdLocation.length > 0 ? (
-                                                            <ol className="ps-3">
+                                                        {sec.ThirdLocation?.length > 0 ? (
+                                                            <ul className="list-group list-group-flush">
                                                                 {sec.ThirdLocation.map((third, thirdIdx) => (
-                                                                    <li key={thirdIdx} className="mb-2">
-                                                                        <div className="accordion" id={`accordion-third-${idx}-${thirdIdx}`}>
-                                                                            <div className="accordion-item">
-                                                                                <h2 className="accordion-header" id={`heading-third-${idx}-${thirdIdx}`}>
-                                                                                    <button
-                                                                                        className="accordion-button collapsed"
-                                                                                        type="button"
-                                                                                        data-bs-toggle="collapse"
-                                                                                        data-bs-target={`#collapse-third-${idx}-${thirdIdx}`}
-                                                                                        aria-expanded="false"
-                                                                                        aria-controls={`collapse-third-${idx}-${thirdIdx}`}
-                                                                                    >
-                                                                                        {third.ThirdLocation}
-                                                                                    </button>
-                                                                                </h2>
-                                                                                <div
-                                                                                    id={`collapse-third-${idx}-${thirdIdx}`}
-                                                                                    className="accordion-collapse collapse"
-                                                                                    aria-labelledby={`heading-third-${idx}-${thirdIdx}`}
-                                                                                    data-bs-parent={`#accordion-third-${idx}-${thirdIdx}`}
-                                                                                >
-                                                                                    <div className="accordion-body">
-                                                                                        <p><strong>Third Location:</strong> {third.ThirdLocation}</p>
-                                                                                        <p><strong>Sub Third Location:</strong> {third.SubLocation}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
+                                                                    <li key={thirdIdx} className="list-group-item">
+                                                                        <p><strong>Location:</strong> {third.ThirdLocation || 'N/A'}</p>
+                                                                        <p><strong>SubLocation:</strong> {third.SubLocation || 'N/A'}</p>
                                                                     </li>
                                                                 ))}
-                                                            </ol>
+                                                            </ul>
                                                         ) : (
-                                                            <p className="text-muted">No Third Locations</p>
+                                                            <p className="text-muted">No third locations</p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ol>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-muted">No secondary locations</p>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
             </div>
-
-
-
         </div>
     );
 }

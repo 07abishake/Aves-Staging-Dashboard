@@ -5,6 +5,14 @@ import 'leaflet/dist/leaflet.css';
 import debounce from "lodash.debounce";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 
+const timeOptions = [
+    "12:00am", "12:30am", "1:00am", "1:30am", "2:00am", "2:30am", "3:00am", "3:30am",
+    "4:00am", "4:30am", "5:00am", "5:30am", "6:00am", "6:30am", "7:00am", "7:30am",
+    "8:00am", "8:30am", "9:00am", "9:30am", "10:00am", "10:30am", "11:00am", "11:30am",
+    "12:00pm", "12:30pm", "1:00pm", "1:30pm", "2:00pm", "2:30pm", "3:00pm", "3:30pm",
+    "4:00pm", "4:30pm", "5:00pm", "5:30pm", "6:00pm", "6:30pm", "7:00pm", "7:30pm",
+    "8:00pm", "8:30pm", "9:00pm", "9:30pm", "10:00pm", "10:30pm", "11:00pm", "11:30pm"
+];
 function Patrol() {
     const [patrolName, setPatrolName] = useState('');
     const [locations, setLocations] = useState([]);
@@ -17,13 +25,16 @@ function Patrol() {
     const [showViewCanvas, setShowViewCanvas] = useState(false);
     const [selectedPatrol, setSelectedPatrol] = useState(null);
     const [patrols, setPatrols] = useState([]);
-     const [assignedPatrols, setAssignedPatrols] = useState([]);
+    const [assignedPatrols, setAssignedPatrols] = useState([]);
     const [users, setUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState('');
+    const [selectedUser, setSelectedUser] = useState("");
     const [selectedPatrolToAssign, setSelectedPatrolToAssign] = useState('');
     const [showAssignCanvas, setShowAssignCanvas] = useState(false);
     const [waypointMode, setWaypointMode] = useState(false);
-
+    const [listOfUsers, setListOfUsers] = useState([]);
+    const [date, setDate] = useState('');
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
     const token = localStorage.getItem("access_token");
     if (!token) {
         window.location.href = "/login";
@@ -34,36 +45,63 @@ function Patrol() {
         fetchPatrols();
     }, []);
 
+    const fetchLeads = async () => {
+        try {
+            const response = await axios.get("https://api.avessecurity.com/api/Department/getDropdown", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+            if (response.data && response.data.user) {
+                setListOfUsers(response.data.user);
+            }
+            // console.log("list of users : ", response.data.user);
+            // if (response.data && response.data.user) {
+            //     const userOptions = response.data.user.map((use) => ({
+            //         value: use._id,
+            //         username: use.username,
+            //     }));
+            //     setListOfUsers(userOptions);
+            // }
+        } catch (error) {
+            console.error("Error fetching leads:", error);
+        }
+    };
+
+    useEffect(() => {
+
+        fetchLeads();
+    }, []);
     const fetchLocations = () => {
         axios.get('https://api.avessecurity.com/api/Location/getLocations', {
             headers: {
                 Authorization: `Bearer ${token}`
             }
         })
-        .then(res => setLocations(res.data.Location))
-        .catch(err => console.error('Error fetching locations:', err));
+            .then(res => setLocations(res.data.Location))
+            .catch(err => console.error('Error fetching locations:', err));
     };
 
-   const fetchPatrols = () => {
-    axios.get('https://api.avessecurity.com/api/Patrol/getAllcreatedPatroll', {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    })
-    .then(res => {
-        // Check if response has data property and it's an array
-        if (res.data && res.data.data && Array.isArray(res.data.data)) {
-            setPatrols(res.data.data);
-        } else {
-            console.error('Unexpected patrols data structure:', res.data);
-            setPatrols([]);
-        }
-    })
-    .catch(err => {
-        console.error('Error fetching patrols:', err);
-        setPatrols([]);
-    });
-};
+    const fetchPatrols = () => {
+        axios.get('https://api.avessecurity.com/api/Patrol/getAllcreatedPatroll', {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
+            .then(res => {
+                // Check if response has data property and it's an array
+                if (res.data && res.data.data && Array.isArray(res.data.data)) {
+                    setPatrols(res.data.data);
+                } else {
+                    console.error('Unexpected patrols data structure:', res.data);
+                    setPatrols([]);
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching patrols:', err);
+                setPatrols([]);
+            });
+    };
 
     const openFormCanvas = () => {
         setPatrolName('');
@@ -136,33 +174,74 @@ function Patrol() {
         setCurrentCheckpoint(index);
         setWaypointMode(true);
     };
-
-    const handleSubmit = () => {
-        const payload = {
-            Name: patrolName,
-            Location: selectedThird,
-            CheckPoints: checkpoints.map(cp => ({
-                Name: cp.name,
-                Location: cp.location,
-                Waypoints: cp.waypoints.map(wp => ({
-                    Name: wp.name,
-                    Coordinates: wp.coordinates,
-                    selfieRequired: wp.selfieRequired
-                }))
-            }))
+    // console.log("selected user : ", selectedUser)
+    const handleAssignPatrol = async () => {
+        if (!selectedUser || !date || !startTime || !endTime || !selectedPatrolToAssign) {
+            alert("Please fill in all fields.");
+            return;
+        }
+        const data = {
+            userId: selectedUser,
+            Date: date,
+            patrollSetId: selectedPatrolToAssign,
+            StartedAt: startTime,
+            EndedAt: endTime,
         };
+
+        console.log("Assign Patrol Data: ", data);
+        try {
+            const response = await axios.post("https://api.avessecurity.com/api/Patrol/Assign", data, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+            if (response.status === 200) {
+                alert("Patrol Assigned Successfully!");
+                setShowAssignCanvas(false);
+                // Optionally clear state here
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to assign patrol.");
+        }
+    };
+    const handleSubmit = () => {
+   const payload = {
+    Name: patrolName,
+    Location: selectedThird,
+    CheckPoints: checkpoints.map(cp => ({
+      Name: cp.name,
+      Location: { 
+        lat: cp.location.lat,
+        lng: cp.location.lng,
+        // For backward compatibility
+        latitude: cp.location.lat,
+        longitude: cp.location.lng
+      },
+      Waypoints: cp.waypoints.map(wp => ({
+        Name: wp.name,
+        Coordinates: { 
+          lat: wp.coordinates.lat,
+          lng: wp.coordinates.lng,
+          latitude: wp.coordinates.lat,
+          longitude: wp.coordinates.lng
+        },
+        selfieRequired: wp.selfieRequired
+      }))
+    }))
+  };
 
         axios.post('https://api.avessecurity.com/api/Patrol/create', payload, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
         })
-        .then(() => {
-            alert('Patrol created successfully!');
-            setShowFormCanvas(false);
-            fetchPatrols();
-        })
-        .catch(err => console.error('Submit error:', err));
+            .then(() => {
+                alert('Patrol created successfully!');
+                setShowFormCanvas(false);
+                fetchPatrols();
+            })
+            .catch(err => console.error('Submit error:', err));
     };
 
     const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
@@ -170,44 +249,45 @@ function Patrol() {
         getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
     const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
 
-     const fetchUsers = debounce(async (query) => {
-             if (!query) return;
-             try {
-                 const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`,{
-                     headers:{
-                         Authorization: `Bearer ${token}`,
-                     }
-                 });
-                 if (response.data && response.data.Report) {
-                     const userOptions = response.data.Report.map((user) => ({
-                         value: user._id,
-                         label: user.username,
-                     }));
-                     setUsers(userOptions);
-                 }
-             } catch (error) {
-                 console.error("Error fetching users:", error);
-             }
-         }, 500);
+    const fetchUsers = debounce(async (query) => {
+        if (!query) return;
+        try {
+            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+            if (response.data && response.data.Report) {
+                const userOptions = response.data.Report.map((user) => ({
+                    value: user._id,
+                    label: user.username,
+                }));
+                setUsers(userOptions);
+            }
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        }
+    }, 500);
 
     const fetchAssignedPatrols = () => {
-        axios.get('http://api.avessecurity.com:6378/api/Patrol/getAllPatrol', {
+        axios.get('https://api.avessecurity.com/api/Patrol/getAllPatrol', {
             headers: {
                 Authorization: `Bearer ${token}`
             }
         })
-        .then(res => {
-            if (res.data && Array.isArray(res.data)) {
-                setAssignedPatrols(res.data);
-            } else {
-                console.error('Unexpected assigned patrols data structure:', res.data);
+            .then(res => {
+                console.log("assigned patrols : ", res.data);
+                if (res.data && Array.isArray(res.data.assignedPatrols)) {
+                    setAssignedPatrols(res.data.assignedPatrols);
+                } else {
+                    console.error('Unexpected assigned patrols data structure:', res.data);
+                    setAssignedPatrols([]);
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching assigned patrols:', err);
                 setAssignedPatrols([]);
-            }
-        })
-        .catch(err => {
-            console.error('Error fetching assigned patrols:', err);
-            setAssignedPatrols([]);
-        });
+            });
     };
 
     const openAssignCanvas = (patrolId) => {
@@ -215,31 +295,9 @@ function Patrol() {
         setShowAssignCanvas(true);
     };
 
-    const handleAssignPatrol = () => {
-        const payload = {
-            userId: selectedUser,
-            patrollSetId: selectedPatrolToAssign,
-            Date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
-            StartedAt: "10.00pm", // Default value, you can make this configurable
-            EndedAt: "12.20pm"    // Default value, you can make this configurable
-        };
-
-        axios.post('https://api.avessecurity.com/api/Patrol/Assign', payload, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
-        .then(() => {
-            alert('Patrol assigned successfully!');
-            setShowAssignCanvas(false);
-            fetchAssignedPatrols();
-        })
-        .catch(err => {
-            console.error('Error assigning patrol:', err);
-            alert('Error assigning patrol');
-        });
-    };
-
+    useEffect(() => {
+        fetchAssignedPatrols()
+    }, [])
     // ... (keep all your existing functions like openFormCanvas, handleDeletePatrol, etc.)
 
     return (
@@ -298,9 +356,10 @@ function Patrol() {
                         const patrol = patrols.find(p => p._id === assignment.patrollSetId);
                         return (
                             <tr key={assignment._id}>
-                                <td>{user ? user.name : 'Unknown User'}</td>
-                                <td>{patrol ? patrol.Name : 'Unknown Patrol'}</td>
-                                <td>{assignment.Date}</td>
+                                <td>{assignment?.userId ? assignment?.userId.Name : 'Unknown User'}</td>
+                                <td>{assignment?.PatrolSet ? assignment?.PatrolSet.Name : 'Unknown Patrol'}</td>
+                                <td>{new Date(assignment.Date).toLocaleDateString('en-GB')}</td>
+
                                 <td>{assignment.StartedAt}</td>
                                 <td>{assignment.EndedAt}</td>
                             </tr>
@@ -318,57 +377,68 @@ function Patrol() {
                 <div className="offcanvas-body">
                     <div className="mb-3">
                         <label className="form-label">Select User</label>
-                        <select 
-                            className="form-select" 
-                            value={selectedUser} 
-                            onChange={e => setSelectedUser(e.target.value)}
+                        <select
+                            className="form-select"
+                            value={selectedUser}
+                            onChange={(e) => setSelectedUser(e.target.value)}
                         >
                             <option value="">-- Select User --</option>
-                            {users.map(user => (
-                                <option key={user._id} value={user._id}>{user.name}</option>
+                            {listOfUsers.map((user) => (
+                                <option key={user._id} value={user._id}>
+                                    {user.username}
+                                </option>
+                            ))}
+                        </select>
+                        <p>Selected User ID: {selectedUser}</p>
+
+
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="form-label">Patrol</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''}
+                            readOnly
+                        />
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="form-label">Date</label>
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="form-label">Start Time</label>
+                        <select className="form-select" value={startTime} onChange={e => setStartTime(e.target.value)}>
+                            <option value="">-- Select Start Time --</option>
+                            {timeOptions.map(time => (
+                                <option key={time} value={time}>{time}</option>
                             ))}
                         </select>
                     </div>
-                    <div className="mb-3">
-                        <label className="form-label">Patrol</label>
-                        <input 
-                            type="text" 
-                            className="form-control" 
-                            value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''} 
-                            readOnly 
-                        />
-                    </div>
-                    <div className="mb-3">
-                        <label className="form-label">Date</label>
-                        <input 
-                            type="date" 
-                            className="form-control" 
-                            value={new Date().toISOString().split('T')[0]} 
-                            readOnly 
-                        />
-                    </div>
-                    <div className="mb-3">
-                        <label className="form-label">Start Time</label>
-                        <input 
-                            type="text" 
-                            className="form-control" 
-                            value="10.00pm" 
-                            onChange={e => {/* You can make this editable if needed */}}
-                        />
-                    </div>
+
                     <div className="mb-3">
                         <label className="form-label">End Time</label>
-                        <input 
-                            type="text" 
-                            className="form-control" 
-                            value="12.20pm" 
-                            onChange={e => {/* You can make this editable if needed */}}
-                        />
+                        <select className="form-select" value={endTime} onChange={e => setEndTime(e.target.value)}>
+                            <option value="">-- Select End Time --</option>
+                            {timeOptions.map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
+                        </select>
                     </div>
-                    <button 
-                        className="btn btn-primary" 
+
+                    <button
+                        className="btn btn-primary"
                         onClick={handleAssignPatrol}
-                        disabled={!selectedUser}
+                        disabled={!selectedUser || !date || !startTime || !endTime}
                     >
                         Assign Patrol
                     </button>
@@ -469,7 +539,7 @@ function Patrol() {
                     {selectedPatrol && (
                         <>
                             <h6><strong>Patrol Name:</strong> {selectedPatrol.Name}</h6>
-                            
+
                             <h6 className="mt-4">Checkpoints</h6>
                             <ol className="ps-3">
                                 {selectedPatrol.CheckPoints.map((checkpoint, idx) => (
@@ -495,15 +565,25 @@ function Patrol() {
                                                     data-bs-parent={`#accordion-checkpoint-${idx}`}
                                                 >
                                                     <div className="accordion-body">
-                                                        <p><strong>Location:</strong> Lat: {checkpoint.Location.latitude}, Lng: {checkpoint.Location.longitude}</p>
-                                                        
+                                                        <p><strong>Location:</strong> 
+  {checkpoint.Location ? 
+    `Lat: ${checkpoint.Location.lat || checkpoint.Location.latitude}, 
+     Lng: ${checkpoint.Location.lng || checkpoint.Location.longitude}` : 
+    'Location not available'}
+</p>
+
                                                         <h6 className="mt-3">Waypoints</h6>
                                                         {checkpoint.Waypoints && checkpoint.Waypoints.length > 0 ? (
                                                             <ul className="ps-3">
                                                                 {checkpoint.Waypoints.map((waypoint, wayIdx) => (
                                                                     <li key={wayIdx} className="mb-2">
                                                                         <p><strong>{waypoint.Name}</strong></p>
-                                                                        <p>Coordinates: Lat: {waypoint.Coordinates.latitude}, Lng: {waypoint.Coordinates.longitude}</p>
+                                                                      <p>Coordinates: 
+  {waypoint.Coordinates ? 
+    `Lat: ${waypoint.Coordinates.lat || waypoint.Coordinates.latitude}, 
+     Lng: ${waypoint.Coordinates.lng || waypoint.Coordinates.longitude}` : 
+    'Coordinates not available'}
+</p>
                                                                         <p>Selfie Required: {waypoint.selfieRequired ? 'Yes' : 'No'}</p>
                                                                         {waypoint.qrCode && (
                                                                             <img src={waypoint.qrCode} alt="QR Code" style={{ width: '100px', height: '100px' }} />

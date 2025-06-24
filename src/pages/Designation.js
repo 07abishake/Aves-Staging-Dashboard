@@ -17,6 +17,12 @@ function Designation() {
     const [selectedDesignation, setSelectedDesignation] = useState(null);
     const [searchUser, setSearchUser] = useState(""); // For filtering users
     const [isCreating, setIsCreating] = useState(false);
+    const [showEditCanvas, setShowEditCanvas] = useState(false);
+   const [editDesignationId, setEditDesignationId] = useState(null);
+   const [editDesignationName, setEditDesignationName] = useState("");
+   const [editSelectedUsers, setEditSelectedUsers] = useState([]);
+    const [editInputValue, setEditInputValue] = useState("");
+    const [editMenuOpen, setEditMenuOpen] = useState(false);
 
     const [designations, setDesignations] = useState([]); // Store fetched designations
     const handleDesignationClick = (designation) => {
@@ -76,11 +82,27 @@ function Designation() {
         fetchDesignations();
     }, []);
 
+    {/*open Edit canvas function*/}
+
+    const handleEditClick = (designation) => {
+    setEditDesignationId(designation._id);
+    setEditDesignationName(designation.Name);
+    if (designation.AssignUsers) {
+        const formattedUsers = designation.AssignUsers.map(user => ({
+            value: user._id,
+            label: user.username
+        }));
+        setEditSelectedUsers(formattedUsers);
+    }
+    setShowEditCanvas(true);
+};
+
+
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!designationName || selectedUsers.length === 0) {
-            alert("Please fill in all fields");
+        if (!designationName ) {
+            alert("Please fill in Designation fields");
             return;
         }
 
@@ -108,6 +130,46 @@ function Designation() {
             setLoading(false);
         }
     };
+
+
+    {/*Handle function to edit */}
+const handleEditSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!editDesignationName || editSelectedUsers.length === 0) {
+        alert("Please fill in all fields");
+        return;
+    }
+
+    const payload = {
+        Name: editDesignationName,
+        AssignUsersID: editSelectedUsers.map(user => user.value)
+    };
+
+    try {
+        setLoading(true);
+        const response = await axios.put(
+            `https://api.avessecurity.com/api/Designation/update/${editDesignationId}`,
+            payload,
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+
+        if (response.status === 200) {
+            alert("Designation updated successfully");
+            setShowEditCanvas(false);
+            fetchDesignations();
+        }
+    } catch (error) {
+        console.error("Error updating designation:", error);
+        alert("Failed to update designation");
+    } finally {
+        setLoading(false);
+    }
+};
+
+
     const handleDeleteDesignation = async (userId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this user?");
         if (!confirmDelete) return; // If user clicks 'Cancel', just exit
@@ -168,7 +230,9 @@ function Designation() {
                                                         <td>
                                                             {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
                                                             <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleDesignationClick(designation)}><i class="bi bi-eye"></i></button>
-                                                            <button className="btn btn-sm btn-outline-primary me-2" ><i class="bi bi-pencil-square"></i></button>
+                                                         <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditClick(designation)}>
+                                                          <i className="bi bi-pencil-square"></i>
+                                                           </button>
                                                             <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteDesignation(designation._id)}><i class="bi bi-trash"></i></button>
                                                         </td>
                                                     </tr>
@@ -286,6 +350,53 @@ function Designation() {
                     </div>
 
                 }
+<div className={`p-4 offcanvas-custom ${showEditCanvas ? 'show' : ""}`}>
+    <div className="offcanvas-header mb-3">
+        <h5 className="offcanvas-title">Edit Designation</h5>
+        <button type="button" className="btn-close" onClick={() => setShowEditCanvas(false)} style={{ position: "absolute", right: "30px" }}></button>
+    </div>
+    <div className="offcanvas-body p-2">
+        <form onSubmit={handleEditSubmit} style={{ height: "500px" }}>
+            <div className='d-flex mb-3 justify-content-between'>
+                <label className="form-label me-2 mb-0 mt-1">Name</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    value={editDesignationName}
+                    onChange={(e) => setEditDesignationName(e.target.value)}
+                    placeholder="Enter designation name"
+                    style={{ width: "66%" }}
+                />
+            </div>
+
+            <div className="mb-3 d-flex justify-content-around">
+                <label className="form-label me-2 mb-0 mt-1 w-50">Assign Users</label>
+                <Select
+                    options={users}
+                    value={editSelectedUsers}
+                    onChange={setEditSelectedUsers}
+                    onInputChange={(value) => {
+                        setEditInputValue(value);
+                        setEditMenuOpen(!!value);
+                    }}
+                    placeholder="Search users..."
+                    isMulti
+                    isSearchable
+                    menuIsOpen={editMenuOpen}
+                    className="w-100 dept-user-select"
+                    noOptionsMessage={() => "No matching users"}
+                />
+            </div>
+
+            <div className='text-end'>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? "Updating..." : "Update"}
+                </button>
+                <button type="button" className="btn" onClick={() => setShowEditCanvas(false)}>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
 
             </div>
         }

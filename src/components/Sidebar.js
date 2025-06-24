@@ -69,17 +69,19 @@
 // export default Sidebar;
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import logo from '../components/Images/Logo.svg'
+import logo from '../components/Images/Logo.png'
 
 function Sidebar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const [inventoryMenuOpen, setInventoryMenuOpen] = useState(false);
+  const [LocationMenuOpen, setLocationMenuOpen] = useState(false);
 
   return (
     <nav className="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse">
       <div className="position-sticky pt-3">
         <div>
-          <img src={logo} alt="Logo" className="logo" />
+       <img src={logo} alt="Logo" className="logo" style={{ width: '200px', height: '100px' }} />
         </div>
         <ul className="nav flex-column">
           <li className="nav-item">
@@ -114,6 +116,27 @@ function Sidebar() {
             )}
           </li>
 
+
+ <li className="nav-item">
+            <div className="nav-link" onClick={() => setInventoryMenuOpen(!inventoryMenuOpen)}>
+              <i className="bi bi-people me-2"></i>
+              Inventory
+              <i className={`bi ms-auto ${inventoryMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+            </div>
+            {inventoryMenuOpen && (
+              <ul className="nav flex-column ms-3">
+                <li className="nav-item">
+                  <NavLink to="/items-details" className="nav-link">Add Product</NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink to="/loaction-info" className="nav-link">LocationInfo</NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink to="/inventory-status" className="nav-link">Inventory Status</NavLink>
+                </li>
+              </ul>
+            )}
+          </li>
           {/* Organization Menu */}
           <li className="nav-item">
             <div className="nav-link" onClick={() => setOrgMenuOpen(!orgMenuOpen)}>
@@ -127,12 +150,30 @@ function Sidebar() {
                   <NavLink to="/organization" className="nav-link">Company Info</NavLink>
                 </li>
                 <li className="nav-item">
-                  <NavLink to="/organization/configuration" className="nav-link">Configuration</NavLink>
+                  <NavLink to="/organisation-chart" className="nav-link">OrganisastionChart</NavLink>
                 </li>
               </ul>
             )}
           </li>
-
+          {/* Location Menu */}
+          
+<li className="nav-item">
+            <div className="nav-link" onClick={() => setLocationMenuOpen(!LocationMenuOpen)}>
+              <i className="bi bi-building me-2"></i>
+              Location
+              <i className={`bi ms-auto ${LocationMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+            </div>
+            {LocationMenuOpen && (
+              <ul className="nav flex-column ms-3">
+                <li className="nav-item">
+                  <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink to="/location" className="nav-link">Location</NavLink>
+                </li>
+              </ul>
+            )}
+          </li>
           <li className="nav-item">
             <NavLink to="/permissions" className="nav-link">
               <i className="bi bi-shield-lock me-2"></i>
@@ -163,10 +204,10 @@ function Sidebar() {
               Reports & Analytics
             </NavLink>
           </li>
-          <li className="nav-item">
-            <NavLink to="/location/add-location" className="nav-link">
-              <i className="bi bi-geo-alt me-2"></i>
-              Geo Location
+             <li className="nav-item">
+            <NavLink to="/OccurrenceManager" className="nav-link">
+              <i className="bi bi-exclamation-triangle me-2 text-orange"></i>
+              Occurance
             </NavLink>
           </li>
           <li className="nav-item">
@@ -175,18 +216,13 @@ function Sidebar() {
               Patrol
             </NavLink>
           </li>
-          <li className="nav-item">
-            <NavLink to="/location/add-location" className="nav-link">
-              <i className="bi bi-geo-alt me-2"></i>
-              Inventory
+             <li className="nav-item">
+            <NavLink to="/sop" className="nav-link">
+              <i className="bi bi-folder me-2"></i>
+              Sop
             </NavLink>
           </li>
-          <li className="nav-item">
-            <NavLink to="/location" className="nav-link">
-              <i className="bi bi-geo-alt me-2"></i>
-              Location
-            </NavLink>
-          </li>
+        
           {/* <li className="nav-item">
             <div className="nav-link" onClick={() => setLocationMenuOpen(!locationMenuOpen)}>
               <i class="bi bi-geo-alt me-2"></i>

@@ -1,1 +1,55 @@
-node_modules
+# dependencies
+/node_modules/
+
+# production
+/build/
+/dist/
+
+# misc
+.DS_Store
+.env
+.env.*.local
+.npmrc
+.yarnrc
+*.log
+*.lock
+
+# testing
+/coverage/
+*.lcov
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# system
+Thumbs.db
+ehthumbs.db
+
+# local development
+/.pnp
+.pnp.js
+
+# Mac system files
+*.DS_Store
+
+# windows thumbnail cache
+Thumbs.db
+
+# Optional npm cache directory
+.npm/
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional ESLint cache
+.eslintcache
+
+# Next.js build
+.next/
+
+# Storybook
+out/
+.storybook-out/

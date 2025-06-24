@@ -6,6 +6,7 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import debounce from "lodash.debounce";
 import { Spinner } from 'react-bootstrap';
+import { jwtDecode } from 'jwt-decode';
 
 function UserManagement() {
   // MAIN STATE
@@ -21,6 +22,9 @@ function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [userImage, setUserImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [locations,setLocations] = useState([]);
 
   // DATA
   const [departments, setDepartments] = useState([]);
@@ -57,6 +61,28 @@ function UserManagement() {
   if (!token) {
     window.location.href = "/login";
   }
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('access_token');
+    if (savedToken) {
+      const decodedToken = jwtDecode(savedToken);
+      setData(decodedToken);
+    }
+  }, []);
+
+  // Handle image preview
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUserImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Populate edit form with user data
   const populateEditForm = (user) => {
@@ -81,7 +107,7 @@ function UserManagement() {
     setSelectedRole(user.role?._id || '');
     setNRIC(user.NRICNumber || '');
     setLocation(user.Location || '');
-    
+
     // Set reporting user
     if (user.ReportingTo) {
       const reportingUser = {
@@ -92,12 +118,64 @@ function UserManagement() {
     } else {
       setSelectedReportUsers(null);
     }
-    
+
+    // Set image preview if exists
+    if (user.UserImage) {
+      setPreviewImage(`https://api.avessecurity.com/${user.UserImage}`);
+    } else {
+      setPreviewImage(null);
+    }
+
     setPassword('');
     setConfirmPassword('');
+    setUserImage(null);
     setSelectedUserForEdit(user);
   };
 
+
+const getLocationOptions = () => {
+  if (!locations || locations.length === 0) return [];
+
+  const options = [];
+
+  locations.forEach(location => {
+    if (!location.PrimaryLocation) return;
+
+    // Add primary location
+    options.push({
+      value: location._id, // Store the primary location ID
+      label: location.PrimaryLocation
+    });
+
+    // Add secondary locations
+    if (location.SecondaryLocation?.length > 0) {
+      location.SecondaryLocation.forEach(secondary => {
+        if (!secondary.SecondaryLocation) return;
+
+        // Store the secondary location's ID (from the array element)
+        options.push({
+          value: secondary._id,
+          label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation}`
+        });
+
+        // Add third locations
+        if (secondary.ThirdLocation?.length > 0) {
+          secondary.ThirdLocation.forEach(third => {
+            if (!third.ThirdLocation) return;
+
+            // Store the third location's ID (from the array element)
+            options.push({
+              value: third._id,
+              label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation} > ${third.ThirdLocation}`
+            });
+          });
+        }
+      });
+    }
+  });
+
+  return options;
+};
   // Fetch all users
   const fetchAllUsers = async () => {
     try {
@@ -111,6 +189,7 @@ function UserManagement() {
         }
       );
       setAllUsers(response.data.data);
+      console.log(response.data.data);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -130,7 +209,7 @@ function UserManagement() {
           }
         }
       );
-      
+
       const departmentOptions = [];
       response.data.forEach(parent => {
         departmentOptions.push({ value: parent._id, label: parent.name });
@@ -171,6 +250,27 @@ function UserManagement() {
       console.error("Error fetching designations:", error);
     }
   };
+
+
+const fetchLocations = async () => {
+  try {
+    const response = await axios.get(
+      "https://api.avessecurity.com/api/Location/getLocations",
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    console.log("Locations API Response:", response.data); // Debug log
+    if (response.data && response.data.Location) {
+      setLocations(response.data.Location);
+      console.log("Locations set:", response.data.Location); // Debug log
+    }
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+  }
+};
 
   // Fetch roles
   const fetchRoles = async () => {
@@ -221,6 +321,7 @@ function UserManagement() {
     fetchDepartments();
     fetchDesignations();
     fetchRoles();
+    fetchLocations();
   }, []);
 
   // Handle search input for reporting users
@@ -231,48 +332,55 @@ function UserManagement() {
   // Handle create user form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (password !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
 
-    const payload = {
-      FirstName: firstName,
-      LastName: lastName,
-      username: userName,
-      Gender: selectedGender,
-      Department: selectedDepartment || null,
-      Designation: selectedDesignation || null,
-      EmployeeID: employeeId,
-      EmailId: email,
-      WorkPhone: workNumber ? `+${workNumber}` : null,
-      PersonalMobile: phoneNumber ? `+${phoneNumber}` : null,
-      Extension: extension,
-      TimeZone: selectedTimezone?.value || null,
-      role: selectedRole,
-      NRICNumber: NRIC,
-      Location: location,
-      ReportingTo: selectedReportUsers?.value || null,
-      password: password,
-      Repassword: confirmPassword
-    };
+    const formData = new FormData();
+    
+    // Append all the existing fields to formData
+    formData.append('FirstName', firstName);
+    formData.append('LastName', lastName);
+    formData.append('username', userName);
+    formData.append('Gender', selectedGender);
+    if (selectedDepartment) formData.append('Department', selectedDepartment);
+    if (selectedDesignation) formData.append('Designation', selectedDesignation);
+    formData.append('EmployeeID', employeeId);
+    formData.append('EmailId', `${email}@${data?.domain}`);
+    if (workNumber) formData.append('WorkPhone', `+${workNumber}`);
+    if (phoneNumber) formData.append('PersonalMobile', `+${phoneNumber}`);
+    formData.append('Extension', extension);
+    if (selectedTimezone) formData.append('TimeZone', selectedTimezone.value);
+    if (selectedRole) formData.append('role', selectedRole);
+    formData.append('NRICNumber', NRIC);
+    formData.append('Location', location);
+    if (selectedReportUsers) formData.append('ReportingTo', selectedReportUsers.value);
+    formData.append('password', password);
+    formData.append('Repassword', confirmPassword);
+    
+    // Append the image file if it exists
+    if (userImage) {
+      formData.append('UserImage', userImage);
+    }
 
     try {
       setLoading(true);
       const response = await axios.post(
-        "https://api.avessecurity.com/api/users/register", 
-        payload,
+        "https://api.avessecurity.com/api/users/register",
+        formData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
           }
         }
       );
 
       alert(response.data.message);
       setShowCreateCanvas(false);
-      fetchAllUsers(); // Refresh the user list
+      fetchAllUsers();
       resetForm();
     } catch (error) {
       console.error(error.response?.data || error.message);
@@ -285,54 +393,58 @@ function UserManagement() {
   // Handle update user form submission
   const handleSubmitUpdate = async (e) => {
     e.preventDefault();
-    
+
     if (!selectedUserForEdit) return;
 
-    // Only validate passwords if they're being changed
     if (password && password !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
 
-    const payload = {
-      FirstName: firstName,
-      LastName: lastName,
-      username: userName,
-      Gender: selectedGender,
-      Department: selectedDepartment || null,
-      Designation: selectedDesignation || null,
-      EmployeeID: employeeId,
-      EmailId: email,
-      WorkPhone: workNumber ? `+${workNumber}` : null,
-      PersonalMobile: phoneNumber ? `+${phoneNumber}` : null,
-      Extension: extension,
-      TimeZone: selectedTimezone?.value || null,
-      role: selectedRole,
-      NRICNumber: NRIC,
-      Location: location,
-      ReportingTo: selectedReportUsers?.value || null,
-    };
-
-    // Only include password fields if they're filled
+    const formData = new FormData();
+    
+    formData.append('FirstName', firstName);
+    formData.append('LastName', lastName);
+    formData.append('username', userName);
+    formData.append('Gender', selectedGender);
+    if (selectedDepartment) formData.append('Department', selectedDepartment);
+    if (selectedDesignation) formData.append('Designation', selectedDesignation);
+    formData.append('EmployeeID', employeeId);
+    formData.append('EmailId', email);
+    if (workNumber) formData.append('WorkPhone', `+${workNumber}`);
+    if (phoneNumber) formData.append('PersonalMobile', `+${phoneNumber}`);
+    formData.append('Extension', extension);
+    if (selectedTimezone) formData.append('TimeZone', selectedTimezone.value);
+    if (selectedRole) formData.append('role', selectedRole);
+    formData.append('NRICNumber', NRIC);
+    formData.append('Location', location);
+    if (selectedReportUsers) formData.append('ReportingTo', selectedReportUsers.value);
+    
     if (password) {
-      payload.password = password;
-      payload.Repassword = confirmPassword;
+      formData.append('password', password);
+      formData.append('Repassword', confirmPassword);
+    }
+    
+    if (userImage) {
+      formData.append('UserImage', userImage);
     }
 
     try {
       setLoading(true);
-      const response = await axios.put(
+      console.log(selectedUserForEdit._id)
+      const response = await axios.post(
         `https://api.avessecurity.com/api/users/update/${selectedUserForEdit._id}`,
-        payload,
+        formData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
           }
         }
       );
-      
+
       alert("User updated successfully");
-      fetchAllUsers(); // Refresh the user list
+      fetchAllUsers();
       setShowEditCanvas(false);
       resetForm();
     } catch (error) {
@@ -363,6 +475,8 @@ function UserManagement() {
     setSelectedReportUsers(null);
     setPassword("");
     setConfirmPassword("");
+    setUserImage(null);
+    setPreviewImage(null);
   };
 
   // Handle checkbox selections
@@ -375,7 +489,7 @@ function UserManagement() {
   };
 
   const handleSelectUser = (id) => {
-    setSelectedUsers(prev => 
+    setSelectedUsers(prev =>
       prev.includes(id) ? prev.filter(uid => uid !== id) : [...prev, id]
     );
   };
@@ -411,19 +525,18 @@ function UserManagement() {
 
     try {
       setLoading(true);
-      // This assumes your API can handle bulk deletion
-      const deletePromises = selectedUsers.map(userId => 
+      const deletePromises = selectedUsers.map(userId =>
         axios.delete(`https://api.avessecurity.com/api/users/delete/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
       );
-      
+
       await Promise.all(deletePromises);
       alert("Selected users deleted successfully");
-      fetchAllUsers(); // Refresh the list
-      setSelectedUsers([]); // Clear selection
+      fetchAllUsers();
+      setSelectedUsers([]);
     } catch (error) {
       console.error("Error deleting users:", error);
       alert("Error deleting some users");
@@ -440,14 +553,14 @@ function UserManagement() {
 
   // Filter users based on search and status
   const filteredUsers = allUsers.filter(user => {
-    const matchesSearch = search === '' || 
-      user.username.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = search === '' ||
+      user.username.toLowerCase().includes(search.toLowerCase()) ||
       user.EmailId.toLowerCase().includes(search.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'All' || 
-      (statusFilter === 'Active' && user.isActive) || 
+
+    const matchesStatus = statusFilter === 'All' ||
+      (statusFilter === 'Active' && user.isActive) ||
       (statusFilter === 'Inactive' && !user.isActive);
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -455,22 +568,22 @@ function UserManagement() {
     <>
       <div>
         {loading && (
-          <div 
-            className="d-flex justify-content-center align-items-center flex-column" 
-            style={{ 
-              position: "fixed", 
-              top: 0, 
-              left: 0, 
-              width: "100%", 
-              height: "100vh", 
-              backgroundColor: "rgba(0,0,0,0.5)", 
-              zIndex: 1050 
+          <div
+            className="d-flex justify-content-center align-items-center flex-column"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100vh",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              zIndex: 1050
             }}
           >
             <Spinner animation="border" role="status" variant="light" />
           </div>
         )}
-        
+
         <div>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h2>User Management</h2>
@@ -485,9 +598,9 @@ function UserManagement() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <select 
-                className="form-select me-2" 
-                value={statusFilter} 
+              <select
+                className="form-select me-2"
+                value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="All">All Users</option>
@@ -495,8 +608,8 @@ function UserManagement() {
                 <option value="Inactive">Inactive Users</option>
               </select>
             </div>
-            <button 
-              className="btn btn-primary h-50" 
+            <button
+              className="btn btn-primary h-50"
               onClick={() => setShowCreateCanvas(true)}
             >
               Add User
@@ -522,10 +635,10 @@ function UserManagement() {
                   <thead>
                     <tr>
                       <th>
-                        <input 
-                          type="checkbox" 
-                          onChange={handleSelectAll} 
-                          checked={selectedUsers.length === allUsers.length && allUsers.length > 0} 
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={selectedUsers.length === allUsers.length && allUsers.length > 0}
                         />
                       </th>
                       <th>Name</th>
@@ -541,13 +654,29 @@ function UserManagement() {
                       filteredUsers.map(user => (
                         <tr key={user._id}>
                           <td>
-                            <input 
-                              type="checkbox"        
-                              checked={selectedUsers.includes(user._id)} 
-                              onChange={() => handleSelectUser(user._id)}  
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user._id)}
+                              onChange={() => handleSelectUser(user._id)}
                             />
                           </td>
-                          <td>{user.username}</td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              {user.UserImage && (
+                                <img 
+                                  src={`https://api.avessecurity.com/${user.UserImage}`} 
+                                  alt="User" 
+                                  style={{ 
+                                    width: '30px', 
+                                    height: '30px', 
+                                    borderRadius: '50%',
+                                    marginRight: '10px'
+                                  }}
+                                />
+                              )}
+                              {user.username}
+                            </div>
+                          </td>
                           <td>{user.EmailId}</td>
                           <td>{user.Department?.name || "N/A"}</td>
                           <td>
@@ -561,14 +690,14 @@ function UserManagement() {
                             </span>
                           </td>
                           <td>
-                            <button 
-                              className="btn btn-sm btn-outline-primary me-2" 
+                            <button
+                              className="btn btn-sm btn-outline-primary me-2"
                               onClick={() => handleSpecificUserClick(user)}
                             >
                               <i className="bi bi-eye"></i>
                             </button>
-                            <button 
-                              className="btn btn-sm btn-outline-primary me-2" 
+                            <button
+                              className="btn btn-sm btn-outline-primary me-2"
                               onClick={() => {
                                 populateEditForm(user);
                                 setShowEditCanvas(true);
@@ -576,8 +705,8 @@ function UserManagement() {
                             >
                               <i className="bi bi-pencil-square"></i>
                             </button>
-                            <button 
-                              className="btn btn-sm btn-outline-danger" 
+                            <button
+                              className="btn btn-sm btn-outline-danger"
                               onClick={() => handleDeleteUser(user._id)}
                             >
                               <i className="bi bi-trash"></i>
@@ -595,15 +724,15 @@ function UserManagement() {
               </div>
             </div>
           </div>
-          
+
           {/* Create User Canvas */}
           <div className={`p-4 offcanvas-custom ${showCreateCanvas ? "show" : ""}`}>
             <div className="offcanvas-header mb-3">
               <h5 className="offcanvas-title">Add User</h5>
-              <button 
-                type="button" 
-                className="btn-close" 
-                onClick={() => setShowCreateCanvas(false)} 
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowCreateCanvas(false)}
                 style={{ position: "absolute", right: "30px" }}
               ></button>
             </div>
@@ -613,47 +742,78 @@ function UserManagement() {
                   <h6>Basic User Info</h6>
                   <hr className='line w-75'></hr>
                 </div>
+                
+                {/* Image Upload */}
+                <div className="mb-3">
+                  <label htmlFor="userImage" className="form-label">User Image</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    id="userImage"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                  {previewImage && (
+                    <div className="mt-2">
+                      <img 
+                        src={previewImage} 
+                        alt="Preview" 
+                        style={{ 
+                          width: '100px', 
+                          height: '100px', 
+                          borderRadius: '50%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                
                 <div className="mb-3 d-flex">
-                  <input 
-                    type="text" 
-                    className="form-control me-2" 
-                    placeholder="First Name" 
+                  <input
+                    type="text"
+                    className="form-control me-2"
+                    placeholder="First Name"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)} 
-                    required 
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
                   />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Last Name" 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Last Name"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)} 
-                    required 
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
                   />
                 </div>
                 <div className="mb-3 d-flex">
-                  <input 
-                    type="email" 
-                    className="form-control me-2" 
-                    placeholder="Email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)} 
-                    required 
-                  />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="User Name" 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="User Name"
                     value={userName}
-                    onChange={(e) => setUserName(e.target.value)} 
-                    required 
+                    onChange={(e) => setUserName(e.target.value)}
+                    required
                   />
                 </div>
+                <div className="d-flex mb-3">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.trim().split('@')[0])}
+                    required
+                  />
+                  <span className="input-group-text">@{data?.domain}</span>
+                </div>
+
                 <div className="mb-3 d-flex">
-                  <select 
-                    className="form-select me-2" 
-                    value={selectedGender} 
-                    onChange={(e) => setSelectedGender(e.target.value)} 
+                  <select
+                    className="form-select me-2"
+                    value={selectedGender}
+                    onChange={(e) => setSelectedGender(e.target.value)}
                     required
                   >
                     <option value="">Gender</option>
@@ -690,12 +850,12 @@ function UserManagement() {
                   />
                 </div>
                 <div className="mb-3 d-flex">
-                  <input 
-                    type="text" 
-                    className="form-control me-2" 
-                    placeholder="Extension" 
+                  <input
+                    type="text"
+                    className="form-control me-2"
+                    placeholder="Extension"
                     value={extension}
-                    onChange={(e) => setExtension(e.target.value)} 
+                    onChange={(e) => setExtension(e.target.value)}
                   />
                   <PhoneInput
                     value={phoneNumber}
@@ -711,26 +871,26 @@ function UserManagement() {
                   <hr className='line w-75'></hr>
                 </div>
                 <div className="d-flex mb-3">
-                  <input 
-                    type="text" 
-                    className="form-control me-2" 
-                    placeholder="Employee Id" 
+                  <input
+                    type="text"
+                    className="form-control me-2"
+                    placeholder="Employee Id"
                     value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)} 
+                    onChange={(e) => setEmployeeId(e.target.value)}
                   />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="NRIC" 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="NRIC"
                     value={NRIC}
-                    onChange={(e) => setNRIC(e.target.value)} 
-                    required 
+                    onChange={(e) => setNRIC(e.target.value)}
+                    required
                   />
                 </div>
 
                 <h6>Work</h6>
                 <div className="mb-3 d-flex">
-                  <select 
+                  <select
                     className="form-select me-3"
                     value={selectedDesignation}
                     onChange={(e) => setSelectedDesignation(e.target.value)}
@@ -770,13 +930,17 @@ function UserManagement() {
                     className="w-100 dept-user-select me-2"
                     noOptionsMessage={() => "No matching users"}
                   />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Location" 
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)} 
-                  />
+                 
+  <label className="form-label"></label>
+<Select
+  options={getLocationOptions()}
+  value={getLocationOptions().find(opt => opt.value === location?._id || opt.value === location)}
+  onChange={(selected) => setLocation(selected?.value || '')}
+  placeholder="Select location"
+  isClearable
+  className="w-100"
+/>
+
                 </div>
                 <h6>Geo Location</h6>
                 <div className="mb-3 d-flex">
@@ -792,27 +956,27 @@ function UserManagement() {
 
                 <h6>Password</h6>
                 <div className="mb-3 d-flex">
-                  <input 
-                    type="password" 
-                    className="form-control me-2" 
-                    placeholder="Password" 
+                  <input
+                    type="password"
+                    className="form-control me-2"
+                    placeholder="Password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)} 
-                    required 
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
-                  <input 
-                    type="password" 
-                    className="form-control" 
-                    placeholder="Confirm Password" 
+                  <input
+                    type="password"
+                    className="form-control"
+                    placeholder="Confirm Password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                    required 
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                   />
                 </div>
                 <button type="submit" className="btn btn-primary">Register</button>
-                <button 
-                  type="button" 
-                  className="btn ms-2" 
+                <button
+                  type="button"
+                  className="btn ms-2"
                   onClick={() => {
                     setShowCreateCanvas(false);
                     resetForm();
@@ -828,10 +992,10 @@ function UserManagement() {
           <div className={`p-4 offcanvas-custom ${showEditCanvas ? "show" : ""}`}>
             <div className="offcanvas-header mb-3">
               <h5 className="offcanvas-title">Edit User</h5>
-              <button 
-                type="button" 
-                className="btn-close" 
-                onClick={() => setShowEditCanvas(false)} 
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowEditCanvas(false)}
                 style={{ position: "absolute", right: "30px" }}
               ></button>
             </div>
@@ -842,47 +1006,74 @@ function UserManagement() {
                     <h6>Basic User Info</h6>
                     <hr className='line w-75'></hr>
                   </div>
+                  
+                  {/* Image Upload */}
+                  <div className="mb-3">
+                    <label htmlFor="editUserImage" className="form-label">User Image</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      id="editUserImage"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                    {(previewImage || selectedUserForEdit.UserImage) && (
+                      <div className="mt-2">
+                        <img 
+                          src={previewImage || `https://api.avessecurity.com/${selectedUserForEdit.UserImage}`} 
+                          alt="User" 
+                          style={{ 
+                            width: '100px', 
+                            height: '100px', 
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
                   <div className="mb-3 d-flex">
-                    <input 
-                      type="text" 
-                      className="form-control me-2" 
-                      placeholder="First Name" 
+                    <input
+                      type="text"
+                      className="form-control me-2"
+                      placeholder="First Name"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)} 
-                      required 
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
                     />
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Last Name" 
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Last Name"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)} 
-                      required 
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
                     />
                   </div>
                   <div className="mb-3 d-flex">
-                    <input 
-                      type="email" 
-                      className="form-control me-2" 
-                      placeholder="Email" 
+                    <input
+                      type="email"
+                      className="form-control me-2"
+                      placeholder="Email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)} 
-                      required 
+                      onChange={(e) => setEmail(e.target.value.trim().split('@')[0])}
+                      required
                     />
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="User Name" 
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="User Name"
                       value={userName}
-                      onChange={(e) => setUserName(e.target.value)} 
-                      required 
+                      onChange={(e) => setUserName(e.target.value)}
+                      required
                     />
                   </div>
                   <div className="mb-3 d-flex">
-                    <select 
-                      className="form-select me-2" 
-                      value={selectedGender} 
-                      onChange={(e) => setSelectedGender(e.target.value)} 
+                    <select
+                      className="form-select me-2"
+                      value={selectedGender}
+                      onChange={(e) => setSelectedGender(e.target.value)}
                       required
                     >
                       <option value="">Gender</option>
@@ -919,12 +1110,12 @@ function UserManagement() {
                     />
                   </div>
                   <div className="mb-3 d-flex">
-                    <input 
-                      type="text" 
-                      className="form-control me-2" 
-                      placeholder="Extension" 
+                    <input
+                      type="text"
+                      className="form-control me-2"
+                      placeholder="Extension"
                       value={extension}
-                      onChange={(e) => setExtension(e.target.value)} 
+                      onChange={(e) => setExtension(e.target.value)}
                     />
                     <PhoneInput
                       value={phoneNumber}
@@ -940,26 +1131,26 @@ function UserManagement() {
                     <hr className='line w-75'></hr>
                   </div>
                   <div className="d-flex mb-3">
-                    <input 
-                      type="text" 
-                      className="form-control me-2" 
-                      placeholder="Employee Id" 
+                    <input
+                      type="text"
+                      className="form-control me-2"
+                      placeholder="Employee Id"
                       value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)} 
+                      onChange={(e) => setEmployeeId(e.target.value)}
                     />
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="NRIC" 
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="NRIC"
                       value={NRIC}
-                      onChange={(e) => setNRIC(e.target.value)} 
-                      required 
+                      onChange={(e) => setNRIC(e.target.value)}
+                      required
                     />
                   </div>
 
                   <h6>Work</h6>
                   <div className="mb-3 d-flex">
-                    <select 
+                    <select
                       className="form-select me-3"
                       value={selectedDesignation}
                       onChange={(e) => setSelectedDesignation(e.target.value)}
@@ -999,13 +1190,17 @@ function UserManagement() {
                       className="w-100 dept-user-select me-2"
                       noOptionsMessage={() => "No matching users"}
                     />
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Location" 
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)} 
-                    />
+                               
+  <label className="form-label"></label>
+<Select
+  options={getLocationOptions()}
+  value={getLocationOptions().find(opt => opt.value === location?._id || opt.value === location)}
+  onChange={(selected) => setLocation(selected?.value || '')}
+  placeholder="Select location"
+  isClearable
+  className="w-100"
+/>
+
                   </div>
                   <h6>Geo Location</h6>
                   <div className="mb-3 d-flex">
@@ -1021,25 +1216,25 @@ function UserManagement() {
 
                   <h6>Change Password (Optional)</h6>
                   <div className="mb-3 d-flex">
-                    <input 
-                      type="password" 
-                      className="form-control me-2" 
-                      placeholder="New Password" 
+                    <input
+                      type="password"
+                      className="form-control me-2"
+                      placeholder="New Password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)} 
+                      onChange={(e) => setPassword(e.target.value)}
                     />
-                    <input 
-                      type="password" 
-                      className="form-control" 
-                      placeholder="Confirm New Password" 
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="Confirm New Password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)} 
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                   </div>
                   <button type="submit" className="btn btn-primary">Update</button>
-                  <button 
-                    type="button" 
-                    className="btn ms-2" 
+                  <button
+                    type="button"
+                    className="btn ms-2"
                     onClick={() => {
                       setShowEditCanvas(false);
                       resetForm();
@@ -1053,95 +1248,275 @@ function UserManagement() {
           </div>
 
           {/* View User Canvas */}
-          <div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`}>
-            <div className="offcanvas-header mb-3">
-              <h5 className="offcanvas-title">User Details</h5>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setShowViewCanvas(false)}
-                style={{ position: "absolute", right: "30px" }}
+        {/* View User Canvas - Modern Design */}
+<div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`} style={{ 
+  background: '#FFFFFF'
+}}>
+  <div className="offcanvas-header mb-3 position-relative">
+    <button
+      type="button"
+      className="btn-close position-absolute"
+      onClick={() => setShowViewCanvas(false)}
+      style={{ right: "20px", top: "20px" }}
+    />
+    <div className="w-100 text-center">
+      <h5 className="offcanvas-title text-primary fw-bold">USER PROFILE</h5>
+    </div>
+  </div>
+
+  <div className="offcanvas-body p-3">
+    {selectedSpecUser && (
+      <div className="user-profile-view">
+        {/* Profile Header with Image */}
+        <div className="text-center mb-4">
+          <div className="position-relative d-inline-block">
+            {selectedSpecUser.UserImage ? (
+              <img 
+                src={`https://api.avessecurity.com/${selectedSpecUser.UserImage}`} 
+                alt="User" 
+                className="img-thumbnail rounded-circle border-primary"
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  objectFit: 'cover',
+                  borderWidth: '3px',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                }}
+              />
+            ) : (
+              <div className="img-thumbnail rounded-circle border-primary d-flex align-items-center justify-content-center"
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  borderWidth: '3px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  fontSize: '2.5rem'
+                }}
               >
-              </button>
-            </div>
+                {selectedSpecUser.FirstName?.charAt(0)}{selectedSpecUser.LastName?.charAt(0)}
+              </div>
+            )}
+            <span className={`position-absolute bottom-0 end-0 badge rounded-pill ${selectedSpecUser.isActive ? 'bg-success' : 'bg-secondary'}`}
+              style={{
+                width: '20px',
+                height: '20px',
+                border: '2px solid white'
+              }}
+            ></span>
+          </div>
+          
+          <h3 className="mt-3 mb-0 fw-bold text-dark">
+            {selectedSpecUser.FirstName} {selectedSpecUser.LastName}
+          </h3>
+          <p className="text-muted mb-2">@{selectedSpecUser.username}</p>
+          
+          <div className="d-flex justify-content-center gap-2 mb-3">
+            <span className="badge bg-primary rounded-pill">
+           {selectedSpecUser.role?.name || "N/A"}
+            </span>
+            <span className="badge bg-info text-dark rounded-pill">
+              {selectedSpecUser.Department?.name || "No Department"}
+            </span>
+          </div>
+        </div>
 
-            <div className="offcanvas-body p-2">
-              {selectedSpecUser && (
-                <>
-                  <div className='d-flex mb-2'>
-                    <h6>Basic User Info</h6>
-                    <hr className='line w-75' />
+        {/* User Details in Tabs */}
+        <div className="card border-0 shadow-sm">
+          <div className="card-body p-0">
+            <ul className="nav nav-tabs nav-fill" id="userDetailsTab" role="tablist">
+              <li className="nav-item" role="presentation">
+                <button className="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                  <i className="bi bi-person me-2"></i>Basic
+                </button>
+              </li>
+              <li className="nav-item" role="presentation">
+                <button className="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                  <i className="bi bi-telephone me-2"></i>Contact
+                </button>
+              </li>
+              <li className="nav-item" role="presentation">
+                <button className="nav-link" id="work-tab" data-bs-toggle="tab" data-bs-target="#work" type="button" role="tab">
+                  <i className="bi bi-briefcase me-2"></i>Work
+                </button>
+              </li>
+            </ul>
+            
+            <div className="tab-content p-3" id="userDetailsTabContent">
+              {/* Basic Info Tab */}
+              <div className="tab-pane fade show active" id="basic" role="tabpanel">
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Email</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.EmailId || <span className="text-muted">Not provided</span>}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Employee ID</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.EmployeeID || <span className="text-muted">Not provided</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mb-1 d-flex">
-                    <p className='me-1 mb-1'>
-                      <strong>Name:</strong> {selectedSpecUser.FirstName} {selectedSpecUser.LastName}
-                    </p>
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Gender</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.Gender ? (
+                          <span className="text-capitalize">{selectedSpecUser.Gender}</span>
+                        ) : (
+                          <span className="text-muted">Not specified</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">NRIC</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.NRICNumber || <span className="text-muted">Not provided</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mb-3 d-flex">
-                    <p className='me-2'>
-                      <strong>Username:</strong> {selectedSpecUser.username}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {selectedSpecUser.EmailId}
-                    </p>
+                </div>
+              </div>
+              
+              {/* Contact Tab */}
+              <div className="tab-pane fade" id="contact" role="tabpanel">
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Work Number</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.WorkPhone ? (
+                          <a href={`tel:${selectedSpecUser.WorkPhone}`} className="text-decoration-none">
+                            {selectedSpecUser.WorkPhone}
+                          </a>
+                        ) : (
+                          <span className="text-muted">Not provided</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Extension</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.Extension || <span className="text-muted">Not provided</span>}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className='d-flex'>
-                    <h6>Contact</h6>
-                    <hr className='line w-100' />
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Personal Number</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.PersonalMobile ? (
+                          <a href={`tel:${selectedSpecUser.PersonalMobile}`} className="text-decoration-none">
+                            {selectedSpecUser.PersonalMobile}
+                          </a>
+                        ) : (
+                          <span className="text-muted">Not provided</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+  <label className="text-muted small mb-1">Location</label>
+  <p className="fw-semibold">
+    {selectedSpecUser.Location ? (
+      // If location is a string (from the Select dropdown)
+      typeof selectedSpecUser.Location === 'string' ? (
+        selectedSpecUser.Location
+      ) : (
+        // If location is an object (from the API)
+        selectedSpecUser.Location.PrimaryLocation || 
+        selectedSpecUser.Location.SecondaryLocation ||
+        selectedSpecUser.Location.ThirdLocation ||
+        <span className="text-muted">Not specified</span>
+      )
+    ) : (
+      <span className="text-muted">Not specified</span>
+    )}
+  </p>
+</div>
                   </div>
-                  <div className="mb-3">
-                    <p><strong>Work Number:</strong> {selectedSpecUser.WorkPhone || "N/A"}</p>
-                    <p><strong>Personal Number:</strong> {selectedSpecUser.PersonalMobile || "N/A"}</p>
-                    <p><strong>Extension:</strong> {selectedSpecUser.Extension || "N/A"}</p>
+                </div>
+              </div>
+              
+              {/* Work Tab */}
+              <div className="tab-pane fade" id="work" role="tabpanel">
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Department</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.Department?.name || <span className="text-muted">Not assigned</span>}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Designation</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.Designation?.Name || <span className="text-muted">Not assigned</span>}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className='d-flex'>
-                    <h6>Additional Info</h6>
-                    <hr className='line w-75' />
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Reporting To</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.ReportingTo?.username ? (
+                          <span className="d-flex align-items-center">
+                            <i className="bi bi-person-fill me-2"></i>
+                            {selectedSpecUser.ReportingTo.username}
+                          </span>
+                        ) : (
+                          <span className="text-muted">Not assigned</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-muted small mb-1">Timezone</label>
+                      <p className="fw-semibold">
+                        {selectedSpecUser.TimeZone || <span className="text-muted">Not set</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <p><strong>Employee ID:</strong> {selectedSpecUser.EmployeeID || "N/A"}</p>
-                    <p><strong>NRIC:</strong> {selectedSpecUser.NRICNumber || "N/A"}</p>
-                    <p><strong>Gender:</strong> {selectedSpecUser.Gender || "N/A"}</p>
-                  </div>
-
-                  <h6>Work</h6>
-                  <div className="mb-3">
-                    <p><strong>Designation:</strong> {selectedSpecUser.Designation?.Name || "N/A"}</p>
-                    <p><strong>Department:</strong> {selectedSpecUser.Department?.name || "N/A"}</p>
-                    <p><strong>Role:</strong> {selectedSpecUser.role?.name || "N/A"}</p>
-                    <p><strong>Reporting To:</strong> {selectedSpecUser.ReportingTo?.username || "N/A"}</p>
-                    <p><strong>Location:</strong> {selectedSpecUser.Location || "N/A"}</p>
-                  </div>
-
-                  <h6>Geo Location</h6>
-                  <div className="mb-3">
-                    <p><strong>Timezone:</strong> {selectedSpecUser.TimeZone || "N/A"}</p>
-                  </div>
-
-                  <div className="mb-3">
-                    <p>
-                      <strong>Status:</strong> 
-                      <span className={`badge ${selectedSpecUser.isActive ? 'bg-success' : 'bg-secondary'} ms-2`}>
-                        {selectedSpecUser.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </p>
-                  </div>
-
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    onClick={() => setShowViewCanvas(false)}
-                  >
-                    Close
-                  </button>
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Status and Actions */}
+        <div className="d-flex justify-content-between align-items-center mt-4">
+          <div>
+            <span className={`badge ${selectedSpecUser.isActive ? 'bg-success' : 'bg-secondary'} rounded-pill px-3 py-2`}>
+              <i className={`bi ${selectedSpecUser.isActive ? 'bi-check-circle' : 'bi-slash-circle'} me-2`}></i>
+              {selectedSpecUser.isActive ? 'Active Account' : 'Inactive Account'}
+            </span>
+          </div>
+          <div>
+            <button 
+              className="btn btn-outline-primary me-2"
+              onClick={() => {
+                populateEditForm(selectedSpecUser);
+                setShowViewCanvas(false);
+                setShowEditCanvas(true);
+              }}
+            >
+              <i className="bi bi-pencil-square me-2"></i>Edit Profile
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowViewCanvas(false)}
+            >
+              <i className="bi bi-x-lg me-2"></i>Close
+            </button>
+          </div>
+        </div>
       </div>
+    )}
+  </div>
+</div>
+        </div >
+      </div >
     </>
   );
 }

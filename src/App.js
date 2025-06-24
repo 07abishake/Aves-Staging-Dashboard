@@ -68,6 +68,11 @@ import Teams from './pages/Teams';
 import AddLocation from './pages/GeoLocation';
 import LocationForm from './pages/Location';
 import Patrol from './pages/Patrol';
+import SopManager from './pages/SopManager';
+import  InventoryStatus  from './pages/InventoryStatus';
+import { LocationInfo } from './pages/LocationInfo';
+import ItemDetails from './pages/ItemDetails'
+import OccurrenceManager from './pages/OccurrenceManager'
 
 function App() {
   const location = useLocation();
@@ -93,7 +98,9 @@ function App() {
               <Route path="/teams" element={<Teams />} />
               <Route path="/patrol" element={<Patrol/>} />
               <Route path="/location/add-location" element={<AddLocation />} />
-
+              <Route path="/sop" element={<SopManager/>} />
+              <Route path='/loaction-info' element={<LocationInfo/>}/>
+              <Route path ='/items-details' element={<ItemDetails/>}/>
               <Route path="/designation" element={<Designation />} />
               <Route path="/resources" element={<ResourceManagement />} />
               <Route path="/customization" element={<Customization />} />
@@ -101,7 +108,8 @@ function App() {
               <Route path="/data-admin" element={<DataAdministration />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/location" element={<LocationForm />} />
-
+              <Route path='/inventory-status' element={<InventoryStatus />} />
+              <Route path='/OccurrenceManager'element={<OccurrenceManager/>}/>
             </Route>
           </Routes>
         </main>

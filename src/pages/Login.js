@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import logo from '../components/Images/Logo.svg';
+import logo from '../components/Images/Logo.png';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -51,7 +51,7 @@ const Login = () => {
     return (
         <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
             <div className="Signin text-center" style={{ maxWidth: '448px', width: '100%' }}>
-                <img src={logo} alt="Logo" className="logo" />
+                <img src={logo} alt="Logo" className="logo" style={{ width: '200px', height: '100px' }} />
                 <h3 className="fw-bold">Admin Portal</h3>
                 <p className="text-muted">Sign in to your account</p>
                 <div className="card p-2 mt-4 b-shad">

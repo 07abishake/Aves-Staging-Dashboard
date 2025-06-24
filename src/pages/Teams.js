@@ -15,6 +15,9 @@ function Teams() {
     const [selectedDesignation, setSelectedDesignation] = useState(null);
     const [searchUser, setSearchUser] = useState(""); // For filtering users
     const [teams, setTeams] = useState([]);
+    const [showEditCanvas, setShowEditCanvas] = useState(false);
+     const [editTeamName, setEditTeamName] = useState("");
+     const [editTeamId, setEditTeamId] = useState(null);
 
     const [addUsers, setAddUsers] = useState([]);
     const [showUserList, setShowUserList] = useState(false);
@@ -150,8 +153,6 @@ function Teams() {
 
             alert("Users added successfully!");
             fetchLeads()
-            // setShowUserList(false);
-            // setSelectedUsers([]); // Clear selection
         } catch (error) {
             console.error("Error adding users:", error);
             alert("Failed to add users.");
@@ -160,23 +161,58 @@ function Teams() {
     const filteredUsers = addUsers.filter(user =>
         !selectedDesignation?.users.some(teamMember => teamMember._id === user._id)
     );
-    const handleDeleteDesignation = async (userId) => {
+
+const openEditCanvas = (team) => {
+  setEditTeamName(team.TeamName);
+  setEditTeamId(team._id);
+  setShowEditCanvas(true);
+};
+const handleEditSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!editTeamName) {
+    alert("Please enter a team name");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    await axios.put(
+      `https://api.avessecurity.com/api/firebase/update-team/${editTeamId}`, 
+      { TeamName: editTeamName },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert("Team updated successfully");
+    fetchTeam();
+    setShowEditCanvas(false);
+    setEditTeamName("");
+    setEditTeamId(null);
+  } catch (error) {
+    console.error("Error updating team:", error);
+    alert("Failed to update team");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+    const handleDeleteTeams = async (userId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this user?");
         if (!confirmDelete) return; // If user clicks 'Cancel', just exit
 
         try {
-            const response = await axios.delete(`https://api.avessecurity.com/api/Designation/delete/${userId}`,{
+            const response = await axios.delete(`https://api.avessecurity.com/api/firebase/delete/${userId}`,{
                 headers:{
                     Authorization: `Bearer ${token}`,
                 }
             });
             if (response.status === 200) {
-                alert("Desgnation deleted successfully");
+                alert("Teams deleted successfully");
 
             }
         } catch (error) {
-            console.error("Error deleting designation:", error);
-            alert("Error deleting designation");
+            console.error("Error deleting Teams", error);
+            alert("Error deleting Teams");
         }
     };
     return (
@@ -219,8 +255,14 @@ function Teams() {
                                                         <td>
                                                             {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
                                                             <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleDesignationClick(team)} ><i class="bi bi-eye"></i></button>
-                                                            <button className="btn btn-sm btn-outline-primary me-2" ><i class="bi bi-pencil-square"></i></button>
-                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteDesignation(team._id)}><i class="bi bi-trash"></i></button>
+<button 
+  className="btn btn-sm btn-outline-primary me-2" 
+  onClick={() => openEditCanvas(team)}
+>
+  <i className="bi bi-pencil-square"></i>
+</button>
+
+                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteTeams(team._id)}><i class="bi bi-trash"></i></button>
                                                         </td>
                                                     </tr>
                                                 ))
@@ -239,52 +281,6 @@ function Teams() {
                         </div>
                     </div>
                 </div>
-                {/* <div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`}>
-                <div className="offcanvas-header mb-3">
-                    <h5 className="offcanvas-title">
-                        {selectedDesignation ? selectedDesignation.TeamName : "Create a new Designation"}
-                    </h5>
-                    <a className=' ' style={{ position: "absolute", right: "65px", cursor: "pointer" }}>Add User</a>
-                    <button type="button" className="btn-close" onClick={() => setShowViewCanvas(false)} style={{ position: "absolute", right: "30px" }}></button>
-                </div>
-
-                {selectedDesignation ? (
-                    <div className="offcanvas-body p-2">
-                        <input
-                            type="text"
-                            className="form-control mb-3"
-                            placeholder="Search user..."
-                            value={searchUser}
-                            onChange={(e) => setSearchUser(e.target.value)}
-                        />
-
-                        <ul className="list-group">
-                            {selectedDesignation.users &&
-                                selectedDesignation.users
-                                    .filter(user =>
-                                        user.username.toLowerCase().includes(searchUser.toLowerCase()) ||
-                                        user.EmailId.toLowerCase().includes(searchUser.toLowerCase())
-                                    )
-                                    .map((user) => (
-                                        <li key={user._id} className="list-group-item d-flex justify-content-between">
-                                            <div>
-                                                <strong>{user.username}</strong>
-                                                <br />
-                                                <small>{user.EmailId}</small>
-                                            </div>
-                                        </li>
-                                    ))}
-                        </ul>
-                    </div>
-                ) : (
-                    <div className="offcanvas-body p-2">
-           
-                        <form onSubmit={handleSubmit} style={{ height: "500px" }}>
-                         
-                        </form>
-                    </div>
-                )}
-            </div> */}
                 <div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`}>
                     <div className="offcanvas-header mb-3">
                         <h5 className="offcanvas-title">
@@ -302,10 +298,6 @@ function Teams() {
                             type="button"
                             className="btn-close"
                             onClick={() => { setShowViewCanvas(false); setShowUserList(false); }}
-                            // onClick={() => {
-                            //     setShowViewCanvas(false);
-                            //     setShowUserList(false); // Reset user list view on close
-                            // }}
                             style={{ position: "absolute", right: "30px" }}
                         ></button>
                     </div>
@@ -431,6 +423,33 @@ function Teams() {
                     </div>
 
                 }
+<div className={`p-4 offcanvas-custom ${showEditCanvas ? "show" : ""}`}>
+  <div className="offcanvas-header mb-3">
+    <h5 className="offcanvas-title">Edit Team</h5>
+    <button
+      type="button"
+      className="btn-close"
+      onClick={() => setShowEditCanvas(false)}
+      style={{ position: "absolute", right: "30px" }}
+    ></button>
+  </div>
+
+  <div className="offcanvas-body p-2">
+    <form onSubmit={handleEditSubmit}>
+      <div className="mb-3">
+        <label htmlFor="editTeamName" className="form-label">Team Name</label>
+        <input
+          type="text"
+          id="editTeamName"
+          className="form-control"
+          value={editTeamName}
+          onChange={(e) => setEditTeamName(e.target.value)}
+        />
+      </div>
+      <button type="submit" className="btn btn-primary">Save Changes</button>
+    </form>
+  </div>
+</div>
 
             </div >
         }
