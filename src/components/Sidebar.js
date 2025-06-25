@@ -76,7 +76,7 @@ function Sidebar() {
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [inventoryMenuOpen, setInventoryMenuOpen] = useState(false);
   const [LocationMenuOpen, setLocationMenuOpen] = useState(false);
-
+   const [AdminMenuOpen,setAdminMenuOpen]= useState(false);
   return (
     <nav className="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse">
       <div className="position-sticky pt-3">
@@ -174,7 +174,80 @@ function Sidebar() {
               </ul>
             )}
           </li>
-          <li className="nav-item">
+
+        <li className="nav-item">
+  <div className="nav-link" onClick={() => setAdminMenuOpen(!AdminMenuOpen)}>
+    <i className="bi bi-people me-2"></i>
+    Admin
+    <i className={`bi ms-auto ${AdminMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+  </div>
+
+  {AdminMenuOpen && (
+    <ul className="nav flex-column ms-3">
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-calendar-check me-2"></i> Shift Assign
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-camera-video me-2"></i> CCTV
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-person-badge me-2"></i> Pass SetUp
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-calendar-event me-2"></i> Events
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-clipboard2-pulse me-2"></i> First Aid 
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-envelope-open me-2"></i> Osha Invite
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-file-earmark-text me-2"></i> Policy
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-tree me-2"></i> Sustainability
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-mortarboard me-2"></i> Training
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-card-checklist me-2"></i> Terms&Condition
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="" className="nav-link">
+          <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
+        </NavLink>
+      </li>
+    </ul>
+  )}
+</li>
+  <li className="nav-item">
             <NavLink to="/permissions" className="nav-link">
               <i className="bi bi-shield-lock me-2"></i>
               Permissions
