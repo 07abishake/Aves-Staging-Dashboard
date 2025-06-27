@@ -73,6 +73,7 @@ import  InventoryStatus  from './pages/InventoryStatus';
 import { LocationInfo } from './pages/LocationInfo';
 import ItemDetails from './pages/ItemDetails'
 import OccurrenceManager from './pages/OccurrenceManager'
+import OrganizationView from './pages/OrganisastionChart';
 
 function App() {
   const location = useLocation();
@@ -93,6 +94,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/organization" element={<OrganizationSettings />} />
+              <Route path="/organisation-chart" element={<OrganizationView/>}/>
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/department" element={<Departments />} />
               <Route path="/teams" element={<Teams />} />
