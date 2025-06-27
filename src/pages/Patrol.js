@@ -4,6 +4,58 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'leaflet/dist/leaflet.css';
 import debounce from "lodash.debounce";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { useMap } from 'react-leaflet';
+import L from 'leaflet';
+
+// Blue marker for current location
+const blueIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
+// Red marker for checkpoints
+const redIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
+// Green marker for waypoints
+const greenIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
+function SetViewToCurrentLocation() {
+  const [position, setPosition] = useState(null);
+  const map = useMap();
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setPosition([latitude, longitude]);
+        map.setView([latitude, longitude], 15);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+      }
+    );
+  }, [map]);
+
+  return position ? (
+    <Marker position={position} icon={blueIcon}>
+      <Popup>You are here</Popup>
+    </Marker>
+  ) : null;
+}
+
+
 
 const timeOptions = [
     "12:00am", "12:30am", "1:00am", "1:30am", "2:00am", "2:30am", "3:00am", "3:30am",
@@ -36,6 +88,10 @@ function Patrol() {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const token = localStorage.getItem("access_token");
+    const [showNamePopup, setShowNamePopup] = useState(false);
+   const [newPointLatLng, setNewPointLatLng] = useState(null);
+   const [newPointName, setNewPointName] = useState('');
+   const [isWaypoint, setIsWaypoint] = useState(false);
     if (!token) {
         window.location.href = "/login";
     }
@@ -67,6 +123,33 @@ function Patrol() {
             console.error("Error fetching leads:", error);
         }
     };
+    const handleAddPoint = () => {
+    if (!newPointName || !newPointLatLng) return;
+
+    if (isWaypoint && currentCheckpoint !== null) {
+        const updated = [...checkpoints];
+        updated[currentCheckpoint].waypoints.push({
+            name: newPointName,
+            coordinates: newPointLatLng,
+            selfieRequired: false,
+        });
+        setCheckpoints(updated);
+    } else {
+        setCheckpoints(prev => [
+            ...prev,
+            {
+                name: newPointName,
+                location: newPointLatLng,
+                waypoints: [],
+            }
+        ]);
+    }
+
+    setShowNamePopup(false);
+    setNewPointName('');
+    setNewPointLatLng(null);
+};
+
 
     useEffect(() => {
 
@@ -137,29 +220,12 @@ function Patrol() {
         }
     };
 
-    const handleMapClick = (latlng) => {
-        if (waypointMode && currentCheckpoint !== null) {
-            const name = prompt('Enter Waypoint Name:');
-            if (name) {
-                const newWaypoints = [...checkpoints];
-                newWaypoints[currentCheckpoint].waypoints.push({
-                    name,
-                    coordinates: latlng,
-                    selfieRequired: false,
-                });
-                setCheckpoints(newWaypoints);
-            }
-        } else {
-            const name = prompt('Enter Checkpoint Name:');
-            if (name) {
-                setCheckpoints(prev => [...prev, {
-                    name,
-                    location: latlng,
-                    waypoints: [],
-                }]);
-            }
-        }
-    };
+   const handleMapClick = (latlng) => {
+    setNewPointLatLng(latlng);
+    setIsWaypoint(waypointMode && currentCheckpoint !== null);
+    setNewPointName('');
+    setShowNamePopup(true);
+};
 
     const LocationMarker = () => {
         useMapEvents({
@@ -307,66 +373,68 @@ function Patrol() {
                 <button className="btn btn-primary" onClick={openFormCanvas}>Add Patrol</button>
             </div>
 
-            {/* Patrols Table */}
-            <table className="table table-bordered mb-5">
-                <thead>
-                    <tr>
-                        <th>Patrol Name</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {patrols.map(patrol => (
-                        <tr key={patrol._id}>
-                            <td>{patrol.Name}</td>
-                            <td>
-                                <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openViewCanvas(patrol)}>
-                                    <i className="bi bi-eye"></i>
-                                </button>
-                                <button className="btn btn-sm btn-outline-info me-2" onClick={() => openAssignCanvas(patrol._id)}>
-                                    <i className="bi bi-person-plus"></i> Assign
-                                </button>
-                                <button className="btn btn-sm btn-outline-warning me-2">
-                                    <i className="bi bi-pencil-square"></i>
-                                </button>
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeletePatrol(patrol._id)}>
-                                    <i className="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+          {/* Patrols Table */}
+<div className="table-responsive mb-5">
+  <table className="table custom-table">
+    <thead>
+      <tr>
+        <th>Patrol Name</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {patrols.map(patrol => (
+        <tr key={patrol._id}>
+          <td>{patrol.Name}</td>
+          <td>
+            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openViewCanvas(patrol)}>
+              <i className="bi bi-eye"></i>
+            </button>
+            <button className="btn btn-sm btn-outline-info me-2" onClick={() => openAssignCanvas(patrol._id)}>
+              <i className="bi bi-person-plus"></i> Assign
+            </button>
+            <button className="btn btn-sm btn-outline-warning me-2">
+              <i className="bi bi-pencil-square"></i>
+            </button>
+            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeletePatrol(patrol._id)}>
+              <i className="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
-            {/* Assigned Patrols Table */}
-            <h4 className="mt-5">Assigned Patrols</h4>
-            <table className="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Patrol</th>
-                        <th>Date</th>
-                        <th>Start Time</th>
-                        <th>End Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {assignedPatrols.map(assignment => {
-                        const user = users.find(u => u._id === assignment.userId);
-                        const patrol = patrols.find(p => p._id === assignment.patrollSetId);
-                        return (
-                            <tr key={assignment._id}>
-                                <td>{assignment?.userId ? assignment?.userId.Name : 'Unknown User'}</td>
-                                <td>{assignment?.PatrolSet ? assignment?.PatrolSet.Name : 'Unknown Patrol'}</td>
-                                <td>{new Date(assignment.Date).toLocaleDateString('en-GB')}</td>
+{/* Assigned Patrols Table */}
+<h4 className="mt-5">Assigned Patrols</h4>
+<div className="table-responsive">
+  <table className="table custom-table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Patrol</th>
+        <th>Date</th>
+        <th>Start Time</th>
+        <th>End Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {assignedPatrols.map(assignment => (
+        <tr key={assignment._id}>
+          <td>{assignment?.userId ? assignment?.userId.Name : 'Unknown User'}</td>
+          <td>{assignment?.PatrolSet ? assignment?.PatrolSet.Name : 'Unknown Patrol'}</td>
+          <td>{new Date(assignment.Date).toLocaleDateString('en-GB')}</td>
+          <td>{assignment.StartedAt}</td>
+          <td>{assignment.EndedAt}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+          
 
-                                <td>{assignment.StartedAt}</td>
-                                <td>{assignment.EndedAt}</td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+
 
             {/* Assign Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showAssignCanvas ? 'show' : ''}`} style={{ visibility: showAssignCanvas ? 'visible' : 'hidden' }}>
@@ -501,25 +569,36 @@ function Patrol() {
 
                     <div className="mb-3">
                         <label className="form-label">Checkpoints</label>
-                        <MapContainer center={[1.3521, 103.8198]} zoom={13} style={{ height: '400px' }}>
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <LocationMarker />
-                            {checkpoints.map((cp, index) => (
-                                <Marker key={index} position={[cp.location.lat, cp.location.lng]}>
-                                    <Popup>
-                                        <strong>{cp.name}</strong><br />
-                                        <button className="btn btn-sm btn-primary mt-1" onClick={() => handleSelectCheckpoint(index)}>
-                                            Add Waypoints
-                                        </button>
-                                    </Popup>
-                                </Marker>
-                            ))}
-                            {checkpoints.flatMap(cp => cp.waypoints).map((wp, idx) => (
-                                <Marker key={`wp-${idx}`} position={[wp.coordinates.lat, wp.coordinates.lng]}>
-                                    <Popup>{wp.name}</Popup>
-                                </Marker>
-                            ))}
-                        </MapContainer>
+                        <MapContainer zoom={13} style={{ height: '400px' }}>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  <SetViewToCurrentLocation />
+  <LocationMarker />
+  
+{checkpoints.map((cp, index) => (
+  <Marker key={index} position={[cp.location.lat, cp.location.lng]} icon={redIcon}>
+    <Popup>
+      <strong>{cp.name}</strong><br />
+      <button className="btn btn-sm btn-primary mt-1" onClick={() => handleSelectCheckpoint(index)}>
+        Add Waypoints
+      </button>
+    </Popup>
+  </Marker>
+))}
+
+{checkpoints.flatMap(cp => cp.waypoints).map((wp, idx) => (
+  <Marker key={`wp-${idx}`} position={[wp.coordinates.lat, wp.coordinates.lng]} icon={greenIcon}>
+    <Popup>{wp.name}</Popup>
+  </Marker>
+))}
+
+
+{/*{checkpoints.flatMap(cp => cp.waypoints).map((wp, idx) => (
+  <Marker key={`wp-${idx}`} position={[wp.coordinates.lat, wp.coordinates.lng]} icon={redIcon}>
+    <Popup>{wp.name}</Popup>
+  </Marker>
+))} */}
+
+</MapContainer>
                     </div>
 
                     <div className="d-flex justify-content-between">
@@ -528,6 +607,33 @@ function Patrol() {
                     </div>
                 </div>
             </div>
+
+            {showNamePopup && (
+  <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div className="modal-dialog" role="document">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">Enter {isWaypoint ? 'Waypoint' : 'Checkpoint'} Name</h5>
+          <button type="button" className="btn-close" onClick={() => setShowNamePopup(false)}></button>
+        </div>
+        <div className="modal-body">
+          <input
+            type="text"
+            className="form-control"
+            value={newPointName}
+            onChange={(e) => setNewPointName(e.target.value)}
+            placeholder="Enter name"
+          />
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={() => setShowNamePopup(false)}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleAddPoint}>Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
 
             {/* View Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} style={{ visibility: showViewCanvas ? 'visible' : 'hidden' }}>
@@ -606,7 +712,10 @@ function Patrol() {
                 </div>
             </div>
         </div>
+        
     );
+
+    
 }
 
 export default Patrol;

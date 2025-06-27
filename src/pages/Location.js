@@ -175,39 +175,53 @@ function LocationManager() {
                 </button>
             </div>
 
-            <table className="table table-bordered table-hover">
-                <thead className="">
-                    <tr>
-                        <th>Primary Location</th>
-                        <th>Sub Location</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {locations.map(loc => (
-                        <tr key={loc._id}>
-                            <td>{loc.PrimaryLocation}</td>
-                            <td>{loc.SubLocation}</td>
-                            <td>
-                                <div className="d-flex">
-                                    <button className="btn btn-sm btn-outline-primary me-2" 
-                                            onClick={() => openViewCanvas(loc)}>
-                                        <i className="bi bi-eye"></i> View
-                                    </button>
-                                    <button className="btn btn-sm btn-outline-warning me-2" 
-                                            onClick={() => openFormCanvas(loc)}>
-                                        <i className="bi bi-pencil"></i> Edit
-                                    </button>
-                                    <button className="btn btn-sm btn-outline-danger" 
-                                            onClick={() => handleDelete(loc._id)}>
-                                        <i className="bi bi-trash"></i> Delete
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+           <div className="table-responsive" style={{
+  background: '#fff',
+  borderRadius: '8px',
+  padding: '20px',
+  boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+}}>
+  <table className="table custom-table mb-0">
+  <thead>
+    <tr>
+      <th>Primary Location</th>
+      <th>Sub Location</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {locations.map(loc => (
+      <tr key={loc._id}>
+        <td>{loc.PrimaryLocation}</td>
+        <td>{loc.SubLocation}</td>
+        <td>
+          <div className="d-flex">
+            <button
+              className="btn btn-sm btn-outline-primary me-2"
+              onClick={() => openViewCanvas(loc)}
+            >
+              <i className="bi bi-eye"></i> View
+            </button>
+            <button
+              className="btn btn-sm btn-outline-warning me-2"
+              onClick={() => openFormCanvas(loc)}
+            >
+              <i className="bi bi-pencil"></i> Edit
+            </button>
+            <button
+              className="btn btn-sm btn-outline-danger"
+              onClick={() => handleDelete(loc._id)}
+            >
+              <i className="bi bi-trash"></i> Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+</div>
 
             {/* Add/Edit Location Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} 

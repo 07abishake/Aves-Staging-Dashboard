@@ -203,42 +203,44 @@ function ItemDetails() {
         </button>
       </div>
 
-      <table className="table table-bordered">
-        <thead>
-          <tr>
-            <th>Item Name</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th>Brand/Model</th>
-            <th>Description</th>
-            <th>Quantity</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
-            <tr key={product._id}>
-              <td>{product.ItemName}</td>
-              <td>{product.Category}</td>
-              <td>{product.Type}</td>
-              <td>{product.BrandModel}</td>
-              <td>{product.Description}</td>
-              <td>{product.AddQuntity}</td>
-              <td>
-                <button className="btn btn-sm btn-primary me-2" onClick={() => handleEdit(product)}>
-                  <i className="bi bi-pencil-square"></i>
-                </button>
-                <button className="btn btn-sm btn-secondary me-2" onClick={() => handleView(product)}>
-                  <i className="bi bi-eye"></i>
-                </button>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(product._id)}>
-                  <i className="bi bi-trash"></i>
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+<div className="table-responsive">
+  <table className="table custom-table">
+    <thead>
+      <tr>
+        <th>Item Name</th>
+        <th>Category</th>
+        <th>Type</th>
+        <th>Brand/Model</th>
+        <th>Description</th>
+        <th>Quantity</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {products.map((product) => (
+        <tr key={product._id}>
+          <td>{product.ItemName}</td>
+          <td>{product.Category}</td>
+          <td>{product.Type}</td>
+          <td>{product.BrandModel}</td>
+          <td>{product.Description}</td>
+          <td>{product.AddQuntity}</td>
+          <td>
+            <button className="btn btn-sm btn-primary me-2" onClick={() => handleEdit(product)}>
+              <i className="bi bi-pencil-square"></i>
+            </button>
+            <button className="btn btn-sm btn-secondary me-2" onClick={() => handleView(product)}>
+              <i className="bi bi-eye"></i>
+            </button>
+            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(product._id)}>
+              <i className="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
       {/* Form Offcanvas */}
       <div className={`offcanvas offcanvas-end ${showFormCanvas ? "show" : ""}`} 
