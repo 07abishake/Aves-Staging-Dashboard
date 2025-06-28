@@ -185,7 +185,12 @@ function Sidebar() {
   {AdminMenuOpen && (
     <ul className="nav flex-column ms-3">
       <li className="nav-item">
-        <NavLink to="" className="nav-link">
+        <NavLink to="/ShiftCreate" className="nav-link">
+          <i className="bi bi-calendar-check me-2"></i> Shift Create
+        </NavLink>
+      </li>
+      <li className="nav-item">
+        <NavLink to="/assign" className="nav-link">
           <i className="bi bi-calendar-check me-2"></i> Shift Assign
         </NavLink>
       </li>

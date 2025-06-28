@@ -74,6 +74,10 @@ import { LocationInfo } from './pages/LocationInfo';
 import ItemDetails from './pages/ItemDetails'
 import OccurrenceManager from './pages/OccurrenceManager'
 import OrganizationView from './pages/OrganisastionChart';
+import ShiftAssignmentManager from './pages/ShiftAssignmentManager';
+import ShiftManager from './pages/ShiftManager';
+
+
 
 function App() {
   const location = useLocation();
@@ -112,6 +116,10 @@ function App() {
               <Route path="/location" element={<LocationForm />} />
               <Route path='/inventory-status' element={<InventoryStatus />} />
               <Route path='/OccurrenceManager'element={<OccurrenceManager/>}/>
+             <Route path='/ShiftCreate' element={<ShiftManager/>}/>
+          <Route path="/assign" element={<ShiftAssignmentManager/>}/>
+
+           
             </Route>
           </Routes>
         </main>
