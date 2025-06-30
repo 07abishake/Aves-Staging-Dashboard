@@ -1,30 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
 } from 'recharts';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import axios from 'axios';
+import CountUp from 'react-countup';
 
-const dummyChartData = [
-  { name: 'Jan', users: 400, messages: 240 },
-  { name: 'Feb', users: 300, messages: 139 },
-  { name: 'Mar', users: 200, messages: 980 },
-  { name: 'Apr', users: 278, messages: 390 },
-  { name: 'May', users: 189, messages: 480 },
-];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 function Dashboard() {
   const token = localStorage.getItem("access_token");
@@ -52,13 +40,12 @@ function Dashboard() {
     totalSecurityPass: 0
   });
 
-
   const [notificationData, setNotificationData] = useState([]);
   const [filter, setFilter] = useState('all');
-
-
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [moduleStats, setModuleStats] = useState(null);
+  const [loadingModuleStats, setLoadingModuleStats] = useState(true);
 
   const handleRowClick = (team) => {
     setSelectedTeam(team);
@@ -86,7 +73,7 @@ function Dashboard() {
           onlineUsers: statusData.onlineUsers || [],
           offlineUsers: statusData.offlineUsers || [],
         });
-        console.log('User Status:', userStats);
+
         // Fetch Notification Analytics
         const notifRes = await fetch('https://api.avessecurity.com/api/users/Notification-Status', {
           headers: {
@@ -95,11 +82,10 @@ function Dashboard() {
         });
         const notifData = await notifRes.json();
 
-        // Map analytics and ensure notifications array exists
         setNotificationData(
           (notifData.analytics || []).map(team => ({
             ...team,
-            notifications: team.notifications || [], // Make sure notifications array is present
+            notifications: team.notifications || [],
           }))
         );
       } catch (error) {
@@ -108,7 +94,7 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [token, userStats]);
+  }, [token]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -118,19 +104,35 @@ function Dashboard() {
             'Authorization': `Bearer ${token}`
           }
         });
-        const data = response.data;
-        setUserStatistics(data);
-        console.log('Counts:', data);
-
+        setUserStatistics(response.data);
       } catch (error) {
-
         console.error('Error fetching counts:', error);
-
       }
-    }
+    };
     fetchCounts();
   }, [token]);
-  // Filter function based on dropdown
+
+  useEffect(() => {
+    const fetchModuleStats = async () => {
+      try {
+        const response = await axios.get('https://api.avessecurity.com/collection/module-wise-user-monthly', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        setModuleStats(response.data);
+      } catch (error) {
+        console.error('Error fetching module stats:', error);
+      } finally {
+        setLoadingModuleStats(false);
+      }
+    };
+
+    if (token) {
+      fetchModuleStats();
+    }
+  }, [token]);
+
   const filteredData = notificationData.map(team => {
     if (filter === 'success') {
       return {
@@ -154,127 +156,314 @@ function Dashboard() {
     return team;
   });
 
-  const renderUserItem = (user, isOnline, index) => (
-    <li key={index} className="list-group-item d-flex align-items-center">
-      <span
-        className="me-2"
-        style={{
-          width: '10px',
-          height: '10px',
-          borderRadius: '50%',
-          backgroundColor: isOnline ? 'green' : 'red',
-          display: 'inline-block',
-        }}
-      ></span>
-      {user.username || `User ${index + 1}`}
-    </li>
-  );
+  const processModuleStats = () => {
+    if (!moduleStats || !moduleStats.data) return null;
+    
+    const activeModules = moduleStats.data.filter(module => module.stats.length > 0);
+    
+    const topModules = [...activeModules]
+      .sort((a, b) => 
+        b.stats.reduce((sum, stat) => sum + stat.count, 0) - 
+        a.stats.reduce((sum, stat) => sum + stat.count, 0)
+      )
+      .slice(0, 5)
+      .map(module => ({
+        name: module.module,
+        count: module.stats.reduce((sum, stat) => sum + stat.count, 0)
+      }));
+
+    const moduleDistribution = activeModules.map(module => ({
+      name: module.module,
+      value: module.stats.reduce((sum, stat) => sum + stat.count, 0)
+    }));
+
+    return { topModules, moduleDistribution };
+  };
+
+  const { topModules, moduleDistribution } = processModuleStats() || {};
 
   return (
     <div className="container mt-4">
       <h2 className="mb-4">Dashboard</h2>
 
-      {/* User Stats Cards */}
+      {/* Enhanced User Stats Cards */}
       <div className="row">
         <div className="col-md-4 mb-3">
-          <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#93AEFF' }}>
-            <h3>{userStats.totalUsers}</h3>
-            <p className="mb-0">Total Users</p>
-          </div>
+          <motion.div 
+            className="p-4 text-white rounded shadow position-relative overflow-hidden"
+            style={{ backgroundColor: '#93AEFF', minHeight: '120px' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="position-absolute top-0 end-0 p-2">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <h3 className="display-5 fw-bold mb-1">
+              <CountUp 
+                end={userStats.totalUsers} 
+                duration={1.5}
+                separator=","
+              />
+            </h3>
+            <p className="mb-0 fs-5">Total Users</p>
+            <motion.div 
+              className="position-absolute bottom-0 start-0 h-2 bg-white"
+              initial={{ width: 0 }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 1.5, delay: 0.3 }}
+            />
+          </motion.div>
         </div>
+
         <div className="col-md-4 mb-3">
-          <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#55E49F' }}>
-            <h3>{userStats.onlineUsers.length}</h3>
-            <p className="mb-0">Online Users</p>
-          </div>
+          <motion.div 
+            className="p-4 text-white rounded shadow position-relative overflow-hidden"
+            style={{ backgroundColor: '#55E49F', minHeight: '120px' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="position-absolute top-0 end-0 p-2">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 8v4l3 3"></path>
+              </svg>
+            </div>
+            <h3 className="display-5 fw-bold mb-1">
+              <CountUp 
+                end={userStats.onlineUsers.length} 
+                duration={1.5}
+                separator=","
+              />
+              <small className="fs-6 ms-2">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={userStats.onlineUsers.length}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="d-inline-block"
+                  >
+                    ({((userStats.onlineUsers.length / userStats.totalUsers) * 100 || 0).toFixed(1)}%)
+                  </motion.span>
+                </AnimatePresence>
+              </small>
+            </h3>
+            <p className="mb-0 fs-5">Online Users</p>
+            <motion.div 
+              className="position-absolute bottom-0 start-0 h-2 bg-white"
+              initial={{ width: 0 }}
+              animate={{ width: `${(userStats.onlineUsers.length / userStats.totalUsers) * 100 || 0}%` }}
+              transition={{ duration: 1.5, delay: 0.3 }}
+            />
+          </motion.div>
         </div>
+
         <div className="col-md-4 mb-3">
-          <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#FFA1A1' }}>
-            <h3>{userStats.offlineUsers.length}</h3>
-            <p className="mb-0">Offline Users</p>
-          </div>
+          <motion.div 
+            className="p-4 text-white rounded shadow position-relative overflow-hidden"
+            style={{ backgroundColor: '#FFA1A1', minHeight: '120px' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="position-absolute top-0 end-0 p-2">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+              </svg>
+            </div>
+            <h3 className="display-5 fw-bold mb-1">
+              <CountUp 
+                end={userStats.offlineUsers.length} 
+                duration={1.5}
+                separator=","
+              />
+              <small className="fs-6 ms-2">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={userStats.offlineUsers.length}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="d-inline-block"
+                  >
+                    ({((userStats.offlineUsers.length / userStats.totalUsers) * 100 || 0).toFixed(1)}%)
+                  </motion.span>
+                </AnimatePresence>
+              </small>
+            </h3>
+            <p className="mb-0 fs-5">Offline Users</p>
+            <motion.div 
+              className="position-absolute bottom-0 start-0 h-2 bg-white"
+              initial={{ width: 0 }}
+              animate={{ width: `${(userStats.offlineUsers.length / userStats.totalUsers) * 100 || 0}%` }}
+              transition={{ duration: 1.5, delay: 0.3 }}
+            />
+          </motion.div>
         </div>
       </div>
 
-      {/* Chart and Online/Offline Users */}
+      {/* Enhanced Key Metrics Cards */}
+      <div className="row">
+        {[
+          { 
+            title: "INCIDENTS", 
+            value: `${userStatistics.todayIncidentReport}/${userStatistics.totalIncidentReport}`,
+            bgColor: '#F18CA9',
+            icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'
+          },
+          { 
+            title: "KEYS", 
+            value: `${userStatistics.todayKeyForm}/${userStatistics.totalKeyForm}`,
+            bgColor: '#8ACBD2',
+            icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'
+          },
+          { 
+            title: "GATEPASS", 
+            value: `${userStatistics.todayGatePass}/${userStatistics.totalGatePass}`,
+            bgColor: '#AB95D8',
+            icon: 'M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4'
+          },
+          { 
+            title: "SECURITY PASS", 
+            value: `${userStatistics.todaySecurityPass}/${userStatistics.totalSecurityPass}`,
+            bgColor: '#C1CFA1',
+            icon: 'M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z'
+          }
+        ].map((metric, index) => (
+          <div className="col-md-3 mb-3" key={index}>
+            <motion.div
+              className="p-4 text-white rounded shadow position-relative overflow-hidden"
+              style={{ backgroundColor: metric.bgColor, minHeight: '120px' }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 * index }}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="position-absolute top-0 end-0 p-2 opacity-25">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <path d={metric.icon}></path>
+                </svg>
+              </div>
+              <p className="mb-1 fw-bold">{metric.title}</p>
+              <motion.h3 
+                className="display-6 fw-bold"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 * index }}
+              >
+                {metric.value}
+              </motion.h3>
+              <motion.div 
+                className="position-absolute bottom-0 start-0 h-1 bg-white"
+                initial={{ width: 0 }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, delay: 0.3 * index }}
+              />
+            </motion.div>
+          </div>
+        ))}
+      </div>
+
+      {/* Module Stats Charts */}
       <div className="row mt-4">
         <div className="col-md-6 mb-4">
-          <div className="card">
+          <motion.div
+            className="card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <div className="card-body">
-              <h5 className="card-title">User Activity</h5>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dummyChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="users" stroke="#8884d8" />
-                  <Line type="monotone" dataKey="messages" stroke="#82ca9d" />
-                </LineChart>
-              </ResponsiveContainer>
+              <h5 className="card-title">Top Active Modules</h5>
+              {loadingModuleStats ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : topModules ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={topModules}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#8884d8" name="Activities" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-muted">No module data available</p>
+              )}
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* <div className="col-md-4 mb-4">
-          <div className="card">
+        <div className="col-md-6 mb-4">
+          <motion.div
+            className="card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
             <div className="card-body">
-              <h5 className="card-title">Online Users</h5>
-              <ul className="list-group list-group-flush">
-                {userStats.onlineUsers.length > 0 ? (
-                  userStats.onlineUsers.map((user, index) =>
-                    renderUserItem(user, true, index)
-                  )
-                ) : (
-                  <li className="list-group-item text-muted">No users online</li>
-                )}
-              </ul>
-
-              <h5 className="card-title mt-4">Offline Users</h5>
-              <ul className="list-group list-group-flush">
-                {userStats.offlineUsers.length > 0 ? (
-                  userStats.offlineUsers.map((user, index) =>
-                    renderUserItem(user, false, index)
-                  )
-                ) : (
-                  <li className="list-group-item text-muted">No users offline</li>
-                )}
-              </ul>
+              <h5 className="card-title">Module Distribution</h5>
+              {loadingModuleStats ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : moduleDistribution ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={moduleDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {moduleDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-muted">No distribution data available</p>
+              )}
             </div>
-          </div>
-        </div> */}
-        <div className="row col-md-6 mb-4">
-          <div className="col-md-6 mb-3">
-            <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#F18CA9' }}>
-              <p className="mb-0">INCIDENTS</p>
-              <h3>{`${userStatistics.todayIncidentReport}/${userStatistics.totalIncidentReport}`}</h3>
-            </div>
-          </div>
-          <div className="col-md-6 mb-3">
-            <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#8ACBD2' }}>
-              <p className="mb-0">KEYS</p>
-              <h3>{`${userStatistics.todayKeyForm}/${userStatistics.totalKeyForm}`}</h3>
-            </div>
-          </div>
-          <div className="col-md-6 mb-3">
-            <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#AB95D8' }}>
-              <p className="mb-0">GATEPASS</p>
-              <h3>{`${userStatistics.todayGatePass}/${userStatistics.totalGatePass}`}</h3>
-            </div>
-          </div>
-          <div className="col-md-6 mb-3">
-            <div className="p-4 text-white rounded shadow" style={{ backgroundColor: '#C1CFA1' }}>
-              <p className="mb-0">SECURITY PASS</p>
-              <h3>{`${userStatistics.todaySecurityPass}/${userStatistics.totalSecurityPass}`}</h3>
-            </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Notification Stats Section */}
-      {/* Dropdown Filter */}
-      <div className="mb-3">
+      <motion.div 
+        className="mb-3 mt-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <label htmlFor="statusFilter" className="form-label">Filter by Status:</label>
         <select
           id="statusFilter"
@@ -287,243 +476,159 @@ function Dashboard() {
           <option value="success">Success</option>
           <option value="failed">Failed</option>
         </select>
-      </div>
+      </motion.div>
 
-      {/* <div className="row mt-4">
-        {filteredData.map((team, idx) => {
-          const { totalNotifications, totalSuccess, totalFailed, uniqueRecipients } = team.notificationStats;
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.5 }}
+      >
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Total Members</th>
+              <th>Success</th>
+              <th>Failed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((team, idx) => {
+              const { totalNotifications, totalSuccess, totalFailed } = team.notificationStats;
+              const successPercent = totalNotifications > 0 ? (totalSuccess / totalNotifications) * 100 : 0;
+              const failedPercent = totalNotifications > 0 ? (totalFailed / totalNotifications) * 100 : 0;
 
-          // Calculate progress percentages for bars
-          const successPercent = totalNotifications > 0 ? (totalSuccess / totalNotifications) * 100 : 0;
-          const failedPercent = totalNotifications > 0 ? (totalFailed / totalNotifications) * 100 : 0;
-
-          return (
-            <motion.div
-              className="col-md-6 mb-4"
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.03 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="card shadow" style={{ cursor: 'pointer' }}>
-                <div className="card-body">
-                  <h5 className="card-title">{team.teamName} Team</h5>
-                  <p><strong>Total Users:</strong> {team.totalUsers}</p>
-                  <p><strong>Total Notifications Sent:</strong> {totalNotifications}</p>
-                  <p><strong>Unique Recipients:</strong> {uniqueRecipients}</p>
-                  <p><strong>Users:</strong></p>
-                  <ul>
-                    {team.users && team.users.length > 0 ? (
-                      team.users.map((user) => (
-                        <li key={user.id}>{user.name}</li>
-                      ))
-                    ) : (
-                      <li>No users found</li>
-                    )}
-                  </ul>
-
-               
-                  {team.notifications && team.notifications.length > 0 ? (
-                    team.notifications.map((notification, notifIdx) => (
-                      <div key={notifIdx} className="mb-3 border-top pt-2">
-                        <p><strong>Sender:</strong> {notification.sentBy?.name || 'N/A'} ({notification.sentBy?.email || 'No email'})</p>
-                        <p><strong>Receivers:</strong></p>
-                        <ul>
-                          {notification.receivedBy && notification.receivedBy.length > 0 ? (
-                            notification.receivedBy.map((receiver, rIdx) => (
-                              <li key={rIdx}>
-                                {receiver.name || 'N/A'} ({receiver.email || 'No email'})
-                              </li>
-                            ))
-                          ) : (
-                            <li>No receivers found</li>
-                          )}
-                        </ul>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-muted">No notification details available.</p>
-                  )}
-
-
-                  <div className="mt-3">
-                    <p className="mb-1">Success</p>
-                    <div className="progress" style={{ height: '15px' }}>
-                      <div
+              return (
+                <motion.tr 
+                  key={idx} 
+                  onClick={() => handleRowClick(team)} 
+                  style={{ cursor: 'pointer' }}
+                  whileHover={{ backgroundColor: 'rgba(0,0,0,0.05)' }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <td>{team.teamName} Team</td>
+                  <td>{team.totalUsers}</td>
+                  <td>
+                    <div className="progress" style={{ height: '10px' }}>
+                      <motion.div
                         className="progress-bar bg-success"
                         role="progressbar"
-                        style={{ width: `${successPercent}%` }}
-                        aria-valuenow={successPercent}
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                      >
-                        {successPercent.toFixed(1)}%
-                      </div>
+                        initial={{ width: 0 }}
+                        animate={{ width: `${successPercent}%` }}
+                        transition={{ duration: 1, delay: 0.1 * idx }}
+                      />
                     </div>
-
-                    <p className="mb-1 mt-3">Failed</p>
-                    <div className="progress" style={{ height: '15px' }}>
-                      <div
+                    <small>{successPercent.toFixed(1)}%</small>
+                  </td>
+                  <td>
+                    <div className="progress" style={{ height: '10px' }}>
+                      <motion.div
                         className="progress-bar bg-danger"
                         role="progressbar"
-                        style={{ width: `${failedPercent}%` }}
-                        aria-valuenow={failedPercent}
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                      >
-                        {failedPercent.toFixed(1)}%
-                      </div>
+                        initial={{ width: 0 }}
+                        animate={{ width: `${failedPercent}%` }}
+                        transition={{ duration: 1, delay: 0.1 * idx }}
+                      />
                     </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div> */}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Total Members</th>
-            <th>Success</th>
-            <th>Failed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((team, idx) => {
-            const { totalNotifications, totalSuccess, totalFailed } = team.notificationStats;
+                    <small>{failedPercent.toFixed(1)}%</small>
+                  </td>
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </motion.div>
 
-            const successPercent = totalNotifications > 0 ? (totalSuccess / totalNotifications) * 100 : 0;
-            const failedPercent = totalNotifications > 0 ? (totalFailed / totalNotifications) * 100 : 0;
+      <Modal show={showModal} onHide={handleClose} size="lg">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>{selectedTeam?.teamName} Team Details</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {selectedTeam && (
+              <>
+                <p><strong>Total Users:</strong> {selectedTeam.totalUsers}</p>
+                <p><strong>Total Notifications Sent:</strong> {selectedTeam.notificationStats.totalNotifications}</p>
+                <p><strong>Unique Recipients:</strong> {selectedTeam.notificationStats.uniqueRecipients}</p>
+                <p><strong>Users:</strong></p>
+                <ul>
+                  {selectedTeam.users?.length > 0 ? (
+                    selectedTeam.users.map((user) => (
+                      <motion.li 
+                        key={user.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {user.name}
+                      </motion.li>
+                    ))
+                  ) : (
+                    <li>No users found</li>
+                  )}
+                </ul>
 
-            return (
-              <tr key={idx} onClick={() => handleRowClick(team)} style={{ cursor: 'pointer' }}>
-                <td>{team.teamName} Team</td>
-                <td>{team.totalUsers}</td>
-                <td>
-                  <div className="progress" style={{ height: '10px' }}>
-                    <div
+                <div className="mt-3">
+                  <p className="mb-1">Success</p>
+                  <div className="progress" style={{ height: '15px' }}>
+                    <motion.div
                       className="progress-bar bg-success"
                       role="progressbar"
-                      style={{ width: `${successPercent}%` }}
-                    />
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(selectedTeam.notificationStats.totalSuccess /
+                          selectedTeam.notificationStats.totalNotifications) *
+                          100
+                          }%`
+                      }}
+                      transition={{ duration: 1 }}
+                    >
+                      {(
+                        (selectedTeam.notificationStats.totalSuccess /
+                          selectedTeam.notificationStats.totalNotifications) *
+                        100
+                      ).toFixed(1)}%
+                    </motion.div>
                   </div>
-                  <small>{successPercent.toFixed(1)}%</small>
-                </td>
-                <td>
-                  <div className="progress" style={{ height: '10px' }}>
-                    <div
+
+                  <p className="mb-1 mt-3">Failed</p>
+                  <div className="progress" style={{ height: '15px' }}>
+                    <motion.div
                       className="progress-bar bg-danger"
                       role="progressbar"
-                      style={{ width: `${failedPercent}%` }}
-                    />
-                  </div>
-                  <small>{failedPercent.toFixed(1)}%</small>
-                </td>
-              </tr>
-
-            );
-          })}
-        </tbody>
-      </table>
-
-      <Tooltip id="tooltip" />
-      <Modal show={showModal} onHide={handleClose} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{selectedTeam?.teamName} Team Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedTeam && (
-            <>
-              <p><strong>Total Users:</strong> {selectedTeam.totalUsers}</p>
-              <p><strong>Total Notifications Sent:</strong> {selectedTeam.notificationStats.totalNotifications}</p>
-              <p><strong>Unique Recipients:</strong> {selectedTeam.notificationStats.uniqueRecipients}</p>
-              <p><strong>Users:</strong></p>
-              <ul>
-                {selectedTeam.users?.length > 0 ? (
-                  selectedTeam.users.map((user) => (
-                    <li key={user.id}>{user.name}</li>
-                  ))
-                ) : (
-                  <li>No users found</li>
-                )}
-              </ul>
-
-              {/* {selectedTeam.notifications?.length > 0 ? (
-                selectedTeam.notifications.map((notification, notifIdx) => (
-                  <div key={notifIdx} className="mb-3 border-top pt-2">
-                    <p><strong>Sender:</strong> {notification.sentBy?.name || 'N/A'} ({notification.sentBy?.email || 'No email'})</p>
-                    <p><strong>Receivers:</strong></p>
-                    <ul>
-                      {notification.receivedBy?.length > 0 ? (
-                        notification.receivedBy.map((receiver, rIdx) => (
-                          <li key={rIdx}>
-                            {receiver.name || 'N/A'} ({receiver.email || 'No email'})
-                          </li>
-                        ))
-                      ) : (
-                        <li>No receivers found</li>
-                      )}
-                    </ul>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted">No notification details available.</p>
-              )} */}
-
-              <div className="mt-3">
-                <p className="mb-1">Success</p>
-                <div className="progress" style={{ height: '15px' }}>
-                  <div
-                    className="progress-bar bg-success"
-                    role="progressbar"
-                    style={{
-                      width: `${(selectedTeam.notificationStats.totalSuccess /
-                        selectedTeam.notificationStats.totalNotifications) *
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(selectedTeam.notificationStats.totalFailed /
+                          selectedTeam.notificationStats.totalNotifications) *
+                          100
+                          }%`
+                      }}
+                      transition={{ duration: 1, delay: 0.2 }}
+                    >
+                      {(
+                        (selectedTeam.notificationStats.totalFailed /
+                          selectedTeam.notificationStats.totalNotifications) *
                         100
-                        }%`
-                    }}
-                  >
-                    {(
-                      (selectedTeam.notificationStats.totalSuccess /
-                        selectedTeam.notificationStats.totalNotifications) *
-                      100
-                    ).toFixed(1)}%
+                      ).toFixed(1)}%
+                    </motion.div>
                   </div>
                 </div>
-
-                <p className="mb-1 mt-3">Failed</p>
-                <div className="progress" style={{ height: '15px' }}>
-                  <div
-                    className="progress-bar bg-danger"
-                    role="progressbar"
-                    style={{
-                      width: `${(selectedTeam.notificationStats.totalFailed /
-                        selectedTeam.notificationStats.totalNotifications) *
-                        100
-                        }%`
-                    }}
-                  >
-                    {(
-                      (selectedTeam.notificationStats.totalFailed /
-                        selectedTeam.notificationStats.totalNotifications) *
-                      100
-                    ).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Close
-          </Button>
-        </Modal.Footer>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={handleClose}>
+              Close
+            </Button>
+          </Modal.Footer>
+        </motion.div>
       </Modal>
 
+      <Tooltip id="tooltip" />
     </div>
   );
 }
