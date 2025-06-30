@@ -11,6 +11,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import axios from 'axios';
 import CountUp from 'react-countup';
+import AnimatedPieChart from '../pages/AnimatedPieChart'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -46,6 +47,7 @@ function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [moduleStats, setModuleStats] = useState(null);
   const [loadingModuleStats, setLoadingModuleStats] = useState(true);
+  const [hoveredModule, setHoveredModule] = useState(null);
 
   const handleRowClick = (team) => {
     setSelectedTeam(team);
@@ -376,86 +378,46 @@ function Dashboard() {
           </div>
         ))}
       </div>
-
-      {/* Module Stats Charts */}
-      <div className="row mt-4">
-        <div className="col-md-6 mb-4">
-          <motion.div
-            className="card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <div className="card-body">
-              <h5 className="card-title">Top Active Modules</h5>
-              {loadingModuleStats ? (
-                <div className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : topModules ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={topModules}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Bar dataKey="count" fill="#8884d8" name="Activities" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted">No module data available</p>
-              )}
+     <div className="row mt-4">
+  {/* Left Column - Top Active Modules */}
+  <div className="col-md-6 mb-4 pb-10">
+    <motion.div
+      className="card"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+    >
+      <div className="card-body">
+        <h5 className="card-title">Top Active Modules</h5>
+        {loadingModuleStats ? (
+          <div className="text-center py-4">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
-          </motion.div>
-        </div>
-
-        <div className="col-md-6 mb-4">
-          <motion.div
-            className="card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <div className="card-body">
-              <h5 className="card-title">Module Stats</h5>
-              {loadingModuleStats ? (
-                <div className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : moduleDistribution ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={moduleDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {moduleDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted">No distribution data available</p>
-              )}
-            </div>
-          </motion.div>
-        </div>
+          </div>
+        ) : topModules ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={topModules}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <RechartsTooltip />
+              <Legend />
+              <Bar dataKey="count" fill="#8884d8" name="Activities" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="text-muted">No module data available</p>
+        )}
       </div>
+    </motion.div>
+  </div>
+
+  <div className="col-md-6 mb-4">
+       <AnimatedPieChart moduleDistribution={moduleDistribution} />
+
+  </div>
+</div>
 
       {/* Notification Stats Section */}
       <motion.div 

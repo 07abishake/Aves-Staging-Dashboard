@@ -124,3 +124,18 @@ body {
 .report-select .css-qr46ko {
   max-height: 300px !important;
 }
+
+
+.module-legend::-webkit-scrollbar {
+  width: 5px;
+}
+.module-legend::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.module-legend::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+.module-legend::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
