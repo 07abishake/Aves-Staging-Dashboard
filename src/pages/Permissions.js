@@ -14,6 +14,8 @@ function Permissions() {
   const [rolefetchname, setRoleFetchName] = useState('');
   const [allPermissionsSelected, setAllPermissionsSelected] = useState(false);
   const [allPagesSelected, setAllPagesSelected] = useState(false);
+  const [calendarPageAuth, setCalendarPageAuth] = useState(null);
+  const [allCalendarSelected, setAllCalendarSelected] = useState(false);
 
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -55,6 +57,7 @@ function Permissions() {
         setPermissions(response.data.role.permissions);
         setAssignedPages(response.data.role.AssignedPage);
         setRoleFetchName(response.data.role.name);
+        setCalendarPageAuth(response.data.role.calendarPageAuth || {});
       } catch (error) {
         console.error('Error fetching role permissions', error);
       }
@@ -75,6 +78,28 @@ function Permissions() {
         [permissionType]: !prev[category][permissionType],
       },
     }));
+  };
+
+  const handleCalendarPageChange = (pageKey) => {
+    setCalendarPageAuth((prev) => ({
+      ...prev,
+      [pageKey]: !prev[pageKey],
+    }));
+  };
+
+  const toggleAllCalendarPages = () => {
+    if (!calendarPageAuth) return;
+    const newState = !allCalendarSelected;
+    const updated = {};
+
+    for (const key in calendarPageAuth) {
+      if (key !== '_id' && key !== '__v') {
+        updated[key] = newState;
+      }
+    }
+
+    setCalendarPageAuth(updated);
+    setAllCalendarSelected(newState);
   };
 
   const handleAssignedPageChange = (page) => {
@@ -128,6 +153,7 @@ function Permissions() {
     const payload = {
       permissions,
       AssignedPage: AssignedPages,
+      calendarPageAuth
     };
 
     try {
@@ -153,7 +179,7 @@ function Permissions() {
     e.preventDefault();
     const payload = { name: roleName };
     try {
-      await axios.post(`https://api.avessecurity.com/api/Roles/createRole`, payload, {
+      await axios.post(`https://localhost:6378/api/Roles/createRole`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -352,6 +378,43 @@ function Permissions() {
                       ))}
                 </tbody>
               </table>
+
+              {/* Calendar Page Authorization Section */}
+              <div className="d-flex justify-content-end mb-2">
+                <button className="btn btn-sm btn-outline-secondary" onClick={toggleAllCalendarPages}>
+                  {allCalendarSelected ? 'Unselect All Calendar Pages' : 'Select All Calendar Pages'}
+                </button>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Calendar Pages</th>
+                    <th>Access</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calendarPageAuth &&
+                    Object.keys(calendarPageAuth)
+                      .filter((key) => key !== '_id' && key !== '__v')
+                      .map((key) => (
+                        <tr key={key}>
+                          <td style={{ cursor: 'pointer' }} onClick={() => handleCalendarPageChange(key)}>
+                            {key}
+                          </td>
+                          <td>
+                            <input
+                              type="checkbox"
+                              className="my-check"
+                              checked={calendarPageAuth[key]}
+                              onChange={() => handleCalendarPageChange(key)}
+                            />
+                            <label className="custom-check"></label>
+                          </td>
+                        </tr>
+                      ))}
+                </tbody>
+              </table>
+
               <div className="text-end">
                 <button className="btn btn-primary me-2" onClick={handleUpdatePermissions}>
                   Save Changes

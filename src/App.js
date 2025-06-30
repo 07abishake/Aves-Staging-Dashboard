@@ -76,6 +76,7 @@ import OccurrenceManager from './pages/OccurrenceManager'
 import OrganizationView from './pages/OrganisastionChart';
 import ShiftAssignmentManager from './pages/ShiftAssignmentManager';
 import ShiftManager from './pages/ShiftManager';
+import UpgradeManager from './pages/UpgradeManager';
 
 
 
@@ -118,6 +119,8 @@ function App() {
               <Route path='/OccurrenceManager'element={<OccurrenceManager/>}/>
              <Route path='/ShiftCreate' element={<ShiftManager/>}/>
           <Route path="/assign" element={<ShiftAssignmentManager/>}/>
+          <Route path="/upgrade" element={<UpgradeManager/>}/>
+       
 
            
             </Route>

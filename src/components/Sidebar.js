@@ -245,7 +245,7 @@ function Sidebar() {
         </NavLink>
       </li>
       <li className="nav-item">
-        <NavLink to="" className="nav-link">
+        <NavLink to="/upgrade" className="nav-link">
           <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
         </NavLink>
       </li>
