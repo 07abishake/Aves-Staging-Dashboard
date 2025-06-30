@@ -420,7 +420,7 @@ function Dashboard() {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <div className="card-body">
-              <h5 className="card-title">Module Distribution</h5>
+              <h5 className="card-title">Module Stats</h5>
               {loadingModuleStats ? (
                 <div className="text-center py-4">
                   <div className="spinner-border text-primary" role="status">
