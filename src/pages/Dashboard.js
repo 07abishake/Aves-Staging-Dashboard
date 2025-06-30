@@ -459,37 +459,51 @@ function Dashboard() {
 
       {/* Notification Stats Section */}
       <motion.div 
-        className="mb-3 mt-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
+  className="mb-3 mt-4"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ duration: 0.5, delay: 0.4 }}
+>
+  <div className="d-flex align-items-center justify-content-between mb-3">
+    <h4 className="mb-0">Team Notifications</h4>
+    <div className="d-flex align-items-center">
+      <label htmlFor="statusFilter" className="form-label me-2 mb-0">Filter:</label>
+      <select
+        id="statusFilter"
+        className="form-select"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        style={{ 
+          maxWidth: '200px',
+          backgroundImage: 'linear-gradient(45deg, #f5f7fa, #e4e8eb)',
+          border: '1px solid #dee2e6',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+        }}
       >
-        <label htmlFor="statusFilter" className="form-label">Filter by Status:</label>
-        <select
-          id="statusFilter"
-          className="form-select"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{ maxWidth: '200px' }}
-        >
-          <option value="all">All</option>
-          <option value="success">Success</option>
-          <option value="failed">Failed</option>
-        </select>
-      </motion.div>
+        <option value="all">All Notifications</option>
+        <option value="success">Successful Only</option>
+        <option value="failed">Failed Only</option>
+      </select>
+    </div>
+  </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-      >
-        <table className="table">
-          <thead>
+  <motion.div
+    className="card border-0 shadow-sm"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay: 0.5 }}
+  >
+    <div className="card-body p-0">
+      <div className="table-responsive">
+        <table className="table table-hover mb-0">
+          <thead className="bg-light">
             <tr>
-              <th>Name</th>
-              <th>Total Members</th>
-              <th>Success</th>
-              <th>Failed</th>
+              <th className="ps-4" style={{ width: '30%' }}>Team Name</th>
+              <th>Members</th>
+              <th>Success Rate</th>
+              <th>Failure Rate</th>
+              <th className="pe-4 text-end">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -497,84 +511,231 @@ function Dashboard() {
               const { totalNotifications, totalSuccess, totalFailed } = team.notificationStats;
               const successPercent = totalNotifications > 0 ? (totalSuccess / totalNotifications) * 100 : 0;
               const failedPercent = totalNotifications > 0 ? (totalFailed / totalNotifications) * 100 : 0;
+              const statusColor = successPercent > 80 ? 'success' : successPercent > 50 ? 'warning' : 'danger';
 
               return (
                 <motion.tr 
                   key={idx} 
                   onClick={() => handleRowClick(team)} 
+                  className="position-relative"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                  whileHover={{ 
+                    backgroundColor: 'rgba(0,0,0,0.02)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                  }}
                   style={{ cursor: 'pointer' }}
-                  whileHover={{ backgroundColor: 'rgba(0,0,0,0.05)' }}
-                  transition={{ duration: 0.2 }}
                 >
-                  <td>{team.teamName} Team</td>
-                  <td>{team.totalUsers}</td>
-                  <td>
-                    <div className="progress" style={{ height: '10px' }}>
-                      <motion.div
-                        className="progress-bar bg-success"
-                        role="progressbar"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${successPercent}%` }}
-                        transition={{ duration: 1, delay: 0.1 * idx }}
-                      />
+                  <td className="ps-4 fw-semibold">
+                    <div className="d-flex align-items-center">
+                      <div 
+                        className="me-3 rounded-circle d-flex align-items-center justify-content-center"
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          backgroundColor: `hsl(${idx * 60}, 70%, 90%)`,
+                          color: `hsl(${idx * 60}, 70%, 30%)`
+                        }}
+                      >
+                        {team.teamName.charAt(0).toUpperCase()}
+                      </div>
+                      {team.teamName} Team
                     </div>
-                    <small>{successPercent.toFixed(1)}%</small>
                   </td>
                   <td>
-                    <div className="progress" style={{ height: '10px' }}>
-                      <motion.div
-                        className="progress-bar bg-danger"
-                        role="progressbar"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${failedPercent}%` }}
-                        transition={{ duration: 1, delay: 0.1 * idx }}
-                      />
+                    <div className="d-flex align-items-center">
+                      <span className="me-2">{team.totalUsers}</span>
+                      <div 
+                        className="rounded-pill px-2 py-1"
+                        style={{
+                          fontSize: '0.75rem',
+                          backgroundColor: `hsl(${idx * 60}, 70%, 90%)`,
+                          color: `hsl(${idx * 60}, 70%, 30%)`
+                        }}
+                      >
+                        {Math.round((team.totalUsers / userStats.totalUsers) * 100)}% of total
+                      </div>
                     </div>
-                    <small>{failedPercent.toFixed(1)}%</small>
+                  </td>
+                  <td>
+                    <div className="d-flex align-items-center">
+                      <div className="progress flex-grow-1 me-2" style={{ height: '8px' }}>
+                        <motion.div
+                          className="progress-bar bg-success"
+                          role="progressbar"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${successPercent}%` }}
+                          transition={{ duration: 1, delay: 0.1 * idx }}
+                        />
+                      </div>
+                      <span className="fw-semibold" style={{ minWidth: '40px' }}>
+                        {successPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="d-flex align-items-center">
+                      <div className="progress flex-grow-1 me-2" style={{ height: '8px' }}>
+                        <motion.div
+                          className="progress-bar bg-danger"
+                          role="progressbar"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${failedPercent}%` }}
+                          transition={{ duration: 1, delay: 0.1 * idx }}
+                        />
+                      </div>
+                      <span className="fw-semibold" style={{ minWidth: '40px' }}>
+                        {failedPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="pe-4 text-end">
+                    <span 
+                      className={`badge rounded-pill bg-${statusColor}-subtle text-${statusColor} p-2`}
+                    >
+                      {statusColor === 'success' ? 'Excellent' : 
+                       statusColor === 'warning' ? 'Needs Improvement' : 'Critical'}
+                    </span>
                   </td>
                 </motion.tr>
               );
             })}
           </tbody>
         </table>
-      </motion.div>
+      </div>
+    </div>
+  </motion.div>
+</motion.div>
 
-      <Modal show={showModal} onHide={handleClose} size="lg">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>{selectedTeam?.teamName} Team Details</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {selectedTeam && (
-              <>
-                <p><strong>Total Users:</strong> {selectedTeam.totalUsers}</p>
-                <p><strong>Total Notifications Sent:</strong> {selectedTeam.notificationStats.totalNotifications}</p>
-                <p><strong>Unique Recipients:</strong> {selectedTeam.notificationStats.uniqueRecipients}</p>
-                <p><strong>Users:</strong></p>
-                <ul>
-                  {selectedTeam.users?.length > 0 ? (
-                    selectedTeam.users.map((user) => (
-                      <motion.li 
-                        key={user.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        {user.name}
-                      </motion.li>
-                    ))
-                  ) : (
-                    <li>No users found</li>
-                  )}
-                </ul>
+<Modal show={showModal} onHide={handleClose} size="lg" centered>
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    transition={{ duration: 0.2 }}
+  >
+    <Modal.Header closeButton className="border-0 pb-0">
+      <Modal.Title className="fw-bold">
+        <div className="d-flex align-items-center">
+          <div 
+            className="me-3 rounded-circle d-flex align-items-center justify-content-center"
+            style={{
+              width: '40px',
+              height: '40px',
+              backgroundColor: '#e3f2fd',
+              color: '#0d6efd'
+            }}
+          >
+            {selectedTeam?.teamName?.charAt(0).toUpperCase() || 'T'}
+          </div>
+          <div>
+            <div className="h5 mb-0">{selectedTeam?.teamName || ''} Team</div>
+            <div className="text-muted small">Notification Performance</div>
+          </div>
+        </div>
+      </Modal.Title>
+    </Modal.Header>
+    <Modal.Body className="pt-1">
+      {selectedTeam && (
+        <>
+          <div className="row mb-4">
+            <div className="col-md-4">
+              <div className="card border-0 bg-light p-3 h-100">
+                <div className="d-flex align-items-center">
+                  <div className="bg-primary bg-opacity-10 p-2 rounded me-3">
+                    <i className="bi bi-people-fill text-primary"></i>
+                  </div>
+                  <div>
+                    <div className="text-muted small">Total Members</div>
+                    <div className="h4 mb-0">{selectedTeam.totalUsers}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="card border-0 bg-light p-3 h-100">
+                <div className="d-flex align-items-center">
+                  <div className="bg-success bg-opacity-10 p-2 rounded me-3">
+                    <i className="bi bi-check-circle-fill text-success"></i>
+                  </div>
+                  <div>
+                    <div className="text-muted small">Successful Notifications</div>
+                    <div className="h4 mb-0">{selectedTeam.notificationStats.totalSuccess}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="card border-0 bg-light p-3 h-100">
+                <div className="d-flex align-items-center">
+                  <div className="bg-danger bg-opacity-10 p-2 rounded me-3">
+                    <i className="bi bi-exclamation-circle-fill text-danger"></i>
+                  </div>
+                  <div>
+                    <div className="text-muted small">Failed Notifications</div>
+                    <div className="h4 mb-0">{selectedTeam.notificationStats.totalFailed}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                <div className="mt-3">
-                  <p className="mb-1">Success</p>
-                  <div className="progress" style={{ height: '15px' }}>
+          <div className="mb-4">
+            <h5 className="mb-3">Team Members</h5>
+            <div className="row row-cols-1 row-cols-md-2 g-3">
+              {selectedTeam.users?.length > 0 ? (
+                selectedTeam.users.map((user, userIdx) => (
+                  <motion.div 
+                    key={user.id}
+                    className="col"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: userIdx * 0.05 }}
+                  >
+                    <div className="card border-0 shadow-sm h-100">
+                      <div className="card-body d-flex align-items-center">
+                        <div 
+                          className="me-3 rounded-circle d-flex align-items-center justify-content-center"
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            backgroundColor: `hsl(${userIdx * 60}, 70%, 90%)`,
+                            color: `hsl(${userIdx * 60}, 70%, 30%)`
+                          }}
+                        >
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="fw-semibold">{user.name}</div>
+                          <div className="text-muted small">Member</div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-12">
+                  <div className="alert alert-light">No users found in this team</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <h5 className="mb-3">Notification Performance</h5>
+            <div className="row g-3">
+              <div className="col-md-6">
+                <div className="card border-0 p-3 h-100">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="fw-semibold">Success Rate</span>
+                    <span className="text-success fw-bold">
+                      {((selectedTeam.notificationStats.totalSuccess /
+                        selectedTeam.notificationStats.totalNotifications) *
+                        100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="progress" style={{ height: '10px' }}>
                     <motion.div
                       className="progress-bar bg-success"
                       role="progressbar"
@@ -582,21 +743,24 @@ function Dashboard() {
                       animate={{
                         width: `${(selectedTeam.notificationStats.totalSuccess /
                           selectedTeam.notificationStats.totalNotifications) *
-                          100
-                          }%`
+                          100}%`
                       }}
                       transition={{ duration: 1 }}
-                    >
-                      {(
-                        (selectedTeam.notificationStats.totalSuccess /
-                          selectedTeam.notificationStats.totalNotifications) *
-                        100
-                      ).toFixed(1)}%
-                    </motion.div>
+                    />
                   </div>
-
-                  <p className="mb-1 mt-3">Failed</p>
-                  <div className="progress" style={{ height: '15px' }}>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="card border-0 p-3 h-100">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="fw-semibold">Failure Rate</span>
+                    <span className="text-danger fw-bold">
+                      {((selectedTeam.notificationStats.totalFailed /
+                        selectedTeam.notificationStats.totalNotifications) *
+                        100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="progress" style={{ height: '10px' }}>
                     <motion.div
                       className="progress-bar bg-danger"
                       role="progressbar"
@@ -604,32 +768,38 @@ function Dashboard() {
                       animate={{
                         width: `${(selectedTeam.notificationStats.totalFailed /
                           selectedTeam.notificationStats.totalNotifications) *
-                          100
-                          }%`
+                          100}%`
                       }}
                       transition={{ duration: 1, delay: 0.2 }}
-                    >
-                      {(
-                        (selectedTeam.notificationStats.totalFailed /
-                          selectedTeam.notificationStats.totalNotifications) *
-                        100
-                      ).toFixed(1)}%
-                    </motion.div>
+                    />
                   </div>
                 </div>
-              </>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleClose}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </motion.div>
-      </Modal>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </Modal.Body>
+    <Modal.Footer className="border-0">
+      <Button 
+        variant="outline-secondary" 
+        onClick={handleClose}
+        className="px-4 py-2 rounded-pill"
+      >
+        Close
+      </Button>
+      <Button 
+        variant="primary" 
+        className="px-4 py-2 rounded-pill"
+      >
+        Export Report
+      </Button>
+    </Modal.Footer>
+  </motion.div>
+</Modal>
 
-      <Tooltip id="tooltip" />
-    </div>
+      {/*notification*/}
+     </div>
   );
 }
 
