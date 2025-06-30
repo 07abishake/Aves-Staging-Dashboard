@@ -1,6 +1,6 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
-import { Spinner } from 'react-bootstrap';
+import { Spinner, Badge } from 'react-bootstrap';
 
 function Permissions() {
   const [showCreateCanvas, setShowCreateCanvas] = useState(false);
@@ -21,6 +21,35 @@ function Permissions() {
   if (!token) {
     window.location.href = '/login';
   }
+
+  // Format labels with proper spacing and special cases
+  const formatLabel = (key) => {
+    // Special cases
+    const specialCases = {
+      'CCTV': 'CCTV',
+      'OshaMinutes': 'OSHA Minutes',
+      'EmtelephoneChecklist': 'Em Telephone Checklist',
+      'EelectrmagnaticDoor': 'Electromagnetic Door',
+      'FineRecipt': 'Fine Receipt',
+      'RecivingSuplier': 'Receiving Supplier',
+      'SustainAbility': 'Sustainability',
+      'SecuritydefectReport': 'Security Defect Report',
+      'Panicbutton': 'Panic Button',
+      'Securitypass': 'Security Pass',
+      'Intercomtele': 'Intercom Telephone'
+    };
+
+    if (specialCases[key]) return specialCases[key];
+
+    // Regular formatting
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .replace(/Checklist/g, ' Checklist')
+      .replace(/Form/g, ' Form')
+      .replace(/Report/g, ' Report')
+      .trim();
+  };
 
   const fetchRoles = async () => {
     try {
@@ -179,7 +208,7 @@ function Permissions() {
     e.preventDefault();
     const payload = { name: roleName };
     try {
-      await axios.post(`https://localhost:6378/api/Roles/createRole`, payload, {
+      await axios.post(`https://api.avessecurity.com/api/Roles/createRole`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -211,17 +240,26 @@ function Permissions() {
           <Spinner animation="border" role="status" variant="light" />
         </div>
       ) : (
-        <div>
+        <div className="container-fluid py-4">
           <h2 className="mb-4">Permissions & Security</h2>
 
           <div className="row">
-            <div className="">
-              <div className="card">
+            <div className="col-12">
+              <div className="card shadow-sm">
                 <div className="card-body">
-                  <h5 className="card-title">Role Management</h5>
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h5 className="card-title mb-0">Role Management</h5>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => setShowCreateCanvas(true)}
+                    >
+                      <i className="bi bi-plus-lg me-2"></i>Add New Role
+                    </button>
+                  </div>
+                  
                   <div className="table-responsive">
-                    <table className="table">
-                      <thead>
+                    <table className="table table-hover">
+                      <thead className="table-light">
                         <tr>
                           <th>Role</th>
                           <th>Actions</th>
@@ -231,31 +269,32 @@ function Permissions() {
                         {allRoles.length > 0 ? (
                           allRoles.map((role) => (
                             <tr key={role._id}>
-                              <td>{role.name}</td>
+                              <td>
+                                <span className="fw-semibold">{role.name}</span>
+                              </td>
                               <td>
                                 <button
                                   className="btn btn-sm btn-outline-primary me-2"
                                   onClick={() => handleSelectRole(role._id)}
                                 >
-                                  View/Edit
+                                  <i className="bi bi-eye me-1"></i>View/Edit
                                 </button>
-                                <button className="btn btn-sm btn-outline-danger">Delete</button>
+                                <button className="btn btn-sm btn-outline-danger">
+                                  <i className="bi bi-trash me-1"></i>Delete
+                                </button>
                               </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3" className="text-center">
-                              No roles found
+                            <td colSpan="3" className="text-center py-4">
+                              <div className="text-muted">No roles found</div>
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
-                  <button className="btn btn-primary mt-3" onClick={() => setShowCreateCanvas(true)}>
-                    Add New Role
-                  </button>
                 </div>
               </div>
             </div>
@@ -274,20 +313,26 @@ function Permissions() {
             </div>
             <div className="offcanvas-body p-2">
               <form style={{ height: '500px' }} onSubmit={hanleSubmit}>
-                <div className="d-flex mb-3 justify-content-between">
-                  <label className="form-label me-2 mb-0 mt-1">Role Name :</label>
+                <div className="mb-3">
+                  <label className="form-label">Role Name</label>
                   <input
-                    className="form-control w-50"
+                    className="form-control"
                     onChange={(e) => setRoleName(e.target.value)}
                     required
+                    placeholder="Enter role name"
                   />
                 </div>
-                <div className="text-end">
-                  <button type="submit" className="btn btn-primary me-2" disabled={loading}>
-                    {loading ? 'Creating...' : 'Create'}
-                  </button>
-                  <button type="button" className="btn" onClick={() => setShowCreateCanvas(false)}>
+                <div className="text-end mt-4">
+                  <button type="button" className="btn btn-outline-secondary me-2" onClick={() => setShowCreateCanvas(false)}>
                     Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                        <span className="ms-2">Creating...</span>
+                      </>
+                    ) : 'Create Role'}
                   </button>
                 </div>
               </form>
@@ -297,7 +342,9 @@ function Permissions() {
           {/* View/Edit Role Permissions */}
           <div className={`p-4 offcanvas-custom ${showViewCanvas ? 'show' : ''}`}>
             <div className="offcanvas-header mb-3">
-              <h5 className="offcanvas-title">{rolefetchname} Permissions</h5>
+              <h5 className="offcanvas-title">
+                <Badge bg="primary" className="me-2">{rolefetchname}</Badge> Permissions
+              </h5>
               <button
                 type="button"
                 className="btn-close"
@@ -306,121 +353,160 @@ function Permissions() {
               ></button>
             </div>
             <div className="offcanvas-body">
-              <div className="d-flex justify-content-end mb-2">
-                <button className="btn btn-sm btn-outline-secondary" onClick={toggleAllPermissions}>
-                  {allPermissionsSelected ? 'Unselect All Permissions' : 'Select All Permissions'}
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h6 className="mb-0">Module Permissions</h6>
+                <button 
+                  className="btn btn-sm btn-outline-primary" 
+                  onClick={toggleAllPermissions}
+                >
+                  {allPermissionsSelected ? 'Unselect All' : 'Select All'}
                 </button>
               </div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Permission</th>
-                    <th>Create</th>
-                    <th>Update</th>
-                    <th>Delete</th>
-                    <th>View</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {permissions &&
-                    Object.keys(permissions)
-                      .filter((key) => key !== '_id' && key !== '__v')
-                      .map((key) => (
-                        <tr key={key}>
-                          <td>{key}</td>
-                          {['create', 'update', 'delete', 'view'].map((perm) => (
-                            <td key={perm}>
-                              <input
-                                className="my-check"
-                                type="checkbox"
-                                checked={permissions[key][perm]}
-                                onChange={() => handlePermissionChange(key, perm)}
-                              />
-                              <label className="custom-check"></label>
+              
+              <div className="table-responsive mb-5">
+                <table className="table  table-hover">
+                  <thead className="">
+                    <tr>
+                      <th style={{ width: '50%' }}>Module</th>
+                      <th className="text-center">Create</th>
+                      <th className="text-center">Update</th>
+                      <th className="text-center">Delete</th>
+                      <th className="text-center">View</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {permissions &&
+                      Object.keys(permissions)
+                        .filter((key) => key !== '_id' && key !== '__v')
+                        .map((key) => (
+                          <tr key={key}>
+                            <td>
+                              <span className="fw-semibold">{formatLabel(key)}</span>
                             </td>
-                          ))}
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
+                            {['create', 'update', 'delete', 'view'].map((perm) => (
+                              <td key={perm} className="text-center">
+                                <div className="form-check d-inline-block">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    checked={permissions[key][perm]}
+                                    onChange={() => handlePermissionChange(key, perm)}
+                                    style={{ transform: 'scale(1.2)' }}
+                                  />
+                                </div>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                  </tbody>
+                </table>
+              </div>
 
-              <div className="d-flex justify-content-end mb-2">
-                <button className="btn btn-sm btn-outline-secondary" onClick={toggleAllPages}>
-                  {allPagesSelected ? 'Unselect All Pages' : 'Select All Pages'}
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h6 className="mb-0">Page Access</h6>
+                <button 
+                  className="btn btn-sm btn-outline-primary" 
+                  onClick={toggleAllPages}
+                >
+                  {allPagesSelected ? 'Unselect All' : 'Select All'}
                 </button>
               </div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Assigned Pages</th>
-                    <th>Access</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {AssignedPages &&
-                    Object.keys(AssignedPages)
-                      .filter((key) => key !== '_id' && key !== '__v')
-                      .map((key) => (
-                        <tr key={key}>
-                          <td onClick={() => handleAssignedPageChange(key)} style={{ cursor: 'pointer' }}>
-                            {key}
-                          </td>
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="my-check"
-                              checked={AssignedPages[key]}
-                              onChange={() => handleAssignedPageChange(key)}
-                            />
-                            <label className="custom-check"></label>
-                          </td>
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
+              
+              <div className="table-responsive mb-5">
+                <table className="table  table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th style={{ width: '80%' }}>Page</th>
+                      <th className="text-center">Access</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {AssignedPages &&
+                      Object.keys(AssignedPages)
+                        .filter((key) => key !== '_id' && key !== '__v')
+                        .map((key) => (
+                          <tr key={key}>
+                            <td onClick={() => handleAssignedPageChange(key)} style={{ cursor: 'pointer' }}>
+                              {formatLabel(key)}
+                            </td>
+                            <td className="text-center">
+                              <div className="form-check form-switch d-inline-block">
+                                <input
+                                  type="checkbox"
+                                  className="form-check-input"
+                                  role="switch"
+                                  checked={AssignedPages[key]}
+                                  onChange={() => handleAssignedPageChange(key)}
+                                  style={{ transform: 'scale(1.5)' }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                  </tbody>
+                </table>
+              </div>
 
-              {/* Calendar Page Authorization Section */}
-              <div className="d-flex justify-content-end mb-2">
-                <button className="btn btn-sm btn-outline-secondary" onClick={toggleAllCalendarPages}>
-                  {allCalendarSelected ? 'Unselect All Calendar Pages' : 'Select All Calendar Pages'}
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h6 className="mb-0">Calendar Page Access</h6>
+                <button 
+                  className="btn btn-sm btn-outline-primary" 
+                  onClick={toggleAllCalendarPages}
+                >
+                  {allCalendarSelected ? 'Unselect All' : 'Select All'}
                 </button>
               </div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Calendar Pages</th>
-                    <th>Access</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {calendarPageAuth &&
-                    Object.keys(calendarPageAuth)
-                      .filter((key) => key !== '_id' && key !== '__v')
-                      .map((key) => (
-                        <tr key={key}>
-                          <td style={{ cursor: 'pointer' }} onClick={() => handleCalendarPageChange(key)}>
-                            {key}
-                          </td>
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="my-check"
-                              checked={calendarPageAuth[key]}
-                              onChange={() => handleCalendarPageChange(key)}
-                            />
-                            <label className="custom-check"></label>
-                          </td>
-                        </tr>
-                      ))}
-                </tbody>
-              </table>
+              
+              <div className="table-responsive">
+                <table className="table  table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th style={{ width: '80%' }}>Action Page</th>
+                      <th className="text-center">Access</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calendarPageAuth &&
+                      Object.keys(calendarPageAuth)
+                        .filter((key) => key !== '_id' && key !== '__v')
+                        .map((key) => (
+                          <tr key={key}>
+                            <td style={{ cursor: 'pointer' }} onClick={() => handleCalendarPageChange(key)}>
+                              {formatLabel(key.replace('CalendarByUser', '').replace('CalendarByAdmin', ''))}
+                              <Badge bg={key.includes('ByUser') ? 'info' : 'warning'} className="ms-2">
+                                {key.includes('ByUser') ? 'User' : 'Admin'}
+                              </Badge>
+                            </td>
+                            <td className="text-center">
+                              <div className="form-check form-switch d-inline-block">
+                                <input
+                                  type="checkbox"
+                                  className="form-check-input"
+                                  role="switch"
+                                  checked={calendarPageAuth[key]}
+                                  onChange={() => handleCalendarPageChange(key)}
+                                  style={{ transform: 'scale(1.5)' }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                  </tbody>
+                </table>
+              </div>
 
-              <div className="text-end">
-                <button className="btn btn-primary me-2" onClick={handleUpdatePermissions}>
-                  Save Changes
+              <div className="d-flex justify-content-end mt-4 border-top pt-3">
+                <button 
+                  className="btn btn-outline-secondary me-3" 
+                  onClick={() => setShowViewCanvas(false)}
+                >
+                  Cancel
                 </button>
-                <button className="btn" onClick={() => setShowViewCanvas(false)}>
-                  Back
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleUpdatePermissions}
+                >
+                  <i className="bi bi-save me-2"></i>Save Changes
                 </button>
               </div>
             </div>
