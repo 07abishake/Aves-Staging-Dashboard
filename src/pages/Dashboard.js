@@ -115,7 +115,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchModuleStats = async () => {
       try {
-        const response = await axios.get('https://api.avessecurity.com/collection/module-wise-user-monthly', {
+        const response = await axios.get('https://api.avessecurity.com/api/collection/module-wise-user-monthly', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
