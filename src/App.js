@@ -77,6 +77,10 @@ import OrganizationView from './pages/OrganisastionChart';
 import ShiftAssignmentManager from './pages/ShiftAssignmentManager';
 import ShiftManager from './pages/ShiftManager';
 import UpgradeManager from './pages/UpgradeManager';
+import EventManagement from './pages/EventManagement';
+import TermManagement from './pages/TermManagement';
+import ProductManager from './pages/Product';
+import InventoryManager from './pages/InventoryManager';
 
 
 
@@ -120,6 +124,11 @@ function App() {
              <Route path='/ShiftCreate' element={<ShiftManager/>}/>
           <Route path="/assign" element={<ShiftAssignmentManager/>}/>
           <Route path="/upgrade" element={<UpgradeManager/>}/>
+          <Route path='/event-management' element={<EventManagement/>}/>
+          <Route path ='/terms-condition' element={<TermManagement/>}/>
+          <Route path='/department' element={<Departments/>}/>
+          <Route path='/inventory-manager' element={<InventoryManager/>}/>
+          <Route path ='/product' element={<ProductManager/>}/>
        
 
            

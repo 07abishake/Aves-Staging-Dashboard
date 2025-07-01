@@ -1,0 +1,443 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Modal, Button, Form, Table, Card, Badge, Spinner, Alert, Image } from 'react-bootstrap';
+
+const ProductManager = () => {
+  const [products, setProducts] = useState([]);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [imagePreview, setImagePreview] = useState([]);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    ItemName: '',
+    Category: '',
+    Type: '',
+    BrandModel: '',
+    Description: '',
+    AddQuntity: 0,
+    MinimumStockLevel: 0,
+    ProductImage: []
+  });
+
+  // Fetch products
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const { data } = await axios.get('http://api.avessecurity.com:6378/api/AddProducts/get');
+      setProducts(data);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch products');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Handle input change
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle image upload
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const previews = files.map(file => URL.createObjectURL(file));
+    setImagePreview(previews);
+    setFormData(prev => ({ ...prev, ProductImage: files }));
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      ItemName: '',
+      Category: '',
+      Type: '',
+      BrandModel: '',
+      Description: '',
+      AddQuntity: 0,
+      MinimumStockLevel: 0,
+      ProductImage: []
+    });
+    setImagePreview([]);
+    setCurrentProduct(null);
+  };
+
+  // Open form for editing
+  const openEditForm = (product) => {
+    setCurrentProduct(product);
+    setFormData({
+      ItemName: product.ItemName,
+      Category: product.Category,
+      Type: product.Type,
+      BrandModel: product.BrandModel,
+      Description: product.Description,
+      AddQuntity: product.AddQuntity,
+      MinimumStockLevel: product.MinimumStockLevel,
+      ProductImage: []
+    });
+    setImagePreview(product.ProductImage || []);
+    setShowFormModal(true);
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const formDataToSend = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'ProductImage') {
+          formDataToSend.append(key, value);
+        }
+      });
+      
+      // Append each image file
+      formData.ProductImage.forEach(file => {
+        formDataToSend.append('ProductImage', file);
+      });
+
+      if (currentProduct) {
+        // Update existing product
+        await axios.put(
+          `http://api.avessecurity.com:6378/api/AddProducts/update/${currentProduct._id}`,
+          formDataToSend,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        setSuccess('Product updated successfully');
+      } else {
+        // Create new product
+        await axios.post(
+          'http://api.avessecurity.com:6378/api/AddProducts/create',
+          formDataToSend,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        setSuccess('Product created successfully');
+      }
+      
+      fetchProducts();
+      setShowFormModal(false);
+      resetForm();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Operation failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete product
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    
+    setIsLoading(true);
+    try {
+      await axios.delete(`http://api.avessecurity.com:6378/api/AddProducts/delete/${id}`);
+      setSuccess('Product deleted successfully');
+      fetchProducts();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="mb-0">Product Management</h2>
+        <Button variant="primary" onClick={() => { setShowFormModal(true); resetForm(); }}>
+          Add Product
+        </Button>
+      </div>
+
+      {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
+      {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
+
+      <Card className="shadow-sm">
+        <Card.Body>
+          {isLoading && !products.length ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <Table striped hover className="mb-0">
+                <thead>
+                  <tr>
+                    <th>Item Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(product => (
+                    <tr key={product._id}>
+                      <td>
+                        <Badge bg="secondary">{product.ItemCode}</Badge>
+                      </td>
+                      <td>{product.ItemName}</td>
+                      <td>{product.Category}</td>
+                      <td>{product.Type}</td>
+                      <td>{product.AddQuntity || 0}</td>
+                      <td>
+                        <Badge bg={product.isActive ? 'success' : 'secondary'}>
+                          {product.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="d-flex gap-2">
+                          <Button variant="outline-primary" size="sm" onClick={() => {
+                            setCurrentProduct(product);
+                            setShowViewModal(true);
+                          }}>
+                            View
+                          </Button>
+                          <Button variant="outline-warning" size="sm" onClick={() => openEditForm(product)}>
+                            Edit
+                          </Button>
+                          <Button variant="outline-danger" size="sm" onClick={() => handleDelete(product._id)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+
+      {/* Product Form Modal */}
+      <Modal show={showFormModal} onHide={() => setShowFormModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{currentProduct ? 'Edit Product' : 'Add New Product'}</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleSubmit}>
+          <Modal.Body>
+            <div className="row g-3">
+              <div className="col-md-6">
+                <Form.Group controlId="itemName">
+                  <Form.Label>Item Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="ItemName"
+                    value={formData.ItemName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-6">
+                <Form.Group controlId="category">
+                  <Form.Label>Category</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="Category"
+                    value={formData.Category}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-6">
+                <Form.Group controlId="type">
+                  <Form.Label>Type</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="Type"
+                    value={formData.Type}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-6">
+                <Form.Group controlId="brandModel">
+                  <Form.Label>Brand/Model</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="BrandModel"
+                    value={formData.BrandModel}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-12">
+                <Form.Group controlId="description">
+                  <Form.Label>Description</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="Description"
+                    value={formData.Description}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-4">
+                <Form.Group controlId="quantity">
+                  <Form.Label>Initial Quantity</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    name="AddQuntity"
+                    value={formData.AddQuntity}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-4">
+                <Form.Group controlId="minStock">
+                  <Form.Label>Minimum Stock Level</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    name="MinimumStockLevel"
+                    value={formData.MinimumStockLevel}
+                    onChange={handleInputChange}
+                  />
+                </Form.Group>
+              </div>
+              
+              <div className="col-md-4">
+                <Form.Group controlId="images">
+                  <Form.Label>Product Images</Form.Label>
+                  <Form.Control
+                    type="file"
+                    multiple
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                  />
+                </Form.Group>
+              </div>
+              
+              {imagePreview.length > 0 && (
+                <div className="col-12">
+                  <div className="d-flex flex-wrap gap-2 mt-2">
+                    {imagePreview.map((img, index) => (
+                      <Image
+                        key={index}
+                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                        alt="Preview"
+                        thumbnail
+                        style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowFormModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Product'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Product View Modal */}
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Product Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {currentProduct && (
+            <div className="row">
+              <div className="col-md-5">
+                {currentProduct.ProductImage?.length > 0 ? (
+                  <div className="d-flex flex-column gap-2">
+                    <Image
+                      src={currentProduct.ProductImage[0]}
+                      alt={currentProduct.ItemName}
+                      fluid
+                      className="rounded"
+                    />
+                    <div className="d-flex gap-2">
+                      {currentProduct.ProductImage.slice(1).map((img, index) => (
+                        <Image
+                          key={index}
+                          src={img}
+                          alt={currentProduct.ItemName}
+                          thumbnail
+                          style={{ width: '60px', height: '60px', objectFit: 'cover' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-light d-flex align-items-center justify-content-center rounded" style={{ height: '200px' }}>
+                    <span className="text-muted">No Image Available</span>
+                  </div>
+                )}
+              </div>
+              <div className="col-md-7">
+                <h4>{currentProduct.ItemName}</h4>
+                <p className="text-muted">{currentProduct.ItemCode}</p>
+                
+                <div className="mb-3">
+                  <h6>Details</h6>
+                  <div className="row">
+                    <div className="col-6">
+                      <p className="mb-1"><strong>Category:</strong> {currentProduct.Category || '-'}</p>
+                      <p className="mb-1"><strong>Type:</strong> {currentProduct.Type || '-'}</p>
+                    </div>
+                    <div className="col-6">
+                      <p className="mb-1"><strong>Brand/Model:</strong> {currentProduct.BrandModel || '-'}</p>
+                      <p className="mb-1"><strong>Quantity:</strong> {currentProduct.AddQuntity || 0}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mb-3">
+                  <h6>Description</h6>
+                  <p>{currentProduct.Description || 'No description available'}</p>
+                </div>
+                
+                <div className="d-flex gap-2">
+                  <Badge bg="info">Min Stock: {currentProduct.MinimumStockLevel}</Badge>
+                  <Badge bg={currentProduct.isActive ? 'success' : 'secondary'}>
+                    {currentProduct.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+};
+
+export default ProductManager;

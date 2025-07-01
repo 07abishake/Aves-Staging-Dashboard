@@ -9,15 +9,7 @@ function Sidebar() {
     const [locationMenuOpen, setLocationMenuOpen] = useState(false);
     const [adminMenuOpen, setAdminMenuOpen] = useState(false);
     
-    // Get plan features from localStorage
-    const planFeatures = JSON.parse(localStorage.getItem('planFeatures')) || [];
-    const userPlan = JSON.parse(localStorage.getItem('userPlan')) || {};
-    
-    // Helper function to check if a feature is enabled
-    const hasFeature = (featureName) => {
-        const feature = planFeatures.find(f => f.f_name === featureName);
-        return feature && feature.f_value === "Yes";
-    };
+   
 
     return (
         <nav className="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse">
@@ -25,7 +17,7 @@ function Sidebar() {
                 <div className="text-center mb-4">
                     <img src={logo} alt="Logo" style={{ width: '180px', height: 'auto' }} />
                     <div className="mt-2">
-                        <small className="text-muted">{userPlan.plan_name}</small>
+                        <small className="text-muted"></small>
                     </div>
                 </div>
                 <ul className="nav flex-column">
@@ -36,8 +28,6 @@ function Sidebar() {
                         </NavLink>
                     </li>
 
-                    {/* User & Profiles Menu */}
-                    {hasFeature("Admin") && (
                         <li className="nav-item">
                             <div 
                                 className="nav-link d-flex justify-content-between align-items-center" 
@@ -67,10 +57,9 @@ function Sidebar() {
                                 </ul>
                             )}
                         </li>
-                    )}
+                
 
                     {/* Inventory Menu */}
-                    {hasFeature("Asset") && (
                         <li className="nav-item">
                             <div 
                                 className="nav-link d-flex justify-content-between align-items-center" 
@@ -97,10 +86,9 @@ function Sidebar() {
                                 </ul>
                             )}
                         </li>
-                    )}
 
                     {/* Organization Menu */}
-                    {hasFeature("Admin") && (
+               
                         <li className="nav-item">
                             <div 
                                 className="nav-link d-flex justify-content-between align-items-center" 
@@ -124,10 +112,9 @@ function Sidebar() {
                                 </ul>
                             )}
                         </li>
-                    )}
 
                     {/* Location Menu */}
-                    {hasFeature("Patrol") && (
+                  
                         <li className="nav-item">
                             <div 
                                 className="nav-link d-flex justify-content-between align-items-center" 
@@ -151,10 +138,10 @@ function Sidebar() {
                                 </ul>
                             )}
                         </li>
-                    )}
+                
 
                     {/* Admin Menu */}
-                    {(hasFeature("Shift") || hasFeature("Emergency") || hasFeature("Training") || hasFeature("Upgrade")) && (
+                 
                         <li className="nav-item">
                             <div 
                                 className="nav-link d-flex justify-content-between align-items-center" 
@@ -169,7 +156,7 @@ function Sidebar() {
                             </div>
                             {adminMenuOpen && (
                                 <ul className="nav flex-column ms-4">
-                                    {hasFeature("Shift") && (
+                                 
                                         <>
                                             <li className="nav-item">
                                                 <NavLink to="/ShiftCreate" className="nav-link">
@@ -182,7 +169,6 @@ function Sidebar() {
                                                 </NavLink>
                                             </li>
                                         </>
-                                    )}
                                     <li className="nav-item">
                                         <NavLink to="/cctv" className="nav-link">
                                             <i className="bi bi-camera-video me-2"></i> CCTV
@@ -193,15 +179,15 @@ function Sidebar() {
                                             <i className="bi bi-person-badge me-2"></i> Pass Setup
                                         </NavLink>
                                     </li>
-                                    {hasFeature("Emergency") && (
+                                 
                                         <li className="nav-item">
                                             <NavLink to="/emergency-code" className="nav-link">
                                                 <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
                                             </NavLink>
                                         </li>
-                                    )}
+                                 
                                     <li className="nav-item">
-                                        <NavLink to="/events" className="nav-link">
+                                        <NavLink to="/event-management" className="nav-link">
                                             <i className="bi bi-calendar-event me-2"></i> Events
                                         </NavLink>
                                     </li>
@@ -225,48 +211,42 @@ function Sidebar() {
                                             <i className="bi bi-tree me-2"></i> Sustainability
                                         </NavLink>
                                     </li>
-                                    {hasFeature("Training") && (
                                         <li className="nav-item">
                                             <NavLink to="/training" className="nav-link">
                                                 <i className="bi bi-mortarboard me-2"></i> Training
                                             </NavLink>
                                         </li>
-                                    )}
+                               
                                     <li className="nav-item">
-                                        <NavLink to="/terms" className="nav-link">
+                                        <NavLink to="/terms-condition" className="nav-link">
                                             <i className="bi bi-card-checklist me-2"></i> Terms & Conditions
                                         </NavLink>
                                     </li>
-                                    {hasFeature("Upgrade") && (
                                         <li className="nav-item">
                                             <NavLink to="/upgrade" className="nav-link">
                                                 <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
                                             </NavLink>
                                         </li>
-                                    )}
+                                    
                                 </ul>
                             )}
                         </li>
-                    )}
-
                     {/* Other Menu Items */}
-                    {hasFeature("Admin") && (
+                 
                         <li className="nav-item">
                             <NavLink to="/permissions" className="nav-link">
                                 <i className="bi bi-shield-lock me-2"></i>
                                 Permissions
                             </NavLink>
                         </li>
-                    )}
-
-                    {hasFeature("Reports") && (
+                    
                         <li className="nav-item">
                             <NavLink to="/reports" className="nav-link">
                                 <i className="bi bi-graph-up me-2"></i>
                                 Reports & Analytics
                             </NavLink>
                         </li>
-                    )}
+                    
 
                     <li className="nav-item">
                         <NavLink to="/OccurrenceManager" className="nav-link">
@@ -275,14 +255,14 @@ function Sidebar() {
                         </NavLink>
                     </li>
 
-                    {hasFeature("Patrol") && (
+                 
                         <li className="nav-item">
                             <NavLink to="/patrol" className="nav-link">
                                 <i className="bi bi-geo-alt me-2"></i>
                                 Patrol
                             </NavLink>
                         </li>
-                    )}
+                
 
                     <li className="nav-item">
                         <NavLink to="/sop" className="nav-link">
