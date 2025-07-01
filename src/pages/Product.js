@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Modal, Button, Form, Table, Card, Badge, Spinner, Alert, Image } from 'react-bootstrap';
 
 const ProductManager = () => {
+  // State declarations
   const [products, setProducts] = useState([]);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -24,23 +25,39 @@ const ProductManager = () => {
     ProductImage: []
   });
 
-  // Fetch products
+  // Get token from localStorage
+  const token = localStorage.getItem("access_token");
+
+  // Fetch products function
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const { data } = await axios.get('http://api.avessecurity.com:6378/api/AddProducts/get');
-      setProducts(data);
+      const response = await axios.get('https://api.avessecurity.com:6378/api/AddProducts/products', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      const productsData = response.data?.Products || [];
+      setProducts(Array.isArray(productsData) ? productsData : []);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch products');
+      console.error('Fetch error:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to fetch products');
+      setProducts([]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // useEffect for initial data loading
   useEffect(() => {
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
     fetchProducts();
-  }, []);
+  }, [token]); // Added token to dependency array
 
   // Handle input change
   const handleInputChange = (e) => {
@@ -76,13 +93,13 @@ const ProductManager = () => {
   const openEditForm = (product) => {
     setCurrentProduct(product);
     setFormData({
-      ItemName: product.ItemName,
-      Category: product.Category,
-      Type: product.Type,
-      BrandModel: product.BrandModel,
-      Description: product.Description,
-      AddQuntity: product.AddQuntity,
-      MinimumStockLevel: product.MinimumStockLevel,
+      ItemName: product.ItemName || '',
+      Category: product.Category || '',
+      Type: product.Type || '',
+      BrandModel: product.BrandModel || '',
+      Description: product.Description || '',
+      AddQuntity: product.AddQuntity || 0,
+      MinimumStockLevel: product.MinimumStockLevel || 0,
       ProductImage: []
     });
     setImagePreview(product.ProductImage || []);
@@ -94,9 +111,12 @@ const ProductManager = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
     
     try {
       const formDataToSend = new FormData();
+      
+      // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== 'ProductImage') {
           formDataToSend.append(key, value);
@@ -104,33 +124,48 @@ const ProductManager = () => {
       });
       
       // Append each image file
-      formData.ProductImage.forEach(file => {
-        formDataToSend.append('ProductImage', file);
-      });
+      if (formData.ProductImage && formData.ProductImage.length > 0) {
+        formData.ProductImage.forEach(file => {
+          formDataToSend.append('ProductImage', file);
+        });
+      }
 
+      let response;
       if (currentProduct) {
         // Update existing product
-        await axios.put(
-          `http://api.avessecurity.com:6378/api/AddProducts/update/${currentProduct._id}`,
+        response = await axios.put(
+          `https://api.avessecurity.com:6378/api/AddProducts/products/update/${currentProduct._id}`,
           formDataToSend,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
         );
         setSuccess('Product updated successfully');
       } else {
         // Create new product
-        await axios.post(
-          'http://api.avessecurity.com:6378/api/AddProducts/create',
+        response = await axios.post(
+          'https://api.avessecurity.com:6378/api/AddProducts/products/create',
           formDataToSend,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
         );
         setSuccess('Product created successfully');
       }
       
+      console.log('API Response:', response.data);
       fetchProducts();
       setShowFormModal(false);
       resetForm();
     } catch (err) {
-      setError(err.response?.data?.message || 'Operation failed');
+      console.error('Submission error:', err);
+      setError(err.response?.data?.message || err.message || 'Operation failed');
     } finally {
       setIsLoading(false);
     }
@@ -142,16 +177,22 @@ const ProductManager = () => {
     
     setIsLoading(true);
     try {
-      await axios.delete(`http://api.avessecurity.com:6378/api/AddProducts/delete/${id}`);
+      await axios.delete(
+        `https://api.avessecurity.com:6378/api/AddProducts/products/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setSuccess('Product deleted successfully');
       fetchProducts();
     } catch (err) {
-      setError(err.response?.data?.message || 'Delete failed');
+      setError(err.response?.data?.message || err.message || 'Delete failed');
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -187,38 +228,44 @@ const ProductManager = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(product => (
-                    <tr key={product._id}>
-                      <td>
-                        <Badge bg="secondary">{product.ItemCode}</Badge>
-                      </td>
-                      <td>{product.ItemName}</td>
-                      <td>{product.Category}</td>
-                      <td>{product.Type}</td>
-                      <td>{product.AddQuntity || 0}</td>
-                      <td>
-                        <Badge bg={product.isActive ? 'success' : 'secondary'}>
-                          {product.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <Button variant="outline-primary" size="sm" onClick={() => {
-                            setCurrentProduct(product);
-                            setShowViewModal(true);
-                          }}>
-                            View
-                          </Button>
-                          <Button variant="outline-warning" size="sm" onClick={() => openEditForm(product)}>
-                            Edit
-                          </Button>
-                          <Button variant="outline-danger" size="sm" onClick={() => handleDelete(product._id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
+                  {products.length > 0 ? (
+                    products.map(product => (
+                      <tr key={product._id}>
+                        <td>
+                          <Badge bg="secondary">{product.ItemCode || 'N/A'}</Badge>
+                        </td>
+                        <td>{product.ItemName || 'N/A'}</td>
+                        <td>{product.Category || 'N/A'}</td>
+                        <td>{product.Type || 'N/A'}</td>
+                        <td>{product.AddQuntity || 0}</td>
+                        <td>
+                          <Badge bg={product.isActive ? 'success' : 'secondary'}>
+                            {product.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2">
+                            <Button variant="outline-primary" size="sm" onClick={() => {
+                              setCurrentProduct(product);
+                              setShowViewModal(true);
+                            }}>
+                              View
+                            </Button>
+                            <Button variant="outline-warning" size="sm" onClick={() => openEditForm(product)}>
+                              Edit
+                            </Button>
+                            <Button variant="outline-danger" size="sm" onClick={() => handleDelete(product._id)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center">No products found</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </Table>
             </div>
@@ -236,7 +283,7 @@ const ProductManager = () => {
             <div className="row g-3">
               <div className="col-md-6">
                 <Form.Group controlId="itemName">
-                  <Form.Label>Item Name</Form.Label>
+                  <Form.Label>Item Name *</Form.Label>
                   <Form.Control
                     type="text"
                     name="ItemName"
@@ -334,18 +381,30 @@ const ProductManager = () => {
                 </Form.Group>
               </div>
               
-              {imagePreview.length > 0 && (
+              {(imagePreview.length > 0 || (currentProduct?.ProductImage?.length > 0)) && (
                 <div className="col-12">
                   <div className="d-flex flex-wrap gap-2 mt-2">
-                    {imagePreview.map((img, index) => (
-                      <Image
-                        key={index}
-                        src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                        alt="Preview"
-                        thumbnail
-                        style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-                      />
-                    ))}
+                    {imagePreview.length > 0 ? (
+                      imagePreview.map((img, index) => (
+                        <Image
+                          key={index}
+                          src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                          alt="Preview"
+                          thumbnail
+                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                        />
+                      ))
+                    ) : (
+                      currentProduct?.ProductImage?.map((img, index) => (
+                        <Image
+                          key={index}
+                          src={img}
+                          alt="Current"
+                          thumbnail
+                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                        />
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -356,7 +415,14 @@ const ProductManager = () => {
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Product'}
+              {isLoading ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                  <span className="ms-2">Saving...</span>
+                </>
+              ) : (
+                'Save Product'
+              )}
             </Button>
           </Modal.Footer>
         </Form>
@@ -398,8 +464,8 @@ const ProductManager = () => {
                 )}
               </div>
               <div className="col-md-7">
-                <h4>{currentProduct.ItemName}</h4>
-                <p className="text-muted">{currentProduct.ItemCode}</p>
+                <h4>{currentProduct.ItemName || 'N/A'}</h4>
+                <p className="text-muted">{currentProduct.ItemCode || 'N/A'}</p>
                 
                 <div className="mb-3">
                   <h6>Details</h6>
@@ -421,7 +487,7 @@ const ProductManager = () => {
                 </div>
                 
                 <div className="d-flex gap-2">
-                  <Badge bg="info">Min Stock: {currentProduct.MinimumStockLevel}</Badge>
+                  <Badge bg="info">Min Stock: {currentProduct.MinimumStockLevel || 0}</Badge>
                   <Badge bg={currentProduct.isActive ? 'success' : 'secondary'}>
                     {currentProduct.isActive ? 'Active' : 'Inactive'}
                   </Badge>

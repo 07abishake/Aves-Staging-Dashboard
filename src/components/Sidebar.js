@@ -75,13 +75,10 @@ function Sidebar() {
                             {inventoryMenuOpen && (
                                 <ul className="nav flex-column ms-4">
                                     <li className="nav-item">
-                                        <NavLink to="/items-details" className="nav-link">Add Product</NavLink>
+                                        <NavLink to="/product" className="nav-link">Add Product</NavLink>
                                     </li>
                                     <li className="nav-item">
-                                        <NavLink to="/location-info" className="nav-link">Location Info</NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/inventory-status" className="nav-link">Inventory Status</NavLink>
+                                        <NavLink to="/inventory-manager" className="nav-link">Inventory Status</NavLink>
                                     </li>
                                 </ul>
                             )}
