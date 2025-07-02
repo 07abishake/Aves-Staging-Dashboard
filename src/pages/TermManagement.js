@@ -7,7 +7,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://api.avessecurity.com:6378/api/termandcondition';
+const API_BASE_URL = 'https://api.avessecurity.com/api/termandcondition';
 
 const token = localStorage.getItem("access_token");
 if (!token) {

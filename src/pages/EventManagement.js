@@ -8,7 +8,7 @@ import {
 import axios from 'axios';
 import { format } from 'date-fns';
 
-const API_BASE_URL = 'http://api.avessecurity.com:6378/api/event';
+const API_BASE_URL = 'https://api.avessecurity.com/api/event';
 
 const token = localStorage.getItem("access_token");
 if (!token) {

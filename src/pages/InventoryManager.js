@@ -64,10 +64,10 @@ const InventoryManager = () => {
       setIsLoading(true);
       try {
         const [productsRes, locationsRes] = await Promise.all([
-          axios.get('http://api.avessecurity.com:6378/api/AddProducts/products', {
+          axios.get('https://api.avessecurity.com/api/AddProducts/products', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+          axios.get('https://api.avessecurity.com/api/Location/getLocations', {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
@@ -145,7 +145,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://api.avessecurity.com:6378/api/Location/create',
+        'https://api.avessecurity.com:6378/api/Location/create',
         locationForm,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -160,7 +160,7 @@ const InventoryManager = () => {
         TertiaryLocation: ''
       });
       // Refresh locations
-      const { data } = await axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+      const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLocations(data.Location || []);
@@ -176,7 +176,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
-        `http://localhost:6378/api/inventory/GetInventoryLocation/${locationId}`,
+        `https://api.avessecurity.com/api/inventory/GetInventoryLocation/${locationId}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -197,7 +197,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
-        `http://localhost:6378/api/inventory/GetInventoryByProduct/${productId}`,
+        `https://api.avessecurity.com/api/inventory/GetInventoryByProduct/${productId}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -219,7 +219,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://localhost:6378/api/inventory/AddStock',
+        'https://api.avessecurity.com/api/api/inventory/AddStock',
         addStockForm,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -240,7 +240,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://api.avessecurity.com:6378/api/inventory/RemoveStock',
+        'https://api.avessecurity.com/api/api/inventory/RemoveStock',
         removeStockForm,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -261,7 +261,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://api.avessecurity.com:6378/api/inventory/Transfer',
+        'https://api.avessecurity.com/api/api/inventory/Transfer',
         transferForm,
         {
           headers: { Authorization: `Bearer ${token}` }

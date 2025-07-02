@@ -46,7 +46,7 @@ const UpgradeManager = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.get('http://api.avessecurity.com:6378/api/upgrade/get', {
+      const res = await axios.get('https://api.avessecurity.com/api/upgrade/get', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -129,7 +129,7 @@ const UpgradeManager = () => {
       const formData = new FormData();
       files.forEach(file => formData.append('images', file));
 
-      const res = await axios.post('http://api.avessecurity.com:6378/api/upload', formData, {
+      const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -173,11 +173,11 @@ const UpgradeManager = () => {
       };
 
       if (editMode) {
-        await axios.put(`http://api.avessecurity.com:6378/api/upgrade/update/${currentId}`, payload, {
+        await axios.put(`https://api.avessecurity.com/api/upgrade/update/${currentId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post('http://api.avessecurity.com:6378/api/upgrade/create', payload, {
+        await axios.post('https://api.avessecurity.com/api/upgrade/create', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -200,7 +200,7 @@ const UpgradeManager = () => {
   const handleDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`http://api.avessecurity.com:6378/api/upgrade/delete/${deleteId}`, {
+      await axios.delete(`https://api.avessecurity.com/api/upgrade/delete/${deleteId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchUpgrades();
