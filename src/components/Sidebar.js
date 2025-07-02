@@ -167,7 +167,7 @@ function Sidebar() {
                                             </li>
                                         </>
                                     <li className="nav-item">
-                                        <NavLink to="/cctv" className="nav-link">
+                                        <NavLink to="/cctv-request" className="nav-link">
                                             <i className="bi bi-camera-video me-2"></i> CCTV
                                         </NavLink>
                                     </li>
