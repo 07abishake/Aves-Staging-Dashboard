@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import tinycolor from 'tinycolor2';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import CountUp from 'react-countup';
@@ -95,6 +95,8 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                     animationBegin={400}
                     animationDuration={1200}
                     animationEasing="ease-out"
+                    onMouseEnter={(_, index) => setHoveredModule(index)}
+                    onMouseLeave={() => setHoveredModule(null)}
                   >
                     {filteredData.map((entry, index) => (
                       <Cell 
@@ -111,14 +113,16 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip  
                     contentStyle={{
-                      background: 'rgba(255,255,255,0.98)',
+                      background: 'rgba(255, 255, 255, 0.98)',
                       border: 'none',
                       borderRadius: '12px',
                       boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
                       padding: '12px 16px',
-                      fontSize: '14px'
+                      fontSize: '14px',
+                      opacity: 100
+                      
                     }}
                     formatter={(value, name, props) => [
                       <div key="tooltip" className="d-flex align-items-center">
@@ -142,37 +146,57 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              
+
+              {/* Center label: shows module name on hover */}
               <motion.div 
                 className="position-absolute top-50 start-50 translate-middle text-center"
                 style={{ 
                   pointerEvents: 'none', 
-                  width: '120px',
-                  background: 'rgba(255,255,255,0.8)',
+                  width: '140px',
+                  background: 'rgba(253, 251, 251, 0.85)',
                   borderRadius: '50%',
                   aspectRatio: '1/1',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  padding: '10px'
                 }}
                 initial={{ scale: 0 }}
                 animate={isMounted ? { scale: 1 } : {}}
                 transition={{ delay: 0.6 }}
               >
-                <div className="fs-4 fw-bold text-dark">
-                  <CountUp 
-                    end={totalActivities}
-                    duration={2}
-                    separator=","
-                  />
-                </div>
-                <div className="small text-muted">Total Activities</div>
+                {hoveredModule !== null && filteredData[hoveredModule] ? (
+                  <>
+                    {/* <div className="fw-semibold small text-secondary mb-1">
+                      {filteredData[hoveredModule]?.name}
+                    </div> */}
+                    <div className="fs-5 fw-bold text-dark">
+                      <CountUp 
+                        end={filteredData[hoveredModule]?.value || 0}
+                        duration={1}
+                        separator=","
+                      />
+                    </div>
+                    <div className="small text-muted">Activities</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="fs-4 fw-bold text-dark">
+                      <CountUp 
+                        end={totalActivities}
+                        duration={2}
+                        separator=","
+                      />
+                    </div>
+                    <div className="small text-muted">Total Activities</div>
+                  </>
+                )}
               </motion.div>
             </motion.div>
           </div>
-          
+
           <div className="col-md-6">
             <motion.div
               className="module-legend ps-3 pe-2"
@@ -185,7 +209,6 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                 .sort((a, b) => (b?.value || 0) - (a?.value || 0))
                 .map((module, index) => {
                   const percentage = ((module?.value || 0) / totalActivities) * 100;
-                  
                   return (
                     <motion.div 
                       key={index}
@@ -194,8 +217,8 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                         cursor: 'pointer',
                         background: hoveredModule === index ? 
                           `rgba(${tinycolor(COLORS[index % COLORS.length]).toRgb().r}, 
-                           ${tinycolor(COLORS[index % COLORS.length]).toRgb().g}, 
-                           ${tinycolor(COLORS[index % COLORS.length]).toRgb().b}, 0.08)` : 
+                          ${tinycolor(COLORS[index % COLORS.length]).toRgb().g}, 
+                          ${tinycolor(COLORS[index % COLORS.length]).toRgb().b}, 0.08)` : 
                           'rgba(0,0,0,0.02)',
                       }}
                       onMouseEnter={() => setHoveredModule(index)}

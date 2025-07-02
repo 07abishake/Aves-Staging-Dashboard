@@ -420,7 +420,7 @@ function Dashboard() {
 </div>
 
       {/* Notification Stats Section */}
-      <motion.div 
+      {/* <motion.div 
   className="mb-3 mt-4"
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
@@ -758,7 +758,7 @@ function Dashboard() {
       </Button>
     </Modal.Footer>
   </motion.div>
-</Modal>
+</Modal> */}
 
       {/*notification*/}
      </div>

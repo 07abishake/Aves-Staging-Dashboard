@@ -83,6 +83,7 @@ import ProductManager from './pages/Product';
 import InventoryManager from './pages/InventoryManager';
 import CCTvRequest from './pages/CCTvRequest';
 import SustainabilityManager from './pages/SustainabilityManager';
+import FirstAidReport from './pages/FirstAidReport';
 
 
 
@@ -133,6 +134,7 @@ function App() {
           <Route path ='/product' element={<ProductManager/>}/>
           <Route path ='/cctv-request' element={<CCTvRequest/>}/>
           <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/>
+          <Route path ='/FirstAidReport' element={<FirstAidReport/>}/>
        
 
            

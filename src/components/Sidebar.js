@@ -189,7 +189,7 @@ function Sidebar() {
                                         </NavLink>
                                     </li>
                                     <li className="nav-item">
-                                        <NavLink to="/first-aid" className="nav-link">
+                                        <NavLink to="/FirstAidReport" className="nav-link">
                                             <i className="bi bi-clipboard2-pulse me-2"></i> First Aid
                                         </NavLink>
                                     </li>
