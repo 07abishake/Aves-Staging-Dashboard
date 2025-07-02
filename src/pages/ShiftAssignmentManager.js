@@ -32,7 +32,7 @@ const ShiftAssignmentManager = () => {
   const fetchDepartments = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get("http://api.avessecurity.com/api/Department/getAll", {
+      const res = await axios.get("https://api.avessecurity.com/api/Department/getAll", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDepartments(res.data);
@@ -45,7 +45,7 @@ const ShiftAssignmentManager = () => {
 
   const fetchShiftNames = async () => {
     try {
-      const res = await axios.get("http://api.avessecurity.com:6378/api/shift/get/ShiftName", {
+      const res = await axios.get("https://api.avessecurity.com:6378/api/shift/get/ShiftName", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShiftNames(res.data.Shifts || []);
@@ -57,7 +57,7 @@ const ShiftAssignmentManager = () => {
   const fetchAssignedShifts = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get("http://api.avessecurity.com:6378/api/shift/getAll", {
+      const res = await axios.get("https://api.avessecurity.com:6378/api/shift/getAll", {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -80,7 +80,7 @@ const ShiftAssignmentManager = () => {
       setIsLoading(true);
       setSelectedDept(deptName);
       const res = await axios.post(
-        `http://api.avessecurity.com:6378/api/shift/create/${deptName}`, 
+        `https://api.avessecurity.com:6378/api/shift/create/${deptName}`, 
         {}, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -172,7 +172,7 @@ const ShiftAssignmentManager = () => {
       };
 
       await axios.put(
-        `http://api.avessecurity.com:6378/api/shift/update/${currentShift._id}`,
+        `https://api.avessecurity.com:6378/api/shift/update/${currentShift._id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

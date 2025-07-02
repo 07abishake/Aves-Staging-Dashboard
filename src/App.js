@@ -81,6 +81,8 @@ import EventManagement from './pages/EventManagement';
 import TermManagement from './pages/TermManagement';
 import ProductManager from './pages/Product';
 import InventoryManager from './pages/InventoryManager';
+import CCTvRequest from './pages/CCTvRequest';
+import SustainabilityManager from './pages/SustainabilityManager';
 
 
 
@@ -129,6 +131,8 @@ function App() {
           <Route path='/department' element={<Departments/>}/>
           <Route path='/inventory-manager' element={<InventoryManager/>}/>
           <Route path ='/product' element={<ProductManager/>}/>
+          <Route path ='/cctv-request' element={<CCTvRequest/>}/>
+          <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/>
        
 
            
