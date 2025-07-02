@@ -107,23 +107,43 @@ const CCTvRequest = () => {
     });
   };
 
-  // Process nested location data
+  // Process nested location data to create a flat list of all possible locations
   const processLocations = (locations) => {
-    return locations.map(location => ({
-      id: location._id,
-      primary: location.PrimaryLocation,
-      sub: location.SubLocation,
-      secondary: location.SecondaryLocation?.map(secondary => ({
-        id: secondary._id,
-        name: secondary.SecondaryLocation,
-        sub: secondary.SubLocation,
-        tertiary: secondary.ThirdLocation?.map(tertiary => ({
-          id: tertiary._id,
-          name: tertiary.ThirdLocation,
-          sub: tertiary.SubLocation
-        })) || []
-      })) || []
-    }));
+    const allLocations = [];
+    
+    locations.forEach(location => {
+      // Add primary location option
+      allLocations.push({
+        id: location._id,
+        value: `${location.PrimaryLocation} > ${location.SubLocation}`,
+        label: `${location.PrimaryLocation} - ${location.SubLocation}`
+      });
+
+      // Add secondary locations if they exist
+      if (location.SecondaryLocation && location.SecondaryLocation.length > 0) {
+        location.SecondaryLocation.forEach(secondary => {
+          // Add secondary location option
+          allLocations.push({
+            id: secondary._id,
+            value: `${location.PrimaryLocation} > ${location.SubLocation} > ${secondary.SecondaryLocation} > ${secondary.SubLocation}`,
+            label: `${secondary.SecondaryLocation} - ${secondary.SubLocation} (${location.PrimaryLocation})`
+          });
+
+          // Add tertiary locations if they exist
+          if (secondary.ThirdLocation && secondary.ThirdLocation.length > 0) {
+            secondary.ThirdLocation.forEach(tertiary => {
+              allLocations.push({
+                id: tertiary._id,
+                value: `${location.PrimaryLocation} > ${location.SubLocation} > ${secondary.SecondaryLocation} > ${secondary.SubLocation} > ${tertiary.ThirdLocation} > ${tertiary.SubLocation}`,
+                label: `${tertiary.ThirdLocation} - ${tertiary.SubLocation} (${secondary.SecondaryLocation})`
+              });
+            });
+          }
+        });
+      }
+    });
+    
+    return allLocations;
   };
 
   // API functions
@@ -132,7 +152,7 @@ const CCTvRequest = () => {
     setError(null);
     try {
       const token = localStorage.getItem('access_token');
-      const { data } = await axios.get('http://api.avessecurity.com:6378/api/CCTV/getAll', {
+      const { data } = await axios.get('https://api.avessecurity.com/api/CCTV/getAll', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRequests(data.cctv || []);
@@ -207,13 +227,13 @@ const CCTvRequest = () => {
 
       if (editData) {
         await axios.put(
-          `http://api.avessecurity.com:6378/api/CCTV/update/${editData._id}`,
+          `https://api.avessecurity.com/api/CCTV/update/${editData._id}`,
           formData,
           config
         );
       } else {
         await axios.post(
-          'http://api.avessecurity.com:6378/api/CCTV/create',
+          'https://api.avessecurity.com/api/CCTV/create',
           formData,
           config
         );
@@ -236,7 +256,7 @@ const CCTvRequest = () => {
     try {
       const token = localStorage.getItem('access_token');
       await axios.delete(
-        `http://api.avessecurity.com:6378/api/CCTV/delete/${requestToDelete._id}`,
+        `https://api.avessecurity.com/api/CCTV/delete/${requestToDelete._id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -276,30 +296,13 @@ const CCTvRequest = () => {
           value={value || ''}
           onChange={handleInputChange}
           isInvalid={!!formErrors.locationError}
+          required
         >
           <option value="">Select location</option>
-          {locations.map(loc => (
-            <optgroup key={loc.id} label={`${loc.primary} - ${loc.sub}`}>
-              {loc.secondary.map(sec => (
-                <optgroup key={sec.id} label={`-- ${sec.name} - ${sec.sub}`}>
-                  {sec.tertiary.map(ter => (
-                    <option key={ter.id} value={`${loc.primary} > ${loc.sub} > ${sec.name} > ${sec.sub} > ${ter.name} > ${ter.sub}`}>
-                      {ter.name} - {ter.sub}
-                    </option>
-                  ))}
-                  {sec.tertiary.length === 0 && (
-                    <option key={sec.id} value={`${loc.primary} > ${loc.sub} > ${sec.name} > ${sec.sub}`}>
-                      {sec.name} - {sec.sub}
-                    </option>
-                  )}
-                </optgroup>
-              ))}
-              {loc.secondary.length === 0 && (
-                <option key={loc.id} value={`${loc.primary} > ${loc.sub}`}>
-                  {loc.primary} - {loc.sub}
-                </option>
-              )}
-            </optgroup>
+          {locations.map(location => (
+            <option key={location.id} value={location.value}>
+              {location.label}
+            </option>
           ))}
         </Form.Select>
         {formErrors.locationError && (
@@ -312,8 +315,21 @@ const CCTvRequest = () => {
   };
 
   const renderTable = () => {
+    if (loading) {
+      return (
+        <div className="text-center">
+          <Spinner animation="border" />
+          <p>Loading requests...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return <Alert variant="danger">{error}</Alert>;
+    }
+
     if (requests.length === 0) {
-      return <p>No CCTV requests found</p>;
+      return <Alert variant="info">No CCTV requests found</Alert>;
     }
 
     return (
@@ -427,6 +443,7 @@ const CCTvRequest = () => {
                         name="MySelfDate"
                         value={formData.MySelfDate}
                         onChange={handleInputChange}
+                        required
                       />
                     </Form.Group>
                   </Col>
@@ -438,6 +455,7 @@ const CCTvRequest = () => {
                         name="MySelfTime"
                         value={formData.MySelfTime}
                         onChange={handleInputChange}
+                        required
                       />
                     </Form.Group>
                   </Col>
@@ -457,6 +475,7 @@ const CCTvRequest = () => {
                     name="MyselfReasonofviewing"
                     value={formData.MyselfReasonofviewing}
                     onChange={handleInputChange}
+                    required
                   />
                 </Form.Group>
 
@@ -481,6 +500,7 @@ const CCTvRequest = () => {
                     name="ForOthersName"
                     value={formData.ForOthersName}
                     onChange={handleInputChange}
+                    required
                   />
                 </Form.Group>
 
@@ -493,6 +513,7 @@ const CCTvRequest = () => {
                         name="ForOthersDate"
                         value={formData.ForOthersDate}
                         onChange={handleInputChange}
+                        required
                       />
                     </Form.Group>
                   </Col>
@@ -504,6 +525,7 @@ const CCTvRequest = () => {
                         name="ForOthersTime"
                         value={formData.ForOthersTime}
                         onChange={handleInputChange}
+                        required
                       />
                     </Form.Group>
                   </Col>
@@ -523,6 +545,7 @@ const CCTvRequest = () => {
                     name="ForOthersReasonofviewing"
                     value={formData.ForOthersReasonofviewing}
                     onChange={handleInputChange}
+                    required
                   />
                 </Form.Group>
 
@@ -551,7 +574,14 @@ const CCTvRequest = () => {
 
             <div className="d-grid gap-2">
               <Button variant="primary" type="submit" disabled={loading}>
-                {loading ? 'Saving...' : 'Save Request'}
+                {loading ? (
+                  <>
+                    <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                    <span className="ms-2">Saving...</span>
+                  </>
+                ) : (
+                  'Save Request'
+                )}
               </Button>
             </div>
           </Form>
@@ -574,7 +604,14 @@ const CCTvRequest = () => {
             Cancel
           </Button>
           <Button variant="danger" onClick={handleDeleteRequest} disabled={loading}>
-            {loading ? 'Deleting...' : 'Delete'}
+            {loading ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                <span className="ms-2">Deleting...</span>
+              </>
+            ) : (
+              'Delete'
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -592,15 +629,7 @@ const CCTvRequest = () => {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {loading && !showForm ? (
-        <div className="text-center">
-          <Spinner animation="border" />
-          <p>Loading requests...</p>
-        </div>
-      ) : (
-        renderTable()
-      )}
-
+      {renderTable()}
       {renderForm()}
       {renderDeleteModal()}
     </Container>
