@@ -29,12 +29,12 @@ function Reports() {
       }
     })
       .then(response => {
-        if (Array.isArray(response.data.collections)) {
-          const formattedModules = response.data.collections.map(module => ({
-            value: module,
-            label: module.replace(/([a-z])([A-Z])/g, '$1 $2')
-          }));
-          setModules(formattedModules);
+        if (Array.isArray(response.data.dropdown)) {
+        const formattedModules = response.data.dropdown.map(item => ({
+          value: item.value,
+          label: item.label
+        }));
+        setModules(formattedModules);
         }
       })
       .catch(error => {
