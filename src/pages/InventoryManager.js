@@ -219,7 +219,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/api/inventory/AddStock',
+        'https://api.avessecurity.com/api/inventory/AddStock',
         addStockForm,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -240,7 +240,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/api/inventory/RemoveStock',
+        'https://api.avessecurity.com/api/inventory/RemoveStock',
         removeStockForm,
         {
           headers: { Authorization: `Bearer ${token}` }

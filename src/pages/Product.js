@@ -32,7 +32,7 @@ const ProductManager = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('https://api.avessecurity.com:6378/api/AddProducts/products', {
+      const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -134,7 +134,7 @@ const ProductManager = () => {
       if (currentProduct) {
         // Update existing product
         response = await axios.put(
-          `https://api.avessecurity.com:6378/api/AddProducts/products/update/${currentProduct._id}`,
+          `https://api.avessecurity.com/api/AddProducts/products/update/${currentProduct._id}`,
           formDataToSend,
           {
             headers: {
@@ -147,7 +147,7 @@ const ProductManager = () => {
       } else {
         // Create new product
         response = await axios.post(
-          'https://api.avessecurity.com:6378/api/AddProducts/products/create',
+          'https://api.avessecurity.com/api/AddProducts/products/create',
           formDataToSend,
           {
             headers: {
@@ -178,7 +178,7 @@ const ProductManager = () => {
     setIsLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com:6378/api/AddProducts/products/${id}`,
+        `https://api.avessecurity.com/api/AddProducts/products/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
