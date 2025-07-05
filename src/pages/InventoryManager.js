@@ -14,7 +14,6 @@ const InventoryManager = () => {
   const [showRemoveStock, setShowRemoveStock] = useState(false);
   const [showTransferStock, setShowTransferStock] = useState(false);
   const [showInventoryView, setShowInventoryView] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
@@ -43,13 +42,6 @@ const InventoryManager = () => {
     quantity: 0
   });
 
-  const [locationForm, setLocationForm] = useState({
-    PrimaryLocation: '',
-    SubLocation: '',
-    SecondaryLocation: '',
-    TertiaryLocation: ''
-  });
-
   // Get token and redirect if not authenticated
   const token = localStorage.getItem("access_token");
   
@@ -72,14 +64,8 @@ const InventoryManager = () => {
           })
         ]);
         
-        // Handle products response
-        const productsData = productsRes.data?.Products || [];
-        setProducts(Array.isArray(productsData) ? productsData : []);
-        
-        // Handle locations response
-        const locationsData = locationsRes.data?.Location || [];
-        setLocations(Array.isArray(locationsData) ? locationsData : []);
-        
+        setProducts(productsRes.data?.Products || []);
+        setLocations(locationsRes.data?.Location || []);
         setError(null);
       } catch (err) {
         setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
@@ -102,87 +88,72 @@ const InventoryManager = () => {
     }
   }, [error, success]);
 
-  // Location hierarchy handlers
-  const handlePrimaryChange = (e) => {
-    const primaryId = e.target.value;
-    setSelectedPrimary(primaryId);
-    setSelectedSecondary('');
-    setSelectedTertiary('');
-  };
-
-  const handleSecondaryChange = (e) => {
-    const secondaryId = e.target.value;
-    setSelectedSecondary(secondaryId);
-    setSelectedTertiary('');
-  };
-
-  const handleTertiaryChange = (e) => {
-    const tertiaryId = e.target.value;
-    setSelectedTertiary(tertiaryId);
-  };
-
-  const getPrimaryLocations = () => {
-    return [...new Set(locations.map(loc => loc.PrimaryLocation))];
-  };
-
-  const getSecondaryLocations = (primary) => {
-    if (!primary) return [];
-    const loc = locations.find(l => l.PrimaryLocation === primary);
-    return loc?.SecondaryLocation || [];
-  };
-
-  const getTertiaryLocations = (primary, secondary) => {
-    if (!primary || !secondary) return [];
-    const loc = locations.find(l => l.PrimaryLocation === primary);
-    if (!loc) return [];
-    const secLoc = loc.SecondaryLocation.find(s => s._id === secondary);
-    return secLoc?.TertiaryLocation || [];
-  };
-
-  // Add new location
-  const handleAddLocation = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await axios.post(
-        'https://api.avessecurity.com:6378/api/Location/create',
-        locationForm,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      setSuccess('Location added successfully');
-      setShowLocationModal(false);
-      setLocationForm({
-        PrimaryLocation: '',
-        SubLocation: '',
-        SecondaryLocation: '',
-        TertiaryLocation: ''
-      });
-      // Refresh locations
-      const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLocations(data.Location || []);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add location');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Fetch inventory by location
   const fetchInventoryByLocation = async (locationId) => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
         `https://api.avessecurity.com/api/inventory/GetInventoryLocation/${locationId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      setInventory(Array.isArray(data) ? data : []);
-      setSelectedLocation(locations.find(loc => loc._id === locationId));
+      
+      // Handle the response data
+      const inventoryData = data?.data || [];
+      
+      // Find the location details from the locations state
+      let locationDetails = null;
+      
+      // Check primary locations
+      const primaryLoc = locations.find(loc => loc._id === locationId);
+      if (primaryLoc) {
+        locationDetails = {
+          _id: primaryLoc._id,
+          name: primaryLoc.PrimaryLocation,
+          subLocation: primaryLoc.SubLocation,
+          level: 'primary'
+        };
+      } else {
+        // Check secondary locations
+        for (const primary of locations) {
+          const secondaryLoc = primary.SecondaryLocation?.find(sec => sec._id === locationId);
+          if (secondaryLoc) {
+            locationDetails = {
+              _id: secondaryLoc._id,
+              name: secondaryLoc.SecondaryLocation,
+              subLocation: secondaryLoc.SubLocation,
+              parentId: primary._id,
+              parentName: primary.PrimaryLocation,
+              level: 'secondary'
+            };
+            break;
+          }
+        }
+        
+        // Check tertiary locations if not found in secondary
+        if (!locationDetails) {
+          for (const primary of locations) {
+            for (const secondary of primary.SecondaryLocation || []) {
+              const tertiaryLoc = secondary.ThirdLocation?.find(ter => ter._id === locationId);
+              if (tertiaryLoc) {
+                locationDetails = {
+                  _id: tertiaryLoc._id,
+                  name: tertiaryLoc.ThirdLocation,
+                  subLocation: tertiaryLoc.SubLocation,
+                  parentId: secondary._id,
+                  parentName: secondary.SecondaryLocation,
+                  grandParentId: primary._id,
+                  grandParentName: primary.PrimaryLocation,
+                  level: 'tertiary'
+                };
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      setInventory(inventoryData);
+      setSelectedLocation(locationDetails);
       setShowInventoryView(true);
       setError(null);
     } catch (err) {
@@ -190,7 +161,7 @@ const InventoryManager = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   // Fetch inventory by product
   const fetchInventoryByProduct = async (productId) => {
@@ -198,11 +169,14 @@ const InventoryManager = () => {
     try {
       const { data } = await axios.get(
         `https://api.avessecurity.com/api/inventory/GetInventoryByProduct/${productId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      setInventory(Array.isArray(data) ? data : []);
+      
+      const inventoryData = Array.isArray(data) ? data : 
+                         (Array.isArray(data?.data?.status) ? data.data.status : 
+                         (Array.isArray(data?.status) ? data.status : []));
+      
+      setInventory(inventoryData);
       setCurrentItem(products.find(p => p._id === productId));
       setShowInventoryView(true);
       setError(null);
@@ -213,21 +187,52 @@ const InventoryManager = () => {
     }
   };
 
-  // Handle form submissions
+  // Handle add stock
   const handleAddStock = async (e) => {
     e.preventDefault();
+    
+    let locationId = '';
+    if (selectedTertiary) {
+      locationId = selectedTertiary;
+    } else if (selectedSecondary) {
+      locationId = selectedSecondary;
+    } else if (selectedPrimary) {
+      const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
+      locationId = primaryLoc?._id || '';
+    }
+
+    if (!addStockForm.productId || !locationId || addStockForm.quantity <= 0) {
+      setError('Please fill all required fields with valid values');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await axios.post(
         'https://api.avessecurity.com/api/inventory/AddStock',
-        addStockForm,
         {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+          productId: addStockForm.productId,
+          locationId: locationId,
+          quantity: addStockForm.quantity
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock added successfully');
       setShowAddStock(false);
       setAddStockForm({ productId: '', locationId: '', quantity: 0 });
+      setSelectedPrimary('');
+      setSelectedSecondary('');
+      setSelectedTertiary('');
+      
+      if (currentItem) {
+        await fetchInventoryByProduct(currentItem._id);
+      } else if (selectedLocation) {
+        // Determine the level based on the selected location
+        let level = 'primary';
+        if (selectedLocation.SecondaryLocationId) level = 'secondary';
+        if (selectedLocation.ThirdLocation) level = 'tertiary';
+        await fetchInventoryByLocation(selectedLocation._id, level);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add stock');
     } finally {
@@ -235,6 +240,7 @@ const InventoryManager = () => {
     }
   };
 
+  // Handle remove stock
   const handleRemoveStock = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -242,13 +248,20 @@ const InventoryManager = () => {
       await axios.post(
         'https://api.avessecurity.com/api/inventory/RemoveStock',
         removeStockForm,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock removed successfully');
       setShowRemoveStock(false);
       setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
+      
+      if (currentItem) {
+        await fetchInventoryByProduct(currentItem._id);
+      } else if (selectedLocation) {
+        let level = 'primary';
+        if (selectedLocation.SecondaryLocationId) level = 'secondary';
+        if (selectedLocation.ThirdLocation) level = 'tertiary';
+        await fetchInventoryByLocation(selectedLocation._id, level);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove stock');
     } finally {
@@ -256,16 +269,15 @@ const InventoryManager = () => {
     }
   };
 
+  // Handle transfer stock
   const handleTransferStock = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/api/inventory/Transfer',
+        'https://api.avessecurity.com/api/inventory/Transfer',
         transferForm,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock transferred successfully');
       setShowTransferStock(false);
@@ -275,6 +287,15 @@ const InventoryManager = () => {
         toLocationId: '',
         quantity: 0
       });
+      
+      if (currentItem) {
+        await fetchInventoryByProduct(currentItem._id);
+      } else if (selectedLocation) {
+        let level = 'primary';
+        if (selectedLocation.SecondaryLocationId) level = 'secondary';
+        if (selectedLocation.ThirdLocation) level = 'tertiary';
+        await fetchInventoryByLocation(selectedLocation._id, level);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to transfer stock');
     } finally {
@@ -282,16 +303,121 @@ const InventoryManager = () => {
     }
   };
 
-  // Reset alerts after 5 seconds
-  useEffect(() => {
-    if (error || success) {
-      const timer = setTimeout(() => {
-        setError(null);
-        setSuccess(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, success]);
+  // Flatten all locations for easier access
+  const getAllLocations = () => {
+    const allLocations = [];
+    
+    locations.forEach(primary => {
+      // Add primary location
+      allLocations.push({
+        _id: primary._id,
+        name: primary.PrimaryLocation,
+        subLocation: primary.SubLocation,
+        level: 'primary'
+      });
+      
+      // Add secondary locations
+      primary.SecondaryLocation?.forEach(secondary => {
+        allLocations.push({
+          _id: secondary._id,
+          name: secondary.SecondaryLocation,
+          subLocation: secondary.SubLocation,
+          parentId: primary._id,
+          parentName: primary.PrimaryLocation,
+          level: 'secondary'
+        });
+        
+        // Add tertiary locations
+        secondary.ThirdLocation?.forEach(tertiary => {
+          allLocations.push({
+            _id: tertiary._id,
+            name: tertiary.ThirdLocation,
+            subLocation: tertiary.SubLocation,
+            parentId: secondary._id,
+            parentName: secondary.SecondaryLocation,
+            grandParentId: primary._id,
+            grandParentName: primary.PrimaryLocation,
+            level: 'tertiary'
+          });
+        });
+      });
+    });
+    
+    return allLocations;
+  };
+
+  // Render location hierarchy in table
+  const renderLocationRows = () => {
+    const rows = [];
+    
+    locations.forEach(primary => {
+      // Primary location row
+      rows.push(
+        <tr key={`primary-${primary._id}`}>
+          <td>{primary.PrimaryLocation}</td>
+          <td>{primary.SubLocation}</td>
+          <td>{primary.SecondaryLocation?.length || 0}</td>
+          <td>
+            {primary.SecondaryLocation?.reduce((acc, sec) => 
+              acc + (sec.ThirdLocation?.length || 0), 0)}
+          </td>
+          <td>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => fetchInventoryByLocation(primary._id, 'primary')}
+            >
+              View Inventory
+            </Button>
+          </td>
+        </tr>
+      );
+      
+      // Secondary locations
+      primary.SecondaryLocation?.forEach(secondary => {
+        rows.push(
+          <tr key={`secondary-${secondary._id}`}>
+            <td>{primary.PrimaryLocation}</td>
+            <td>{secondary.SubLocation}</td>
+            <td>{secondary.SecondaryLocation}</td>
+            <td>{secondary.ThirdLocation?.length || 0}</td>
+            <td>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={() => fetchInventoryByLocation(secondary._id, 'secondary')}
+              >
+                View Inventory
+              </Button>
+            </td>
+          </tr>
+        );
+        
+        // Tertiary locations
+        secondary.ThirdLocation?.forEach(tertiary => {
+          rows.push(
+            <tr key={`tertiary-${tertiary._id}`}>
+              <td>{primary.PrimaryLocation}</td>
+              <td>{tertiary.SubLocation}</td>
+              <td>{secondary.SecondaryLocation}</td>
+              <td>{tertiary.ThirdLocation}</td>
+              <td>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => fetchInventoryByLocation(tertiary._id, 'tertiary')}
+                >
+                  View Inventory
+                </Button>
+              </td>
+            </tr>
+          );
+        });
+      });
+    });
+    
+    return rows;
+  };
 
   return (
     <div className="container-fluid py-4">
@@ -306,9 +432,6 @@ const InventoryManager = () => {
           </Button>
           <Button variant="info" onClick={() => setShowTransferStock(true)}>
             Transfer Stock
-          </Button>
-          <Button variant="primary" onClick={() => setShowLocationModal(true)}>
-            Add Location
           </Button>
         </div>
       </div>
@@ -390,34 +513,13 @@ const InventoryManager = () => {
                   <tr>
                     <th>Primary Location</th>
                     <th>Sub Location</th>
-                    <th>Secondary Locations</th>
-                    <th>Tertiary Locations</th>
+                    <th>Secondary Location</th>
+                    <th>Tertiary Location</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {locations.map(location => (
-                    <tr key={location._id}>
-                      <td>{location.PrimaryLocation}</td>
-                      <td>{location.SubLocation}</td>
-                      <td>
-                        {location.SecondaryLocation?.length || 0}
-                      </td>
-                      <td>
-                        {location.SecondaryLocation?.reduce((acc, sec) => 
-                          acc + (sec.TertiaryLocation?.length || 0), 0)}
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => fetchInventoryByLocation(location._id)}
-                        >
-                          View Inventory
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {renderLocationRows()}
                 </tbody>
               </Table>
             </div>
@@ -437,7 +539,7 @@ const InventoryManager = () => {
               <Form.Select
                 value={addStockForm.productId}
                 onChange={(e) => setAddStockForm({...addStockForm, productId: e.target.value})}
-             
+                required
               >
                 <option value="">Select Product</option>
                 {products.map(product => (
@@ -452,13 +554,13 @@ const InventoryManager = () => {
               <Form.Label>Primary Location</Form.Label>
               <Form.Select
                 value={selectedPrimary}
-                onChange={handlePrimaryChange}
-             
+                onChange={(e) => setSelectedPrimary(e.target.value)}
+                required
               >
                 <option value="">Select Primary Location</option>
-                {getPrimaryLocations().map((primary, index) => (
-                  <option key={index} value={primary}>
-                    {primary}
+                {locations.map(loc => (
+                  <option key={loc._id} value={loc.PrimaryLocation}>
+                    {loc.PrimaryLocation} - {loc.SubLocation}
                   </option>
                 ))}
               </Form.Select>
@@ -466,36 +568,39 @@ const InventoryManager = () => {
             
             {selectedPrimary && (
               <Form.Group className="mb-3">
-                <Form.Label>Secondary Location</Form.Label>
+                <Form.Label>Secondary Location (Optional)</Form.Label>
                 <Form.Select
                   value={selectedSecondary}
-                  onChange={handleSecondaryChange}
-              
+                  onChange={(e) => setSelectedSecondary(e.target.value)}
                 >
-                  <option value="">Select Secondary Location</option>
-                  {getSecondaryLocations(selectedPrimary).map((secondary, index) => (
-                    <option key={secondary._id} value={secondary._id}>
-                      {secondary.SecondaryLocationName}
-                    </option>
-                  ))}
+                  <option value="">Select Secondary Location (Optional)</option>
+                  {locations
+                    .find(loc => loc.PrimaryLocation === selectedPrimary)
+                    ?.SecondaryLocation?.map(sec => (
+                      <option key={sec._id} value={sec._id}>
+                        {sec.SecondaryLocation} - {sec.SubLocation}
+                      </option>
+                    ))}
                 </Form.Select>
               </Form.Group>
             )}
             
             {selectedSecondary && (
               <Form.Group className="mb-3">
-                <Form.Label>Tertiary Location</Form.Label>
+                <Form.Label>Tertiary Location (Optional)</Form.Label>
                 <Form.Select
                   value={selectedTertiary}
-                  onChange={handleTertiaryChange}
-             
+                  onChange={(e) => setSelectedTertiary(e.target.value)}
                 >
-                  <option value="">Select Tertiary Location</option>
-                  {getTertiaryLocations(selectedPrimary, selectedSecondary).map((tertiary, index) => (
-                    <option key={tertiary._id} value={tertiary._id}>
-                      {tertiary.TertiaryLocationName}
-                    </option>
-                  ))}
+                  <option value="">Select Tertiary Location (Optional)</option>
+                  {locations
+                    .find(loc => loc.PrimaryLocation === selectedPrimary)
+                    ?.SecondaryLocation?.find(sec => sec._id === selectedSecondary)
+                    ?.ThirdLocation?.map(ter => (
+                      <option key={ter._id} value={ter._id}>
+                        {ter.ThirdLocation} - {ter.SubLocation}
+                      </option>
+                    ))}
                 </Form.Select>
               </Form.Group>
             )}
@@ -506,8 +611,9 @@ const InventoryManager = () => {
                 type="number"
                 min="1"
                 value={addStockForm.quantity}
-                onChange={(e) => setAddStockForm({...addStockForm, quantity: parseInt(e.target.value)})}
-                             />
+                onChange={(e) => setAddStockForm({...addStockForm, quantity: parseInt(e.target.value) || 0})}
+                required
+              />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
@@ -521,57 +627,145 @@ const InventoryManager = () => {
         </Form>
       </Modal>
 
-      {/* Add Location Modal */}
-      <Modal show={showLocationModal} onHide={() => setShowLocationModal(false)} centered>
+      {/* Remove Stock Modal */}
+      <Modal show={showRemoveStock} onHide={() => setShowRemoveStock(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Add New Location</Modal.Title>
+          <Modal.Title>Remove Stock</Modal.Title>
         </Modal.Header>
-        <Form onSubmit={handleAddLocation}>
+        <Form onSubmit={handleRemoveStock}>
           <Modal.Body>
             <Form.Group className="mb-3">
-              <Form.Label>Primary Location</Form.Label>
-              <Form.Control
-                type="text"
-                value={locationForm.PrimaryLocation}
-                onChange={(e) => setLocationForm({...locationForm, PrimaryLocation: e.target.value})}
-              
-              />
+              <Form.Label>Product</Form.Label>
+              <Form.Select
+                value={removeStockForm.productId}
+                onChange={(e) => setRemoveStockForm({...removeStockForm, productId: e.target.value})}
+                required
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.ItemName} ({product.ItemCode})
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
             
             <Form.Group className="mb-3">
-              <Form.Label>Sub Location</Form.Label>
-              <Form.Control
-                type="text"
-                value={locationForm.SubLocation}
-                onChange={(e) => setLocationForm({...locationForm, SubLocation: e.target.value})}
-             
-              />
+              <Form.Label>Location</Form.Label>
+              <Form.Select
+                value={removeStockForm.locationId}
+                onChange={(e) => setRemoveStockForm({...removeStockForm, locationId: e.target.value})}
+                required
+              >
+                <option value="">Select Location</option>
+                {getAllLocations().map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.level === 'primary' && location.name}
+                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
+                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
             
             <Form.Group className="mb-3">
-              <Form.Label>Secondary Location Name</Form.Label>
+              <Form.Label>Quantity</Form.Label>
               <Form.Control
-                type="text"
-                value={locationForm.SecondaryLocation}
-                onChange={(e) => setLocationForm({...locationForm, SecondaryLocation: e.target.value})}
-              />
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Tertiary Location Name</Form.Label>
-              <Form.Control
-                type="text"
-                value={locationForm.TertiaryLocation}
-                onChange={(e) => setLocationForm({...locationForm, TertiaryLocation: e.target.value})}
+                type="number"
+                min="1"
+                value={removeStockForm.quantity}
+                onChange={(e) => setRemoveStockForm({...removeStockForm, quantity: parseInt(e.target.value) || 0})}
+                required
               />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowLocationModal(false)}>
+            <Button variant="secondary" onClick={() => setShowRemoveStock(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Location'}
+            <Button variant="danger" type="submit" disabled={isLoading}>
+              {isLoading ? 'Removing...' : 'Remove Stock'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Transfer Stock Modal */}
+      <Modal show={showTransferStock} onHide={() => setShowTransferStock(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Transfer Stock</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleTransferStock}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Product</Form.Label>
+              <Form.Select
+                value={transferForm.productId}
+                onChange={(e) => setTransferForm({...transferForm, productId: e.target.value})}
+                required
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.ItemName} ({product.ItemCode})
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>From Location</Form.Label>
+              <Form.Select
+                value={transferForm.fromLocationId}
+                onChange={(e) => setTransferForm({...transferForm, fromLocationId: e.target.value})}
+                required
+              >
+                <option value="">Select Source Location</option>
+                {getAllLocations().map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.level === 'primary' && location.name}
+                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
+                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>To Location</Form.Label>
+              <Form.Select
+                value={transferForm.toLocationId}
+                onChange={(e) => setTransferForm({...transferForm, toLocationId: e.target.value})}
+                required
+              >
+                <option value="">Select Destination Location</option>
+                {getAllLocations().map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.level === 'primary' && location.name}
+                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
+                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                value={transferForm.quantity}
+                onChange={(e) => setTransferForm({...transferForm, quantity: parseInt(e.target.value) || 0})}
+                required
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowTransferStock(false)}>
+              Cancel
+            </Button>
+            <Button variant="info" type="submit" disabled={isLoading}>
+              {isLoading ? 'Transferring...' : 'Transfer Stock'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -589,7 +783,11 @@ const InventoryManager = () => {
             )}
             {selectedLocation && (
               <span className="ms-2">
-                <Badge bg="info">{selectedLocation.PrimaryLocation}</Badge>
+                <Badge bg="info">
+                  {selectedLocation.grandParentName && `${selectedLocation.grandParentName} > `}
+                  {selectedLocation.parentName && `${selectedLocation.parentName} > `}
+                  {selectedLocation.name}
+                </Badge>
               </span>
             )}
           </Offcanvas.Title>
@@ -619,8 +817,14 @@ const InventoryManager = () => {
               
               {selectedLocation && (
                 <div className="mb-4">
-                  <h5>Location: {selectedLocation.PrimaryLocation}</h5>
-                  <p className="text-muted">Sub Location: {selectedLocation.SubLocation}</p>
+                  <h5>Location Details</h5>
+                  <p className="text-muted">
+                    {selectedLocation.grandParentName && `${selectedLocation.grandParentName} > `}
+                    {selectedLocation.parentName && `${selectedLocation.parentName} > `}
+                    {selectedLocation.name}
+                  </p>
+                  <p className="text-muted">Sub Location: {selectedLocation.subLocation}</p>
+                  <p className="text-muted">Level: {selectedLocation.level}</p>
                 </div>
               )}
               
@@ -636,6 +840,7 @@ const InventoryManager = () => {
                         <th>In Use</th>
                         <th>Reserved</th>
                         <th>Available</th>
+                        <th>Last Updated</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -643,25 +848,44 @@ const InventoryManager = () => {
                         <tr key={index}>
                           {currentItem && (
                             <td>
-                              {locations.find(loc => loc._id === item.location)?.PrimaryLocation || 'Unknown'}
+                              {item.status?.map((statusItem, statusIndex) => {
+                                const loc = locations.find(l => l._id === statusItem.location) || 
+                                          locations.flatMap(l => l.SecondaryLocation).find(s => s?._id === statusItem.location) ||
+                                          locations.flatMap(l => l.SecondaryLocation?.flatMap(s => s.ThirdLocation)).find(t => t?._id === statusItem.location);
+                                return (
+                                  <div key={statusIndex}>
+                                    {loc?.PrimaryLocation || loc?.SecondaryLocation || loc?.ThirdLocation || 'Unknown Location'}
+                                  </div>
+                                );
+                              })}
                             </td>
                           )}
                           {selectedLocation && (
                             <td>
-                              {products.find(p => p._id === item.product)?.ItemName || 'Unknown'}
-                              <br />
-                              <small className="text-muted">
-                                {products.find(p => p._id === item.product)?.ItemCode || ''}
-                              </small>
+                              {item.product?.ItemName || 'Unknown Product'}
                             </td>
                           )}
-                          <td>{item.totalStock}</td>
-                          <td>{item.inUse}</td>
-                          <td>{item.reserved}</td>
                           <td>
-                            <Badge bg={item.available > 0 ? 'success' : 'danger'}>
-                              {item.available}
+                            {item.status?.reduce((sum, statusItem) => sum + statusItem.totalStock, 0)}
+                          </td>
+                          <td>
+                            {item.status?.reduce((sum, statusItem) => sum + statusItem.inUse, 0)}
+                          </td>
+                          <td>
+                            {item.status?.reduce((sum, statusItem) => sum + statusItem.reserved, 0)}
+                          </td>
+                          <td>
+                            <Badge bg={
+                              item.status?.reduce((sum, statusItem) => sum + statusItem.available, 0) > 0 ? 
+                              'success' : 'danger'
+                            }>
+                              {item.status?.reduce((sum, statusItem) => sum + statusItem.available, 0)}
                             </Badge>
+                          </td>
+                          <td>
+                            {item.status?.[0]?.lastUpdated ? 
+                              new Date(item.status[0].lastUpdated).toLocaleString() : 
+                              'N/A'}
                           </td>
                         </tr>
                       ))}
