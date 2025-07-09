@@ -23,19 +23,22 @@ const AddLocation = () => {
     const [loading, setLoading] = useState(true);
     const [newLocationTitle, setNewLocationTitle] = useState("");
     const [selectedLocation, setSelectedLocation] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
 
     const [newLocation, setNewLocation] = useState({
         Locationtitle: "",
-        Locationname: newLocationTitle,
+        Locationname: "",
         latitude: null,
         longitude: null,
-        radius: 0,
+        radius: 100,
         boundaries: [],
     });
-    const handleClickLocation = (location) => {
-        setShowViewCanvas(true);
-        setSelectedLocation(location);
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login";
     }
+
     // Get User's Current Location
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
@@ -51,17 +54,13 @@ const AddLocation = () => {
             }
         );
     }, []);
- const token = localStorage.getItem("access_token");
-  if(!token){
-    window.location.href = "/login";
-  }
 
     // Fetch Saved Locations from API
-    useEffect(() => {
+    const fetchLocations = () => {
         setLoading(true);
         axios
-            .get("https://api.avessecurity.com/api/geoLocation/getGeoLocation",{
-                headers:{
+            .get("https://api.avessecurity.com/api/geoLocation/getGeoLocation", {
+                headers: {
                     Authorization: `Bearer ${token}`
                 }
             })
@@ -73,7 +72,11 @@ const AddLocation = () => {
                 setLocations([]);
             }).finally(() => {
                 setLoading(false);
-            })
+            });
+    };
+
+    useEffect(() => {
+        fetchLocations();
     }, []);
 
     // Handle Polygon Draw
@@ -98,11 +101,11 @@ const AddLocation = () => {
         if (query.length > 2) {
             try {
                 const response = await axios.get(
-                    ``
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${query}`
                 );
 
-                if (response.data.results.length > 0) {
-                    setSuggestions(response.data.results);
+                if (response.data.length > 0) {
+                    setSuggestions(response.data);
                 } else {
                     setSuggestions([]);
                 }
@@ -118,12 +121,12 @@ const AddLocation = () => {
     const selectLocation = (location) => {
         setNewLocation({
             ...newLocation,
-            Locationtitle: location.formatted,
-            latitude: location.geometry.lat,
-            longitude: location.geometry.lng,
+            Locationtitle: location.display_name,
+            latitude: parseFloat(location.lat),
+            longitude: parseFloat(location.lon),
         });
 
-        setUserLocation({ latitude: location.geometry.lat, longitude: location.geometry.lng });
+        setUserLocation({ latitude: parseFloat(location.lat), longitude: parseFloat(location.lon) });
         setSuggestions([]);
     };
 
@@ -139,35 +142,102 @@ const AddLocation = () => {
 
     // Add New Location to Database
     const addLocation = () => {
-        if (!newLocation.Locationtitle || !newLocation.latitude || !newLocation.longitude) {
+        if (!newLocation.Locationname || !newLocation.latitude || !newLocation.longitude) {
             alert("Please enter a valid Location Title and select a valid location.");
             return;
         }
 
+        setLoading(true);
         axios
-            .post("https://api.avessecurity.com/api/geoLocation/createGeoLocation", newLocation,{
+            .post("https://api.avessecurity.com/api/geoLocation/createGeoLocation", newLocation, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
             })
             .then((response) => {
                 if (response.data) {
-                    setLocations((prev) => [...prev, response.data]);
+                    fetchLocations();
                 }
                 setShowCreateCanvas(false);
-                setNewLocation({
-                    Locationtitle: "",
-                    Locationname: "",
-                    latitude: userLocation?.latitude || null,
-                    longitude: userLocation?.longitude || null,
-                    radius: 100,
-                    boundaries: [],
-                });
+                resetForm();
                 alert("Location added successfully!");
-
             })
-            .catch((error) => console.error("Error adding location:", error));
+            .catch((error) => {
+                console.error("Error adding location:", error);
+                alert("Error adding location. Please try again.");
+            })
+            .finally(() => setLoading(false));
     };
+
+    // Update Location in Database
+    const updateLocation = () => {
+        if (!selectedLocation?._id || !newLocation.Locationname || !newLocation.latitude || !newLocation.longitude) {
+            alert("Please enter valid location details.");
+            return;
+        }
+
+        setLoading(true);
+        axios
+            .put(`https://api.avessecurity.com/api/geoLocation/update/${selectedLocation._id}`, newLocation, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
+            .then((response) => {
+                if (response.data) {
+                    fetchLocations();
+                    setShowViewCanvas(false);
+                    resetForm();
+                    alert("Location updated successfully!");
+                }
+            })
+            .catch((error) => {
+                console.error("Error updating location:", error);
+                alert("Error updating location. Please try again.");
+            })
+            .finally(() => setLoading(false));
+    };
+
+    // Delete Location from Database
+    const deleteLocation = (id) => {
+        if (!window.confirm("Are you sure you want to delete this location?")) {
+            return;
+        }
+
+        setLoading(true);
+        axios
+            .delete(`https://api.avessecurity.com/api/geoLocation/delete/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
+            .then((response) => {
+                if (response.data) {
+                    fetchLocations();
+                    alert("Location deleted successfully!");
+                }
+            })
+            .catch((error) => {
+                console.error("Error deleting location:", error);
+                alert("Error deleting location. Please try again.");
+            })
+            .finally(() => setLoading(false));
+    };
+
+    // Reset form to initial state
+    const resetForm = () => {
+        setNewLocation({
+            Locationtitle: "",
+            Locationname: "",
+            latitude: userLocation?.latitude || null,
+            longitude: userLocation?.longitude || null,
+            radius: 100,
+            boundaries: [],
+        });
+        setIsEditing(false);
+    };
+
+    // Fill form with current location
     const fillWithCurrentLocation = () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -175,7 +245,6 @@ const AddLocation = () => {
                     const { latitude, longitude } = position.coords;
 
                     try {
-                        // Reverse Geocoding API (OpenStreetMap)
                         const response = await axios.get(
                             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
                         );
@@ -186,7 +255,7 @@ const AddLocation = () => {
                             ...prev,
                             latitude,
                             longitude,
-                            Locationtitle: locationName, // Auto-fill the search input
+                            Locationtitle: locationName,
                         }));
 
                         setUserLocation({ latitude, longitude });
@@ -205,354 +274,419 @@ const AddLocation = () => {
         }
     };
 
+    // Handle click on location to view/edit
+    const handleClickLocation = (location) => {
+        setSelectedLocation(location);
+        setNewLocation({
+            Locationtitle: location.Locationtitle,
+            Locationname: location.Locationname,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius: location.radius,
+            boundaries: location.boundaries || [],
+        });
+        setShowViewCanvas(true);
+        setIsEditing(true);
+    };
+
     return (
         <>
-            {loading ? <div className="d-flex justify-content-center align-items-center flex-column" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100vh", backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
-                <Spinner animation="border" role="status" variant="light">
-                </Spinner>
-            </div> :
+            {loading && (
+                <div className="d-flex justify-content-center align-items-center flex-column" 
+                    style={{ 
+                        position: "fixed", 
+                        top: 0, 
+                        left: 0, 
+                        width: "100%", 
+                        height: "100vh", 
+                        backgroundColor: "rgba(0,0,0,0.5)", 
+                        zIndex: 1050 
+                    }}>
+                    <Spinner animation="border" role="status" variant="light" />
+                </div>
+            )}
 
-                <div className="container d-flex flex-column justify-content-center mt-4">
-                    <div className="d-flex justify-content-between align-items-center mb-3 w-100">
-                        <div className="d-flex">
-                            <input
-                                type="text"
-                                className="form-control me-2"
-                                placeholder="Search..."
-                            />
-                        </div>
-
-                        <button className="btn btn-primary" onClick={() => setShowCreateCanvas(true)}>
-                            Add Location
-                        </button>
+            <div className="container d-flex flex-column justify-content-center mt-4">
+                <div className="d-flex justify-content-between align-items-center mb-3 w-100">
+                    <div className="d-flex">
+                        <input
+                            type="text"
+                            className="form-control me-2"
+                            placeholder="Search..."
+                        />
                     </div>
-                    <div className="row">
-                        <div className="">
-                            <div className="card">
-                                <div className="card-body">
-                                    <div className="table-responsive">
-                                        <table className="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Locations</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {locations.length > 0 ? (
-                                                    locations.map((team) => (
-                                                        <tr key={team._id} style={{ cursor: "pointer" }}>
-                                                            <td style={{ width: "70%" }}>
-                                                                {/* {team.Locationname} */}
-                                                                <p className="m-0">{team.Locationname ? team.Locationname : "N/A"}</p>
-                                                                <p className="m-0 text-secondary " style={{ fontSize: "12px" }}>{team.Locationtitle}</p>
-                                                            </td>
-                                                            <td>
-                                                                {/* <button className="btn btn-sm btn-outline-success me-2" >View</button> */}
-                                                                <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleClickLocation(team)}>View/Edit</button>
-                                                                <button className="btn btn-sm btn-outline-danger">Delete</button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan="2" className="text-center">
-                                                            No Location found
+
+                    <button className="btn btn-primary" onClick={() => {
+                        setShowCreateCanvas(true);
+                        setIsEditing(false);
+                        resetForm();
+                    }}>
+                        Add Location
+                    </button>
+                </div>
+                <div className="row">
+                    <div className="">
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="table-responsive">
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Locations</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {locations.length > 0 ? (
+                                                locations.map((location) => (
+                                                    <tr key={location._id} style={{ cursor: "pointer" }}>
+                                                        <td style={{ width: "70%" }}>
+                                                            <p className="m-0">{location.Locationname || "N/A"}</p>
+                                                            <p className="m-0 text-secondary" style={{ fontSize: "12px" }}>
+                                                                {location.Locationtitle}
+                                                            </p>
+                                                        </td>
+                                                        <td>
+                                                            <button 
+                                                                className="btn btn-sm btn-outline-primary me-2" 
+                                                                onClick={() => handleClickLocation(location)}
+                                                            >
+                                                                View/Edit
+                                                            </button>
+                                                            <button 
+                                                                className="btn btn-sm btn-outline-danger"
+                                                                onClick={() => deleteLocation(location._id)}
+                                                            >
+                                                                Delete
+                                                            </button>
                                                         </td>
                                                     </tr>
-                                                )}
-                                            </tbody>
-
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className={`p-4 offcanvas-custom ${showCreateCanvas ? 'show' : ""}`}>
-                        <div className="offcanvas-header mb-3">
-                            <h5 className="offcanvas-title">Add new location</h5>
-                            <button className="btn border border-1 mt-2" style={{ position: "absolute", right: "60px", fontSize: "13px" }} onClick={fillWithCurrentLocation}>
-                                Use Current Location
-                            </button>
-
-                            <button type="button" className="btn-close" onClick={() => setShowCreateCanvas(false)} style={{ position: "absolute", right: "30px" }}></button>
-                        </div>
-                        <div className="offcanvas-body p-2">
-                            <div >
-                                <div className="d-flex justify-content-end mb-3">
-
-                                    {/* <h2>Super Admin</h2> */}
-
-                                </div>
-                                {/* Location Title Input */}
-                                <input
-                                    type="text"
-                                    className="form-control mb-2"
-                                    placeholder="Enter Location Title"
-                                    name="Locationtitle"
-                                    value={newLocation.Locationname}
-                                    onChange={(e) =>
-                                        setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
-                                    }
-                                    required
-                                />
-
-
-                                {/* Location Search Input */}
-                                <input
-                                    type="text"
-                                    className="form-control mb-2"
-                                    placeholder="Search Location (e.g. Chennai)"
-                                    value={newLocation.Locationtitle}
-                                    onChange={(e) => handleLocationSearch(e.target.value)}
-                                    required
-                                />
-
-                                {/* Show Suggestions */}
-                                {suggestions.length > 0 && (
-                                    <ul className="list-group">
-                                        {suggestions.map((suggestion, index) => (
-                                            <li
-                                                key={index}
-                                                className="list-group-item"
-                                                onClick={() => selectLocation(suggestion)}
-                                                style={{ cursor: "pointer" }}
-                                            >
-                                                {suggestion.formatted}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-
-
-                                <input
-                                    type="number"
-                                    className="form-control mb-2"
-                                    placeholder="Latitude"
-                                    name="latitude"
-                                    value={newLocation.latitude || ""}
-                                    onChange={(e) => {
-                                        const lat = e.target.value ? parseFloat(e.target.value) : null;
-                                        setNewLocation((prev) => ({ ...prev, latitude: lat }));
-                                    }}
-                                />
-                                <input
-                                    type="number"
-                                    className="form-control mb-2"
-                                    placeholder="Longitude"
-                                    name="longitude"
-                                    value={newLocation.longitude || ""}
-                                    onChange={(e) => {
-                                        const lng = e.target.value ? parseFloat(e.target.value) : null;
-                                        setNewLocation((prev) => ({ ...prev, longitude: lng }));
-                                    }}
-                                />
-
-                                {/* Radius Selection */}
-                                <label>Radius: {newLocation.radius} meters</label>
-                                <input
-                                    type="range"
-                                    className="form-range"
-                                    min="10"
-                                    max="100"
-                                    step="1"
-                                    value={newLocation.radius}
-                                    onChange={handleRadiusChange}
-                                />
-
-                                {/* Show loading if location is not available */}
-                                {loading ? (
-                                    <p>Loading map...</p>
-                                ) : (
-                                    userLocation && (
-                                        <MapContainer
-                                            center={[userLocation.latitude, userLocation.longitude]}
-                                            zoom={12}
-                                            style={{ width: "100%", height: "400px" }}
-                                        >
-                                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                                            {/* Polygon Draw Feature */}
-                                            <FeatureGroup>
-                                                <EditControl
-                                                    position="topright"
-                                                    draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
-                                                    onCreated={handlePolygonDraw}
-                                                />
-                                            </FeatureGroup>
-
-                                            {newLocation.latitude && newLocation.longitude && !isNaN(newLocation.latitude) && !isNaN(newLocation.longitude) && (
-                                                <>
-                                                    <Marker position={[newLocation.latitude, newLocation.longitude]} icon={customIcon}>
-                                                        <Popup>{newLocation.Locationtitle}</Popup>
-                                                    </Marker>
-                                                    <Circle
-                                                        center={[newLocation.latitude, newLocation.longitude]}
-                                                        radius={newLocation.radius}
-                                                        color="blue"
-                                                    />
-                                                </>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="2" className="text-center">
+                                                        No Location found
+                                                    </td>
+                                                </tr>
                                             )}
-
-                                        </MapContainer>
-                                    )
-                                )}
-
-                                {/* Add Location Button */}
-                                <button className="btn btn-primary mt-3" onClick={addLocation}>
-                                    Add Location
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
-                    <div className={`p-4 offcanvas-custom ${showViewCanvas ? 'show' : ""}`}>
-                        <div className="offcanvas-header mb-3">
-                            <h5 className="offcanvas-title">Edit new location</h5>
-                            <button className="btn border border-1 mt-2" style={{ position: "absolute", right: "60px", fontSize: "13px" }} onClick={fillWithCurrentLocation}>
-                                Use Current Location
-                            </button>
-
-                            <button type="button" className="btn-close" onClick={() => setShowViewCanvas(false)} style={{ position: "absolute", right: "30px" }}></button>
-                        </div>
-                        <div className="offcanvas-body p-2">
-                            <div >
-                                <div className="d-flex justify-content-end mb-3">
-
-                                    {/* <h2>Super Admin</h2> */}
-
+                                        </tbody>
+                                    </table>
                                 </div>
-                                {/* Location Title Input */}
-                                <input
-                                    type="text"
-                                    className="form-control mb-2"
-                                    placeholder="Enter Location Title"
-                                    name="Locationtitle"
-                                    value={selectedLocation ? selectedLocation.Locationname : ""}
-                                    onChange={(e) =>
-                                        setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
-                                    }
-                                    required
-                                />
-
-
-                                {/* Location Search Input */}
-                                <input
-                                    type="text"
-                                    className="form-control mb-2"
-                                    placeholder="Search Location (e.g. Chennai)"
-                                    value={selectedLocation ? selectedLocation.Locationtitle : ""}
-                                    onChange={(e) => handleLocationSearch(e.target.value)}
-                                    required
-                                />
-
-                                {/* Show Suggestions */}
-                                {suggestions.length > 0 && (
-                                    <ul className="list-group">
-                                        {suggestions.map((suggestion, index) => (
-                                            <li
-                                                key={index}
-                                                className="list-group-item"
-                                                onClick={() => selectLocation(suggestion)}
-                                                style={{ cursor: "pointer" }}
-                                            >
-                                                {suggestion.formatted}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-
-
-                                <input
-                                    type="number"
-                                    className="form-control mb-2"
-                                    placeholder="Latitude"
-                                    name="latitude"
-                                    value={selectedLocation ? selectedLocation.latitude : ""}
-                                    onChange={(e) => {
-                                        const lat = e.target.value ? parseFloat(e.target.value) : null;
-                                        setNewLocation((prev) => ({ ...prev, latitude: lat }));
-                                    }}
-                                />
-                                <input
-                                    type="number"
-                                    className="form-control mb-2"
-                                    placeholder="Longitude"
-                                    name="longitude"
-                                    value={selectedLocation ? selectedLocation.longitude : ""}
-                                    onChange={(e) => {
-                                        const lng = e.target.value ? parseFloat(e.target.value) : null;
-                                        setNewLocation((prev) => ({ ...prev, longitude: lng }));
-                                    }}
-                                />
-
-                                {/* Radius Selection */}
-                                <label>Radius: {selectedLocation ? selectedLocation.radius : ""} meters</label>
-                                <input
-                                    type="range"
-                                    className="form-range"
-                                    min="10"
-                                    max="100"
-                                    step="1"
-                                    value={newLocation.radius}
-                                    onChange={handleRadiusChange}
-                                />
-
-                                {/* Show loading if location is not available */}
-                                {loading ? (
-                                    <p>Loading map...</p>
-                                ) : (
-                                    selectedLocation && (
-                                        <MapContainer
-                                            center={[selectedLocation.latitude, selectedLocation.longitude]}
-                                            zoom={12}
-                                            style={{ width: "100%", height: "400px" }}
-                                        >
-                                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                                            {/* Polygon Draw Feature */}
-                                            <FeatureGroup>
-                                                <EditControl
-                                                    position="topright"
-                                                    draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
-                                                    onCreated={handlePolygonDraw}
-                                                />
-                                            </FeatureGroup>
-
-                                            {selectedLocation.latitude && selectedLocation.longitude && !isNaN(selectedLocation.latitude) && !isNaN(selectedLocation.longitude) && (
-                                                <>
-                                                    <Marker position={[selectedLocation.latitude, selectedLocation.longitude]} icon={customIcon}>
-                                                        <Popup>{selectedLocation.Locationtitle}</Popup>
-                                                    </Marker>
-                                                    <Circle
-                                                        center={[selectedLocation.latitude, selectedLocation.longitude]}
-                                                        radius={selectedLocation.radius}
-                                                        color="blue"
-                                                    />
-                                                </>
-                                            )}
-
-                                        </MapContainer>
-                                    )
-                                )}
-
-                                {/* Add Location Button */}
-                                <button className="btn btn-primary mt-3 me-2" onClick={addLocation}>
-                                    Update Location
-                                </button>
-                                <button className="btn border border-1 mt-3" onClick={() => setShowViewCanvas(false)}>
-                                    Back
-                                </button>
                             </div>
-
                         </div>
                     </div>
                 </div>
-            }
 
+                {/* Create Location Canvas */}
+                <div className={`p-4 offcanvas-custom ${showCreateCanvas ? 'show' : ""}`}>
+                    <div className="offcanvas-header mb-3">
+                        <h5 className="offcanvas-title">Add new location</h5>
+                        <button 
+                            className="btn border border-1 mt-2" 
+                            style={{ position: "absolute", right: "60px", fontSize: "13px" }} 
+                            onClick={fillWithCurrentLocation}
+                        >
+                            Use Current Location
+                        </button>
+                        <button 
+                            type="button" 
+                            className="btn-close" 
+                            onClick={() => {
+                                setShowCreateCanvas(false);
+                                resetForm();
+                            }} 
+                            style={{ position: "absolute", right: "30px" }}
+                        ></button>
+                    </div>
+                    <div className="offcanvas-body p-2">
+                        <div>
+                            {/* Location Name Input */}
+                            <input
+                                type="text"
+                                className="form-control mb-2"
+                                placeholder="Enter Location Name"
+                                name="Locationname"
+                                value={newLocation.Locationname}
+                                onChange={(e) =>
+                                    setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
+                                }
+                                required
+                            />
+
+                            {/* Location Search Input */}
+                            <input
+                                type="text"
+                                className="form-control mb-2"
+                                placeholder="Search Location (e.g. Chennai)"
+                                value={newLocation.Locationtitle}
+                                onChange={(e) => handleLocationSearch(e.target.value)}
+                                required
+                            />
+
+                            {/* Show Suggestions */}
+                            {suggestions.length > 0 && (
+                                <ul className="list-group">
+                                    {suggestions.map((suggestion, index) => (
+                                        <li
+                                            key={index}
+                                            className="list-group-item"
+                                            onClick={() => selectLocation(suggestion)}
+                                            style={{ cursor: "pointer" }}
+                                        >
+                                            {suggestion.display_name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            <input
+                                type="number"
+                                className="form-control mb-2"
+                                placeholder="Latitude"
+                                name="latitude"
+                                value={newLocation.latitude || ""}
+                                onChange={(e) => {
+                                    const lat = e.target.value ? parseFloat(e.target.value) : null;
+                                    setNewLocation((prev) => ({ ...prev, latitude: lat }));
+                                }}
+                            />
+                            <input
+                                type="number"
+                                className="form-control mb-2"
+                                placeholder="Longitude"
+                                name="longitude"
+                                value={newLocation.longitude || ""}
+                                onChange={(e) => {
+                                    const lng = e.target.value ? parseFloat(e.target.value) : null;
+                                    setNewLocation((prev) => ({ ...prev, longitude: lng }));
+                                }}
+                            />
+
+                            {/* Radius Selection */}
+                            <label>Radius: {newLocation.radius} meters</label>
+                            <input
+                                type="range"
+                                className="form-range"
+                                min="10"
+                                max="100"
+                                step="1"
+                                value={newLocation.radius}
+                                onChange={handleRadiusChange}
+                            />
+
+                            {/* Map Container */}
+                            {userLocation && (
+                                <MapContainer
+                                    center={[userLocation.latitude, userLocation.longitude]}
+                                    zoom={12}
+                                    style={{ width: "100%", height: "400px" }}
+                                >
+                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                                    {/* Polygon Draw Feature */}
+                                    <FeatureGroup>
+                                        <EditControl
+                                            position="topright"
+                                            draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
+                                            onCreated={handlePolygonDraw}
+                                        />
+                                    </FeatureGroup>
+
+                                    {newLocation.latitude && newLocation.longitude && !isNaN(newLocation.latitude) && !isNaN(newLocation.longitude) && (
+                                        <>
+                                            <Marker position={[newLocation.latitude, newLocation.longitude]} icon={customIcon}>
+                                                <Popup>{newLocation.Locationtitle}</Popup>
+                                            </Marker>
+                                            <Circle
+                                                center={[newLocation.latitude, newLocation.longitude]}
+                                                radius={newLocation.radius}
+                                                color="blue"
+                                            />
+                                        </>
+                                    )}
+                                </MapContainer>
+                            )}
+
+                            {/* Add Location Button */}
+                            <button className="btn btn-primary mt-3" onClick={addLocation}>
+                                Add Location
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* View/Edit Location Canvas */}
+                <div className={`p-4 offcanvas-custom ${showViewCanvas ? 'show' : ""}`}>
+                    <div className="offcanvas-header mb-3">
+                        <h5 className="offcanvas-title">{isEditing ? "Edit Location" : "View Location"}</h5>
+                        <button 
+                            className="btn border border-1 mt-2" 
+                            style={{ position: "absolute", right: "60px", fontSize: "13px" }} 
+                            onClick={fillWithCurrentLocation}
+                        >
+                            Use Current Location
+                        </button>
+                        <button 
+                            type="button" 
+                            className="btn-close" 
+                            onClick={() => {
+                                setShowViewCanvas(false);
+                                resetForm();
+                            }} 
+                            style={{ position: "absolute", right: "30px" }}
+                        ></button>
+                    </div>
+                    <div className="offcanvas-body p-2">
+                        <div>
+                            {/* Location Name Input */}
+                            <input
+                                type="text"
+                                className="form-control mb-2"
+                                placeholder="Enter Location Name"
+                                name="Locationname"
+                                value={newLocation.Locationname}
+                                onChange={(e) =>
+                                    setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
+                                }
+                                required
+                                disabled={!isEditing}
+                            />
+
+                            {/* Location Search Input */}
+                            <input
+                                type="text"
+                                className="form-control mb-2"
+                                placeholder="Search Location (e.g. Chennai)"
+                                value={newLocation.Locationtitle}
+                                onChange={(e) => handleLocationSearch(e.target.value)}
+                                required
+                                disabled={!isEditing}
+                            />
+
+                            {/* Show Suggestions */}
+                            {suggestions.length > 0 && isEditing && (
+                                <ul className="list-group">
+                                    {suggestions.map((suggestion, index) => (
+                                        <li
+                                            key={index}
+                                            className="list-group-item"
+                                            onClick={() => selectLocation(suggestion)}
+                                            style={{ cursor: "pointer" }}
+                                        >
+                                            {suggestion.display_name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            <input
+                                type="number"
+                                className="form-control mb-2"
+                                placeholder="Latitude"
+                                name="latitude"
+                                value={newLocation.latitude || ""}
+                                onChange={(e) => {
+                                    const lat = e.target.value ? parseFloat(e.target.value) : null;
+                                    setNewLocation((prev) => ({ ...prev, latitude: lat }));
+                                }}
+                                disabled={!isEditing}
+                            />
+                            <input
+                                type="number"
+                                className="form-control mb-2"
+                                placeholder="Longitude"
+                                name="longitude"
+                                value={newLocation.longitude || ""}
+                                onChange={(e) => {
+                                    const lng = e.target.value ? parseFloat(e.target.value) : null;
+                                    setNewLocation((prev) => ({ ...prev, longitude: lng }));
+                                }}
+                                disabled={!isEditing}
+                            />
+
+                            {/* Radius Selection */}
+                            <label>Radius: {newLocation.radius} meters</label>
+                            <input
+                                type="range"
+                                className="form-range"
+                                min="10"
+                                max="100"
+                                step="1"
+                                value={newLocation.radius}
+                                onChange={handleRadiusChange}
+                                disabled={!isEditing}
+                            />
+
+                            {/* Map Container */}
+                            {newLocation.latitude && newLocation.longitude && (
+                                <MapContainer
+                                    center={[newLocation.latitude, newLocation.longitude]}
+                                    zoom={12}
+                                    style={{ width: "100%", height: "400px" }}
+                                >
+                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                                    {/* Polygon Draw Feature - Only show when editing */}
+                                    {isEditing && (
+                                        <FeatureGroup>
+                                            <EditControl
+                                                position="topright"
+                                                draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
+                                                onCreated={handlePolygonDraw}
+                                            />
+                                        </FeatureGroup>
+                                    )}
+
+                                    <Marker position={[newLocation.latitude, newLocation.longitude]} icon={customIcon}>
+                                        <Popup>{newLocation.Locationtitle}</Popup>
+                                    </Marker>
+                                    <Circle
+                                        center={[newLocation.latitude, newLocation.longitude]}
+                                        radius={newLocation.radius}
+                                        color="blue"
+                                    />
+                                </MapContainer>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="d-flex justify-content-between mt-3">
+                                {isEditing ? (
+                                    <>
+                                        <button className="btn btn-primary me-2" onClick={updateLocation}>
+                                            Update Location
+                                        </button>
+                                        <button 
+                                            className="btn btn-outline-secondary" 
+                                            onClick={() => setIsEditing(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button 
+                                            className="btn btn-primary me-2" 
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            Edit Location
+                                        </button>
+                                        <button 
+                                            className="btn btn-outline-secondary" 
+                                            onClick={() => {
+                                                setShowViewCanvas(false);
+                                                resetForm();
+                                            }}
+                                        >
+                                            Back
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </>
-
     );
 };
 
