@@ -21,7 +21,7 @@ const ShiftAssignmentManager = () => {
   const [shiftToDelete, setShiftToDelete] = useState(null);
   
   const token = localStorage.getItem("access_token");
-  if (!token) window.location.href = "/login";
+  // if (!token) window.location.href = "/login";
 
   useEffect(() => {
     fetchDepartments();

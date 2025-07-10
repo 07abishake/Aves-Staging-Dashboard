@@ -31,7 +31,7 @@ function Designation() {
     };
      const token = localStorage.getItem("access_token");
   if(!token){
-    window.location.href = "/login";
+    // window.location.href = "/login";
   }
 
     // Fetch users with debounce

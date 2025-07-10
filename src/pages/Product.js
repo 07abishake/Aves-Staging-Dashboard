@@ -53,7 +53,7 @@ const ProductManager = () => {
   // useEffect for initial data loading
   useEffect(() => {
     if (!token) {
-      window.location.href = "/login";
+      // window.location.href = "/login";
       return;
     }
     fetchProducts();

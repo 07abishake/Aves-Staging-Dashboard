@@ -38,7 +38,7 @@ function ItemDetails() {
 
      const token = localStorage.getItem("access_token");
     if (!token) {
-        window.location.href = "/login";
+        // window.location.href = "/login";
     }
 
   const fetchProducts = async () => {

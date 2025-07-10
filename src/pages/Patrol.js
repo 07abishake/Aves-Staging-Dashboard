@@ -93,7 +93,7 @@ function Patrol() {
    const [newPointName, setNewPointName] = useState('');
    const [isWaypoint, setIsWaypoint] = useState(false);
     if (!token) {
-        window.location.href = "/login";
+        // window.location.href = "/login";
     }
 
     useEffect(() => {

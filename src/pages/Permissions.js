@@ -19,7 +19,7 @@ function Permissions() {
 
   const token = localStorage.getItem('access_token');
   if (!token) {
-    window.location.href = '/login';
+    // window.location.href = '/login';
   }
 
   // Format labels with proper spacing and special cases

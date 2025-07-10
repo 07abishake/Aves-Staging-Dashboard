@@ -11,7 +11,7 @@ const API_BASE_URL = 'https://api.avessecurity.com/api/termandcondition';
 
 const token = localStorage.getItem("access_token");
 if (!token) {
-  window.location.href = "/login";
+  // window.location.href = "/login";
 }
 
 // Term Service Functions

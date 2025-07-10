@@ -48,7 +48,7 @@ const InventoryManager = () => {
   // Fetch initial data
   useEffect(() => {
     if (!token) {
-      window.location.href = "/login";
+      // window.location.href = "/login";
       return;
     }
 
