@@ -1,16 +1,50 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { Navbar, Nav, Container, Dropdown, Badge } from 'react-bootstrap';
+import { PersonCircle, Gear, BoxArrowRight, BellFill, EnvelopeFill } from 'react-bootstrap-icons';
 
-function Navbar() {
+function AppNavbar() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    navigate('/');
+  const handleLogout = async () => {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      localStorage.removeItem('access_token');
+      navigate('/');
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(token);
+      const userId = decoded.userId;
+
+      const response = await fetch('http://localhost:6378/api/log-out', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.removeItem('access_token');
+        navigate('/');
+      } else {
+        alert(data.message || 'Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      localStorage.removeItem('access_token');
+      navigate('/');
+    }
   };
 
-  let username = '';
+  let username = 'User';
   const token = localStorage.getItem('access_token');
   if (token) {
     try {
@@ -22,33 +56,91 @@ function Navbar() {
   }
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4">
-      <div className="container-fluid">
-        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto">
-            <li className="nav-item dropdown">
-              <a className="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                <i className="bi bi-person-circle me-2"></i>{username}
-              </a>
-              <ul className="dropdown-menu dropdown-menu-end">
-                <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Profile</a></li>
-                <li><a className="dropdown-item" href="#"><i className="bi bi-gear me-2"></i>Settings</a></li>
-                <li><hr className="dropdown-divider" /></li>
-                <li>
-                  <button className="dropdown-item" onClick={handleLogout}>
-                    <i className="bi bi-box-arrow-right me-2"></i>Logout
-                  </button>
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </nav>
+    <Navbar bg="white" expand="lg" className="shadow-sm mb-4" sticky="top">
+      <Container fluid>
+        <Navbar.Brand href="#" className="fw-bold text-primary">
+   
+        </Navbar.Brand>
+        
+        <Navbar.Toggle aria-controls="navbar-nav" />
+        
+        <Navbar.Collapse id="navbar-nav" className="justify-content-end">
+          <Nav className="align-items-center">
+            {/* Notification Dropdown */}
+            {/* <Dropdown as={Nav.Item} className="mx-2">
+              <Dropdown.Toggle as={Nav.Link} className="position-relative">
+                <BellFill size={20} />
+                <Badge pill bg="danger" className="position-absolute top-0 start-100 translate-middle">
+                  3
+                </Badge>
+              </Dropdown.Toggle>
+              <Dropdown.Menu align="end" className="mt-2 border-0 shadow-sm">
+                <Dropdown.Header>Notifications</Dropdown.Header>
+                <Dropdown.Item className="d-flex align-items-center">
+                  <div className="me-3">
+                    <div className="bg-primary bg-opacity-10 p-2 rounded-circle d-inline-block">
+                      <EnvelopeFill className="text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="fw-bold">New message</div>
+                    <small className="text-muted">5 minutes ago</small>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Item className="d-flex align-items-center">
+                  <div className="me-3">
+                    <div className="bg-success bg-opacity-10 p-2 rounded-circle d-inline-block">
+                      <BellFill className="text-success" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="fw-bold">System update</div>
+                    <small className="text-muted">2 hours ago</small>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <Dropdown.Item className="text-center text-primary">
+                  View all notifications
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown> */}
+
+            {/* User Dropdown */}
+            <Dropdown as={Nav.Item} className="ms-2">
+              <Dropdown.Toggle as={Nav.Link} className="d-flex align-items-center">
+                <div className="me-2 d-flex align-items-center">
+                  <PersonCircle size={24} className="text-primary" />
+                </div>
+                <div className="d-none d-lg-block">
+                  <div className="fw-semibold">{username}</div>
+                  <small className="text-muted">Admin</small>
+                </div>
+              </Dropdown.Toggle>
+              <Dropdown.Menu align="end" className="mt-2 border-0 shadow-sm">
+                <Dropdown.Header>User Settings</Dropdown.Header>
+                <Dropdown.Item className="d-flex align-items-center">
+                  <PersonCircle className="me-2 text-muted" />
+                  Profile
+                </Dropdown.Item>
+                <Dropdown.Item className="d-flex align-items-center">
+                  <Gear className="me-2 text-muted" />
+                  Settings
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <Dropdown.Item 
+                  onClick={handleLogout}
+                  className="d-flex align-items-center text-danger"
+                >
+                  <BoxArrowRight className="me-2" />
+                  Logout
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 }
 
-export default Navbar;
+export default AppNavbar;
