@@ -204,6 +204,33 @@ function Permissions() {
     }
   };
 
+
+  const handleDeleteRole = async (roleId) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete this role?");
+  if (!confirmDelete) return;
+
+  try {
+    await axios.delete(`https://api.avessecurity.com/api/Roles/deleteRole/${roleId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    alert('Role deleted successfully');
+    // Refresh roles list
+    fetchRoles();
+    // If the deleted role was selected, clear view
+    if (selectedRoleId === roleId) {
+      setSelectedRoleId(null);
+      setShowViewCanvas(false);
+    }
+  } catch (error) {
+    console.error('Error deleting role:', error);
+    alert('Failed to delete role');
+  }
+};
+
+
   const hanleSubmit = async (e) => {
     e.preventDefault();
     const payload = { name: roleName };
@@ -253,7 +280,7 @@ function Permissions() {
                       className="btn btn-primary"
                       onClick={() => setShowCreateCanvas(true)}
                     >
-                      <i className="bi bi-plus-lg me-2"></i>Add New Role
+                      <i className=" me-2"></i>Add New Role
                     </button>
                   </div>
                   
@@ -279,7 +306,9 @@ function Permissions() {
                                 >
                                   <i className="bi bi-eye me-1"></i>View/Edit
                                 </button>
-                                <button className="btn btn-sm btn-outline-danger">
+                                <button className="btn btn-sm btn-outline-danger"
+                                 onClick={() => handleDeleteRole(role._id)}
+                                >
                                   <i className="bi bi-trash me-1"></i>Delete
                                 </button>
                               </td>

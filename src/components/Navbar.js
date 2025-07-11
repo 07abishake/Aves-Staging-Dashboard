@@ -56,7 +56,7 @@ function AppNavbar() {
   }
 
   return (
-    <Navbar bg="white" expand="lg" className="shadow-sm mb-4" sticky="top">
+    <Navbar bg="white" expand="lg" className="shadow-sm mb-4">
       <Container fluid>
         <Navbar.Brand href="#" className="fw-bold text-primary">
    
