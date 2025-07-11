@@ -20,7 +20,7 @@ function AppNavbar() {
       const decoded = jwtDecode(token);
       const userId = decoded.userId;
 
-      const response = await fetch('http://localhost:6378/api/log-out', {
+      const response = await fetch('https://api.avessecurity.com/api/log-out', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
