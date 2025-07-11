@@ -558,8 +558,8 @@ const fetchLocations = async () => {
       user.EmailId.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus = statusFilter === 'All' ||
-      (statusFilter === 'Active' && user.isActive) ||
-      (statusFilter === 'Inactive' && !user.isActive);
+      (statusFilter === 'Active' && user.isOnline) ||
+      (statusFilter === 'Inactive' && !user.isOnline);
 
     return matchesSearch && matchesStatus;
   });
@@ -685,8 +685,8 @@ const fetchLocations = async () => {
                             </span>
                           </td>
                           <td>
-                            <span className={`badge ${user.isActive ? 'bg-success' : 'bg-secondary'}`}>
-                              {user.isActive ? 'Active' : 'Inactive'}
+                            <span className={`badge ${user.isOnline ? 'bg-success' : 'bg-secondary'}`}>
+                              {user.isOnline ? 'Active' : 'Inactive'}
                             </span>
                           </td>
                           <td>
@@ -1297,7 +1297,7 @@ const fetchLocations = async () => {
                 {selectedSpecUser.FirstName?.charAt(0)}{selectedSpecUser.LastName?.charAt(0)}
               </div>
             )}
-            <span className={`position-absolute bottom-0 end-0 badge rounded-pill ${selectedSpecUser.isActive ? 'bg-success' : 'bg-secondary'}`}
+            <span className={`position-absolute bottom-0 end-0 badge rounded-pill ${selectedSpecUser.isOnline ? 'bg-success' : 'bg-secondary'}`}
               style={{
                 width: '20px',
                 height: '20px',
@@ -1487,9 +1487,9 @@ const fetchLocations = async () => {
         {/* Status and Actions */}
         <div className="d-flex justify-content-between align-items-center mt-4">
           <div>
-            <span className={`badge ${selectedSpecUser.isActive ? 'bg-success' : 'bg-secondary'} rounded-pill px-3 py-2`}>
-              <i className={`bi ${selectedSpecUser.isActive ? 'bi-check-circle' : 'bi-slash-circle'} me-2`}></i>
-              {selectedSpecUser.isActive ? 'Active Account' : 'Inactive Account'}
+            <span className={`badge ${selectedSpecUser.isOnline ? 'bg-success' : 'bg-secondary'} rounded-pill px-3 py-2`}>
+              <i className={`bi ${selectedSpecUser.isOnline ? 'bi-check-circle' : 'bi-slash-circle'} me-2`}></i>
+              {selectedSpecUser.isOnline ? 'Active Account' : 'Inactive Account'}
             </span>
           </div>
           <div>
