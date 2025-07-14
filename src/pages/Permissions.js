@@ -231,7 +231,7 @@ function Permissions() {
       // Then update calendar page auth separately
       if (roleData.calendarPageAuth) {
         await axios.put(
-          `https://api.avessecurity.com/api/Roles/updateCalendarPageAuth/${selectedRoleId}`,
+          `https://api.avessecurity.com/api/Roles/updateCalendarPage/${selectedRoleId}`,
           { calendarPageAuth: roleData.calendarPageAuth },
           {
             headers: {
