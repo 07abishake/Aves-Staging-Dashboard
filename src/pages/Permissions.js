@@ -7,15 +7,19 @@ function Permissions() {
   const [loading, setLoading] = useState(false);
   const [roleName, setRoleName] = useState('');
   const [allRoles, setAllRoles] = useState([]);
-  const [permissions, setPermissions] = useState(null);
   const [showViewCanvas, setShowViewCanvas] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
-  const [AssignedPages, setAssignedPages] = useState(null);
-  const [rolefetchname, setRoleFetchName] = useState('');
   const [allPermissionsSelected, setAllPermissionsSelected] = useState(false);
   const [allPagesSelected, setAllPagesSelected] = useState(false);
-  const [calendarPageAuth, setCalendarPageAuth] = useState(null);
   const [allCalendarSelected, setAllCalendarSelected] = useState(false);
+
+  // Consolidated role data state
+  const [roleData, setRoleData] = useState({
+    permissions: null,
+    AssignedPages: null,
+    calendarPageAuth: null,
+    name: ''
+  });
 
   const token = localStorage.getItem('access_token');
   if (!token) {
@@ -24,7 +28,6 @@ function Permissions() {
 
   // Format labels with proper spacing and special cases
   const formatLabel = (key) => {
-    // Special cases
     const specialCases = {
       'CCTV': 'CCTV',
       'OshaMinutes': 'OSHA Minutes',
@@ -41,7 +44,6 @@ function Permissions() {
 
     if (specialCases[key]) return specialCases[key];
 
-    // Regular formatting
     return key
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
@@ -73,6 +75,7 @@ function Permissions() {
 
   useEffect(() => {
     if (!selectedRoleId) return;
+    
     const fetchPermissions = async () => {
       try {
         const response = await axios.get(
@@ -83,14 +86,23 @@ function Permissions() {
             },
           }
         );
-        setPermissions(response.data.role.permissions);
-        setAssignedPages(response.data.role.AssignedPage);
-        setRoleFetchName(response.data.role.name);
-        setCalendarPageAuth(response.data.role.calendarPageAuth || {});
+        
+        setRoleData({
+          permissions: response.data.role.permissions,
+          AssignedPages: response.data.role.AssignedPage,
+          calendarPageAuth: response.data.role.calendarPageAuth || {},
+          name: response.data.role.name
+        });
+        
+        // Reset select all states
+        setAllPermissionsSelected(false);
+        setAllPagesSelected(false);
+        setAllCalendarSelected(false);
       } catch (error) {
         console.error('Error fetching role permissions', error);
       }
     };
+    
     fetchPermissions();
   }, [selectedRoleId]);
 
@@ -100,50 +112,62 @@ function Permissions() {
   };
 
   const handlePermissionChange = (category, permissionType) => {
-    setPermissions((prev) => ({
+    setRoleData(prev => ({
       ...prev,
-      [category]: {
-        ...prev[category],
-        [permissionType]: !prev[category][permissionType],
-      },
+      permissions: {
+        ...prev.permissions,
+        [category]: {
+          ...prev.permissions[category],
+          [permissionType]: !prev.permissions[category][permissionType],
+        },
+      }
     }));
   };
 
   const handleCalendarPageChange = (pageKey) => {
-    setCalendarPageAuth((prev) => ({
+    setRoleData(prev => ({
       ...prev,
-      [pageKey]: !prev[pageKey],
+      calendarPageAuth: {
+        ...prev.calendarPageAuth,
+        [pageKey]: !prev.calendarPageAuth[pageKey],
+      }
     }));
   };
 
   const toggleAllCalendarPages = () => {
-    if (!calendarPageAuth) return;
+    if (!roleData.calendarPageAuth) return;
     const newState = !allCalendarSelected;
     const updated = {};
 
-    for (const key in calendarPageAuth) {
+    for (const key in roleData.calendarPageAuth) {
       if (key !== '_id' && key !== '__v') {
         updated[key] = newState;
       }
     }
 
-    setCalendarPageAuth(updated);
+    setRoleData(prev => ({
+      ...prev,
+      calendarPageAuth: updated
+    }));
     setAllCalendarSelected(newState);
   };
 
   const handleAssignedPageChange = (page) => {
-    setAssignedPages((prev) => ({
+    setRoleData(prev => ({
       ...prev,
-      [page]: !prev[page],
+      AssignedPages: {
+        ...prev.AssignedPages,
+        [page]: !prev.AssignedPages[page],
+      }
     }));
   };
 
   const toggleAllPermissions = () => {
-    if (!permissions) return;
+    if (!roleData.permissions) return;
     const updatedPermissions = {};
     const newState = !allPermissionsSelected;
 
-    for (const category in permissions) {
+    for (const category in roleData.permissions) {
       if (category !== '_id' && category !== '__v') {
         updatedPermissions[category] = {
           create: newState,
@@ -154,22 +178,28 @@ function Permissions() {
       }
     }
 
-    setPermissions(updatedPermissions);
+    setRoleData(prev => ({
+      ...prev,
+      permissions: updatedPermissions
+    }));
     setAllPermissionsSelected(newState);
   };
 
   const toggleAllPages = () => {
-    if (!AssignedPages) return;
+    if (!roleData.AssignedPages) return;
     const updatedPages = {};
     const newState = !allPagesSelected;
 
-    for (const page in AssignedPages) {
+    for (const page in roleData.AssignedPages) {
       if (page !== '_id' && page !== '__v') {
         updatedPages[page] = newState;
       }
     }
 
-    setAssignedPages(updatedPages);
+    setRoleData(prev => ({
+      ...prev,
+      AssignedPages: updatedPages
+    }));
     setAllPagesSelected(newState);
   };
 
@@ -179,16 +209,18 @@ function Permissions() {
       return;
     }
 
-    const payload = {
-      permissions,
-      AssignedPage: AssignedPages,
-      calendarPageAuth
-    };
-
     try {
+      setLoading(true);
+      
+      // First update general permissions and assigned pages
+      const permissionsPayload = {
+        permissions: roleData.permissions,
+        AssignedPage: roleData.AssignedPages
+      };
+      
       await axios.put(
         `https://api.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
-        payload,
+        permissionsPayload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -196,45 +228,61 @@ function Permissions() {
         }
       );
 
+      // Then update calendar page auth separately
+      if (roleData.calendarPageAuth) {
+        await axios.put(
+          `https://api.avessecurity.com/api/Roles/updateCalendarPageAuth/${selectedRoleId}`,
+          { calendarPageAuth: roleData.calendarPageAuth },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      }
+
       alert('Permissions updated successfully!');
       setShowViewCanvas(false);
+      fetchRoles(); // Refresh the roles list
     } catch (error) {
       console.error('Error updating permissions', error);
       alert('Failed to update permissions.');
+    } finally {
+      setLoading(false);
     }
   };
 
-
   const handleDeleteRole = async (roleId) => {
-  const confirmDelete = window.confirm("Are you sure you want to delete this role?");
-  if (!confirmDelete) return;
+    const confirmDelete = window.confirm("Are you sure you want to delete this role?");
+    if (!confirmDelete) return;
 
-  try {
-    await axios.delete(`https://api.avessecurity.com/api/Roles/deleteRole/${roleId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      setLoading(true);
+      await axios.delete(`https://api.avessecurity.com/api/Roles/deleteRole/${roleId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    alert('Role deleted successfully');
-    // Refresh roles list
-    fetchRoles();
-    // If the deleted role was selected, clear view
-    if (selectedRoleId === roleId) {
-      setSelectedRoleId(null);
-      setShowViewCanvas(false);
+      alert('Role deleted successfully');
+      fetchRoles();
+      if (selectedRoleId === roleId) {
+        setSelectedRoleId(null);
+        setShowViewCanvas(false);
+      }
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      alert('Failed to delete role');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error deleting role:', error);
-    alert('Failed to delete role');
-  }
-};
-
+  };
 
   const hanleSubmit = async (e) => {
     e.preventDefault();
     const payload = { name: roleName };
     try {
+      setLoading(true);
       await axios.post(`https://api.avessecurity.com/api/Roles/createRole`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -243,10 +291,24 @@ function Permissions() {
 
       alert('Role Created Successfully');
       setShowCreateCanvas(false);
+      setRoleName('');
       fetchRoles();
     } catch (error) {
       console.error('error creating in role', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCloseView = () => {
+    setShowViewCanvas(false);
+    setRoleData({
+      permissions: null,
+      AssignedPages: null,
+      calendarPageAuth: null,
+      name: ''
+    });
+    setSelectedRoleId(null);
   };
 
   return (
@@ -306,8 +368,9 @@ function Permissions() {
                                 >
                                   <i className="bi bi-eye me-1"></i>View/Edit
                                 </button>
-                                <button className="btn btn-sm btn-outline-danger"
-                                 onClick={() => handleDeleteRole(role._id)}
+                                <button 
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDeleteRole(role._id)}
                                 >
                                   <i className="bi bi-trash me-1"></i>Delete
                                 </button>
@@ -346,13 +409,18 @@ function Permissions() {
                   <label className="form-label">Role Name</label>
                   <input
                     className="form-control"
+                    value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
                     required
                     placeholder="Enter role name"
                   />
                 </div>
                 <div className="text-end mt-4">
-                  <button type="button" className="btn btn-outline-secondary me-2" onClick={() => setShowCreateCanvas(false)}>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-secondary me-2" 
+                    onClick={() => setShowCreateCanvas(false)}
+                  >
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -372,13 +440,13 @@ function Permissions() {
           <div className={`p-4 offcanvas-custom ${showViewCanvas ? 'show' : ''}`}>
             <div className="offcanvas-header mb-3">
               <h5 className="offcanvas-title">
-                <Badge bg="primary" className="me-2">{rolefetchname}</Badge> Permissions
+                <Badge bg="primary" className="me-2">{roleData.name}</Badge> Permissions
               </h5>
               <button
                 type="button"
                 className="btn-close"
                 style={{ position: 'absolute', right: '30px' }}
-                onClick={() => setShowViewCanvas(false)}
+                onClick={handleCloseView}
               ></button>
             </div>
             <div className="offcanvas-body">
@@ -393,7 +461,7 @@ function Permissions() {
               </div>
               
               <div className="table-responsive mb-5">
-                <table className="table  table-hover">
+                <table className="table table-hover">
                   <thead className="">
                     <tr>
                       <th style={{ width: '50%' }}>Module</th>
@@ -404,8 +472,8 @@ function Permissions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {permissions &&
-                      Object.keys(permissions)
+                    {roleData.permissions &&
+                      Object.keys(roleData.permissions)
                         .filter((key) => key !== '_id' && key !== '__v')
                         .map((key) => (
                           <tr key={key}>
@@ -418,7 +486,7 @@ function Permissions() {
                                   <input
                                     className="form-check-input"
                                     type="checkbox"
-                                    checked={permissions[key][perm]}
+                                    checked={roleData.permissions[key][perm]}
                                     onChange={() => handlePermissionChange(key, perm)}
                                     style={{ transform: 'scale(1.2)' }}
                                   />
@@ -442,7 +510,7 @@ function Permissions() {
               </div>
               
               <div className="table-responsive mb-5">
-                <table className="table  table-hover">
+                <table className="table table-hover">
                   <thead className="table-light">
                     <tr>
                       <th style={{ width: '80%' }}>Page</th>
@@ -450,12 +518,15 @@ function Permissions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {AssignedPages &&
-                      Object.keys(AssignedPages)
+                    {roleData.AssignedPages &&
+                      Object.keys(roleData.AssignedPages)
                         .filter((key) => key !== '_id' && key !== '__v')
                         .map((key) => (
                           <tr key={key}>
-                            <td onClick={() => handleAssignedPageChange(key)} style={{ cursor: 'pointer' }}>
+                            <td 
+                              onClick={() => handleAssignedPageChange(key)} 
+                              style={{ cursor: 'pointer' }}
+                            >
                               {formatLabel(key)}
                             </td>
                             <td className="text-center">
@@ -464,7 +535,7 @@ function Permissions() {
                                   type="checkbox"
                                   className="form-check-input"
                                   role="switch"
-                                  checked={AssignedPages[key]}
+                                  checked={roleData.AssignedPages[key]}
                                   onChange={() => handleAssignedPageChange(key)}
                                   style={{ transform: 'scale(1.5)' }}
                                 />
@@ -487,7 +558,7 @@ function Permissions() {
               </div>
               
               <div className="table-responsive">
-                <table className="table  table-hover">
+                <table className="table table-hover">
                   <thead className="table-light">
                     <tr>
                       <th style={{ width: '80%' }}>Action Page</th>
@@ -495,12 +566,15 @@ function Permissions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {calendarPageAuth &&
-                      Object.keys(calendarPageAuth)
+                    {roleData.calendarPageAuth &&
+                      Object.keys(roleData.calendarPageAuth)
                         .filter((key) => key !== '_id' && key !== '__v')
                         .map((key) => (
                           <tr key={key}>
-                            <td style={{ cursor: 'pointer' }} onClick={() => handleCalendarPageChange(key)}>
+                            <td 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => handleCalendarPageChange(key)}
+                            >
                               {formatLabel(key.replace('CalendarByUser', '').replace('CalendarByAdmin', ''))}
                               <Badge bg={key.includes('ByUser') ? 'info' : 'warning'} className="ms-2">
                                 {key.includes('ByUser') ? 'User' : 'Admin'}
@@ -512,7 +586,7 @@ function Permissions() {
                                   type="checkbox"
                                   className="form-check-input"
                                   role="switch"
-                                  checked={calendarPageAuth[key]}
+                                  checked={roleData.calendarPageAuth[key]}
                                   onChange={() => handleCalendarPageChange(key)}
                                   style={{ transform: 'scale(1.5)' }}
                                 />
@@ -527,15 +601,25 @@ function Permissions() {
               <div className="d-flex justify-content-end mt-4 border-top pt-3">
                 <button 
                   className="btn btn-outline-secondary me-3" 
-                  onClick={() => setShowViewCanvas(false)}
+                  onClick={handleCloseView}
                 >
                   Cancel
                 </button>
                 <button 
                   className="btn btn-primary" 
                   onClick={handleUpdatePermissions}
+                  disabled={loading}
                 >
-                  <i className="bi bi-save me-2"></i>Save Changes
+                  {loading ? (
+                    <>
+                      <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                      <span className="ms-2">Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-save me-2"></i>Save Changes
+                    </>
+                  )}
                 </button>
               </div>
             </div>
