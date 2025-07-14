@@ -8,6 +8,7 @@ const ShiftAssignmentManager = () => {
   const [users, setUsers] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
   const [createdShiftId, setCreatedShiftId] = useState('');
+  const [selectedDeptId, setSelectedDeptUserId] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedShiftName, setSelectedShiftName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -17,11 +18,11 @@ const ShiftAssignmentManager = () => {
   const [assignedShifts, setAssignedShifts] = useState([]);
   const [showEditCanvas, setShowEditCanvas] = useState(false);
   const [currentShift, setCurrentShift] = useState(null);
+  const [currentDepartmentUserId, setCurrentDepartmentUserId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState(null);
   
   const token = localStorage.getItem("access_token");
-  // if (!token) window.location.href = "/login";
 
   useEffect(() => {
     fetchDepartments();
@@ -93,56 +94,88 @@ const ShiftAssignmentManager = () => {
     }
   };
 
-  const handleUserClick = (user) => {
-    setSelectedUser(user);
-    setShowCanvas(true);
-  };
+  // const handleUserClick = (user) => {
+  //   setSelectedUser(user);
+  //   setShowCanvas(true);
+  // };
 
-  const handleAssign = async () => {
-    if (!selectedDept || !createdShiftId || !selectedUser || !startDate || !endDate || !selectedShiftName) {
-      alert("Please fill all fields");
-      return;
+//   const handleAssign = async (user) => {
+//        setSelectedUser(user);
+//     setShowCanvas(true);
+//     try {
+//       setIsLoading(true);
+
+//       // const payload = {
+//       //   DepartmentUser: [
+//       //     {
+//       //       userId: selectedUser._id,
+//       //       Name: selectedUser.Name,
+//       //       Department: selectedUser.Department.name,
+//       //       Designation: selectedUser.Designation?.Name || '',
+//       //       StartDate: startDate,
+//       //       EndDate: endDate,
+//       //       ActualShift: selectedShiftName
+//       //     }
+//       //   ]
+//       // };
+//       const res= await axios.post(
+//         `http://localhost:6378/api/shift/get/${selectedDept}/${createdShiftId}/shift`,{},{
+//         headers: { Authorization: `Bearer ${token}` }
+//       }
+//         //payload,
+//  );
+//  setSelectedDeptUserId(res.data.DepartmentUser._id);
+
+//       // alert("User Selected  successfully!");
+//       // setShowCanvas(false);
+   
+//       fetchAssignedShifts();
+//     } catch (error) {
+//       console.error("Error assigning shift:", error);
+//       // alert("Failed to assign shift");
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+const handleAssign = async (user) => {
+  setSelectedUser(user);
+  setShowCanvas(true);
+
+  try {
+    setIsLoading(true);
+
+    const res = await axios.post(
+      `https://api.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const departmentUsers = res.data.Shift?.DepartmentUser || [];
+
+    // ✅ Find the DepartmentUser entry that matches the selected user
+    const matchedUser = departmentUsers.find(
+      (u) => u.userId === user._id || u.userId?._id === user._id
+    );
+
+    if (matchedUser) {
+      setSelectedDeptUserId(matchedUser._id);
+    } else {
+      console.warn('User not found in DepartmentUser list');
     }
 
-    try {
-      setIsLoading(true);
-      const payload = {
-        DepartmentUser: [
-          {
-            userId: selectedUser._id,
-            Name: selectedUser.Name,
-            Department: selectedUser.Department.name,
-            Designation: selectedUser.Designation?.Name || '',
-            StartDate: startDate,
-            EndDate: endDate,
-            ActualShift: selectedShiftName
-          }
-        ]
-      };
-
-      await axios.post(
-        `https://api.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      alert("Shift assigned successfully!");
-      setShowCanvas(false);
-      setSelectedShiftName('');
-      setStartDate('');
-      setEndDate('');
-      fetchAssignedShifts();
-    } catch (error) {
-      console.error("Error assigning shift:", error);
-      alert("Failed to assign shift");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    fetchAssignedShifts();
+  } catch (error) {
+    console.error("Error assigning shift:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleEditShift = (shift) => {
     const userShift = shift.DepartmentUser.find(u => u.ActualShift) || shift.DepartmentUser[0];
     setCurrentShift(shift);
+    setCurrentDepartmentUserId(userShift._id);
     setSelectedShiftName(userShift?.ActualShift || '');
     setStartDate(userShift?.StartDate?.split('T')[0] || '');
     setEndDate(userShift?.EndDate?.split('T')[0] || '');
@@ -150,34 +183,25 @@ const ShiftAssignmentManager = () => {
   };
 
   const handleUpdateShift = async () => {
-    if (!currentShift || !selectedShiftName || !startDate || !endDate) {
-      alert("Please fill all fields");
-      return;
-    }
-
+      if (!selectedUser ) {
+    alert("Please select a user first");
+    return;
+  }
     try {
       setIsLoading(true);
       const payload = {
-        DepartmentUser: currentShift.DepartmentUser.map(user => {
-          if (user.userId === currentShift.DepartmentUser[0].userId) {
-            return {
-              ...user,
-              ActualShift: selectedShiftName,
-              StartDate: startDate,
-              EndDate: endDate
-            };
-          }
-          return user;
-        })
+        ActualShift: selectedShiftName,
+        StartDate: startDate,
+        EndDate: endDate
       };
 
       await axios.put(
-        `https://api.avessecurity.com/api/shift/update/${currentShift._id}`,
+        `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert("Shift updated successfully!");
+      alert("Shift Assigned successfully!");
       setShowEditCanvas(false);
       setSelectedShiftName('');
       setStartDate('');
@@ -185,7 +209,7 @@ const ShiftAssignmentManager = () => {
       fetchAssignedShifts();
     } catch (error) {
       console.error("Error updating shift:", error);
-      alert("Failed to update shift");
+      alert(error.response?.data?.message || "Failed to update shift");
     } finally {
       setIsLoading(false);
     }
@@ -294,11 +318,11 @@ const ShiftAssignmentManager = () => {
                           <Button 
                             variant="outline-primary" 
                             size="sm" 
-                            onClick={() => handleUserClick(user)}
+                            onClick={()=>handleAssign(user)}
                             disabled={isLoading}
                             className="me-2"
                           >
-                            <i className="bi bi-calendar-plus me-1"></i> Assign
+                            <i className="bi bi-calendar-plus me-1"></i> Select User
                           </Button>
                         </td>
                       </tr>
@@ -434,7 +458,7 @@ const ShiftAssignmentManager = () => {
 
             <div className="d-grid gap-2">
               <Button 
-                onClick={handleAssign} 
+                onClick={handleUpdateShift} 
                 variant="primary" 
                 size="lg"
                 disabled={isLoading}
