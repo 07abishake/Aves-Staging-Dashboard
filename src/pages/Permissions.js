@@ -187,7 +187,7 @@ function Permissions() {
 
     try {
       await axios.put(
-        `http://localhost:6378/api/Roles/updateRole/${selectedRoleId}`,
+        `https://api.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
         payload,
         {
           headers: {
