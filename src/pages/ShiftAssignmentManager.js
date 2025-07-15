@@ -4,13 +4,13 @@ import axios from 'axios';
 
 const ShiftAssignmentManager = () => {
   const [departments, setDepartments] = useState([]);
-  const [shiftNames, setShiftNames] = useState([]);
+  const [shifts, setShifts] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
   const [createdShiftId, setCreatedShiftId] = useState('');
   const [selectedDeptId, setSelectedDeptUserId] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedShiftName, setSelectedShiftName] = useState('');
+  const [selectedShift, setSelectedShift] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showCanvas, setShowCanvas] = useState(false);
@@ -21,12 +21,21 @@ const ShiftAssignmentManager = () => {
   const [currentDepartmentUserId, setCurrentDepartmentUserId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState(null);
-  
+  const [weekOffDays, setWeekOffDays] = useState({
+    Monday: false,
+    Tuesday: false,
+    Wednesday: false,
+    Thursday: false,
+    Friday: false,
+    Saturday: false,
+    Sunday: false
+  });
+
   const token = localStorage.getItem("access_token");
 
   useEffect(() => {
     fetchDepartments();
-    fetchShiftNames();
+    fetchShifts();
     fetchAssignedShifts();
   }, []);
 
@@ -44,14 +53,14 @@ const ShiftAssignmentManager = () => {
     }
   };
 
-  const fetchShiftNames = async () => {
+  const fetchShifts = async () => {
     try {
       const res = await axios.get("https://api.avessecurity.com/api/shift/get/ShiftName", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setShiftNames(res.data.Shifts || []);
+      setShifts(res.data.Shifts || []);
     } catch (error) {
-      console.error("Error fetching shift names:", error);
+      console.error("Error fetching shifts:", error);
     }
   };
 
@@ -94,105 +103,59 @@ const ShiftAssignmentManager = () => {
     }
   };
 
-  // const handleUserClick = (user) => {
-  //   setSelectedUser(user);
-  //   setShowCanvas(true);
-  // };
+  const handleAssign = async (user) => {
+    setSelectedUser(user);
+    setShowCanvas(true);
 
-//   const handleAssign = async (user) => {
-//        setSelectedUser(user);
-//     setShowCanvas(true);
-//     try {
-//       setIsLoading(true);
+    try {
+      setIsLoading(true);
+      const res = await axios.post(
+        `https://api.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-//       // const payload = {
-//       //   DepartmentUser: [
-//       //     {
-//       //       userId: selectedUser._id,
-//       //       Name: selectedUser.Name,
-//       //       Department: selectedUser.Department.name,
-//       //       Designation: selectedUser.Designation?.Name || '',
-//       //       StartDate: startDate,
-//       //       EndDate: endDate,
-//       //       ActualShift: selectedShiftName
-//       //     }
-//       //   ]
-//       // };
-//       const res= await axios.post(
-//         `http://localhost:6378/api/shift/get/${selectedDept}/${createdShiftId}/shift`,{},{
-//         headers: { Authorization: `Bearer ${token}` }
-//       }
-//         //payload,
-//  );
-//  setSelectedDeptUserId(res.data.DepartmentUser._id);
+      const departmentUsers = res.data.Shift?.DepartmentUser || [];
+      const matchedUser = departmentUsers.find(
+        (u) => u.userId === user._id || u.userId?._id === user._id
+      );
 
-//       // alert("User Selected  successfully!");
-//       // setShowCanvas(false);
-   
-//       fetchAssignedShifts();
-//     } catch (error) {
-//       console.error("Error assigning shift:", error);
-//       // alert("Failed to assign shift");
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
+      if (matchedUser) {
+        setSelectedDeptUserId(matchedUser._id);
+      } else {
+        console.warn('User not found in DepartmentUser list');
+      }
 
-const handleAssign = async (user) => {
-  setSelectedUser(user);
-  setShowCanvas(true);
-
-  try {
-    setIsLoading(true);
-
-    const res = await axios.post(
-      `https://api.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    const departmentUsers = res.data.Shift?.DepartmentUser || [];
-
-    // ✅ Find the DepartmentUser entry that matches the selected user
-    const matchedUser = departmentUsers.find(
-      (u) => u.userId === user._id || u.userId?._id === user._id
-    );
-
-    if (matchedUser) {
-      setSelectedDeptUserId(matchedUser._id);
-    } else {
-      console.warn('User not found in DepartmentUser list');
+      fetchAssignedShifts();
+    } catch (error) {
+      console.error("Error assigning shift:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    fetchAssignedShifts();
-  } catch (error) {
-    console.error("Error assigning shift:", error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  const handleEditShift = (shift) => {
-    const userShift = shift.DepartmentUser.find(u => u.ActualShift) || shift.DepartmentUser[0];
-    setCurrentShift(shift);
-    setCurrentDepartmentUserId(userShift._id);
-    setSelectedShiftName(userShift?.ActualShift || '');
-    setStartDate(userShift?.StartDate?.split('T')[0] || '');
-    setEndDate(userShift?.EndDate?.split('T')[0] || '');
-    setShowEditCanvas(true);
+  const handleWeekOffDayChange = (day) => {
+    setWeekOffDays(prev => ({
+      ...prev,
+      [day]: !prev[day]
+    }));
   };
 
   const handleUpdateShift = async () => {
-      if (!selectedUser ) {
-    alert("Please select a user first");
-    return;
-  }
+    if (!selectedUser || !selectedShift) {
+      alert("Please select a user and shift first");
+      return;
+    }
+
     try {
       setIsLoading(true);
       const payload = {
-        ActualShift: selectedShiftName,
+        ActualShift: selectedShift._id,
         StartDate: startDate,
-        EndDate: endDate
+        EndDate: endDate,
+        SelectWeekOffdays: Object.entries(weekOffDays)
+          .filter(([_, isOff]) => isOff)
+          .map(([day]) => day)
       };
 
       await axios.put(
@@ -202,10 +165,20 @@ const handleAssign = async (user) => {
       );
 
       alert("Shift Assigned successfully!");
+      setShowCanvas(false);
       setShowEditCanvas(false);
-      setSelectedShiftName('');
+      setSelectedShift(null);
       setStartDate('');
       setEndDate('');
+      setWeekOffDays({
+        Monday: false,
+        Tuesday: false,
+        Wednesday: false,
+        Thursday: false,
+        Friday: false,
+        Saturday: false,
+        Sunday: false
+      });
       fetchAssignedShifts();
     } catch (error) {
       console.error("Error updating shift:", error);
@@ -213,6 +186,39 @@ const handleAssign = async (user) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditShift = (shift) => {
+    const userShift = shift.DepartmentUser.find(u => u.ActualShift) || shift.DepartmentUser[0];
+    setCurrentShift(shift);
+    setCurrentDepartmentUserId(userShift._id);
+    
+    const currentShiftObj = shifts.find(s => s._id === userShift.ActualShift?._id);
+    setSelectedShift(currentShiftObj || null);
+    
+    setStartDate(userShift?.StartDate?.split('T')[0] || '');
+    setEndDate(userShift?.EndDate?.split('T')[0] || '');
+    
+    const initialWeekOffDays = {
+      Monday: false,
+      Tuesday: false,
+      Wednesday: false,
+      Thursday: false,
+      Friday: false,
+      Saturday: false,
+      Sunday: false
+    };
+    
+    if (userShift.SelectWeekOffdays && Array.isArray(userShift.SelectWeekOffdays)) {
+      userShift.SelectWeekOffdays.forEach(day => {
+        if (initialWeekOffDays.hasOwnProperty(day)) {
+          initialWeekOffDays[day] = true;
+        }
+      });
+    }
+    
+    setWeekOffDays(initialWeekOffDays);
+    setShowEditCanvas(true);
   };
 
   const handleDeleteClick = (shift) => {
@@ -245,7 +251,44 @@ const handleAssign = async (user) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString();
+      return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return 'N/A';
+    try {
+      const [time, period] = timeString.split(' ');
+      const [hours, minutes] = time.split(':');
+      return `${hours}:${minutes || '00'} ${period || ''}`.trim();
+    } catch {
+      return timeString;
+    }
+  };
+
+  const calculateWorkingHours = (startTime, endTime, weekOffDaysCount, startDate, endDate) => {
+    if (!startTime || !endTime || !startDate || !endDate) return 'N/A';
+    
+    try {
+      // Parse times (simplified calculation - adjust as needed)
+      const [startHour] = startTime.split(':').map(Number);
+      const [endHour] = endTime.split(':').map(Number);
+      let dailyHours = endHour > startHour ? endHour - startHour : (24 - startHour) + endHour;
+      
+      // Parse dates
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      const workingDays = diffDays - weekOffDaysCount;
+      
+      const totalHours = dailyHours * workingDays;
+      return `${totalHours} hours`;
     } catch {
       return 'N/A';
     }
@@ -318,7 +361,7 @@ const handleAssign = async (user) => {
                           <Button 
                             variant="outline-primary" 
                             size="sm" 
-                            onClick={()=>handleAssign(user)}
+                            onClick={() => handleAssign(user)}
                             disabled={isLoading}
                             className="me-2"
                           >
@@ -348,56 +391,105 @@ const handleAssign = async (user) => {
               <h5 className="mb-0">Assigned Shifts</h5>
             </Card.Header>
             <Card.Body className="p-0">
-              <Table hover className="mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th className="ps-4">User</th>
-                    <th>Shift</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th className="text-end pe-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignedShifts
-                    .filter(shift => shift.DepartmentUser && shift.DepartmentUser.length > 0)
-                    .flatMap(shift => 
-                      shift.DepartmentUser
-                        .filter(userShift => userShift.ActualShift)
-                        .map((userShift, index) => (
-                          <tr key={`${shift._id}-${index}`}>
-                            <td className="ps-4 fw-medium">{userShift.Name}</td>
-                            <td>
-                              <Badge bg="success">
-                                {userShift.ActualShift || 'N/A'}
-                              </Badge>
-                            </td>
-                            <td>{formatDate(userShift.StartDate)}</td>
-                            <td>{formatDate(userShift.EndDate)}</td>
-                            <td className="text-end pe-4">
-                              <Button 
-                                variant="outline-info" 
-                                size="sm" 
-                                onClick={() => handleEditShift(shift)}
-                                disabled={isLoading}
-                                className="me-2"
-                              >
-                                <i className="bi bi-pencil me-1"></i> Edit
-                              </Button>
-                              <Button 
-                                variant="outline-danger" 
-                                size="sm" 
-                                onClick={() => handleDeleteClick(shift)}
-                                disabled={isLoading}
-                              >
-                                <i className="bi bi-trash me-1"></i> Delete
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                    )}
-                </tbody>
-              </Table>
+              <div className="table-responsive">
+                <Table hover className="mb-0">
+                  <thead className="bg-light">
+                    <tr>
+                      <th className="ps-4">USER</th>
+                      <th>DEPARTMENT</th>
+                      <th>SHIFT DETAILS</th>
+                      <th>ASSIGNMENT PERIOD</th>
+                      <th>WEEK OFF DAYS</th>
+                      <th>TOTAL NO OF WORKING HOURS</th>
+                      <th className="text-end pe-4">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignedShifts
+                      .filter(shift => shift.DepartmentUser && shift.DepartmentUser.length > 0)
+                      .flatMap(shift => 
+                        shift.DepartmentUser
+                          .filter(userShift => userShift.ActualShift)
+                          .map((userShift, index) => {
+                            const workingHours = userShift.ActualShift?.TotalShiftWorkingHours || 
+                              (userShift.ActualShift?.ShiftStartTime && userShift.ActualShift?.ShiftEndTime ? 
+                                calculateWorkingHours(
+                                  userShift.ActualShift.ShiftStartTime, 
+                                  userShift.ActualShift.ShiftEndTime,
+                                  userShift.SelectWeekOffdays?.length || 0,
+                                  userShift.StartDate,
+                                  userShift.EndDate
+                                ) : 'N/A');
+                            
+                            return (
+                              <tr key={`${shift._id}-${index}`}>
+                                <td className="ps-4">
+                                  <div className="d-flex align-items-center">
+                                    <div className="">
+                                      <i className=" text-primary"></i>
+                                    </div>
+                                    <div>
+                                      <div className="fw-medium">{userShift.Name}</div>
+                                      <small className="text-muted">{userShift.Designation|| 'N/A'}</small>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <Badge bg="light" className="text-dark">
+                                    {userShift.Department || 'N/A'}
+                                  </Badge>
+                                </td>
+                                <td>
+                                  <div className="fw-medium">{userShift.ActualShift?.ShiftName || 'N/A'}</div>
+                                  <small className="text-muted">
+                                    {formatTime(userShift.ActualShift?.ShiftStartTime)} - {formatTime(userShift.ActualShift?.ShiftEndTime)}
+                                  </small>
+                                </td>
+                                <td>
+                                  {formatDate(userShift.StartDate)} to {formatDate(userShift.EndDate)}
+                                </td>
+                                <td>
+                                  {userShift.SelectWeekOffdays && userShift.SelectWeekOffdays.length > 0 ? (
+                                    <div className="d-flex flex-wrap gap-1">
+                                      {userShift.SelectWeekOffdays.map(day => (
+                                        <Badge key={day} bg="warning" className="text-dark">
+                                          {day.substring(0, 3)}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <Badge bg="secondary">None</Badge>
+                                  )}
+                                </td>
+                                <td className="fw-medium">
+                                  {workingHours}
+                                </td>
+                                <td className="text-end pe-4">
+                                  <Button 
+                                    variant="outline-primary" 
+                                    size="sm" 
+                                    onClick={() => handleEditShift(shift)}
+                                    disabled={isLoading}
+                                    className="me-2 "
+                                  >
+                                    <i className="bi bi-pencil"></i>
+                                  </Button>
+                                  <Button 
+                                    variant="outline-danger" 
+                                    size="sm" 
+                                    onClick={() => handleDeleteClick(shift)}
+                                    disabled={isLoading}
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                  </tbody>
+                </Table>
+              </div>
             </Card.Body>
           </Card>
 
@@ -413,6 +505,7 @@ const handleAssign = async (user) => {
         </Card.Body>
       </Card>
 
+      {/* Assign Shift Offcanvas */}
       <Offcanvas show={showCanvas} onHide={() => setShowCanvas(false)} placement="end">
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title>
@@ -425,13 +518,19 @@ const handleAssign = async (user) => {
             <Form.Group className="mb-3">
               <Form.Label className="fw-medium">Shift Name</Form.Label>
               <Form.Select 
-                value={selectedShiftName} 
-                onChange={(e) => setSelectedShiftName(e.target.value)}
+                value={selectedShift?._id || ''}
+                onChange={(e) => {
+                  const shiftId = e.target.value;
+                  const shift = shifts.find(s => s._id === shiftId);
+                  setSelectedShift(shift);
+                }}
                 className="py-2"
               >
                 <option value="">Select Shift</option>
-                {shiftNames.map((name, idx) => (
-                  <option key={idx} value={name}>{name}</option>
+                {shifts.map((shift) => (
+                  <option key={shift._id} value={shift._id}>
+                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
+                  </option>
                 ))}
               </Form.Select>
             </Form.Group>
@@ -446,7 +545,7 @@ const handleAssign = async (user) => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-4">
+            <Form.Group className="mb-3">
               <Form.Label className="fw-medium">End Date</Form.Label>
               <Form.Control 
                 type="date" 
@@ -454,6 +553,24 @@ const handleAssign = async (user) => {
                 onChange={(e) => setEndDate(e.target.value)} 
                 className="py-2"
               />
+            </Form.Group>
+
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-medium">Select Week Off Days</Form.Label>
+              <div className="d-flex flex-wrap gap-3">
+                {Object.entries(weekOffDays).map(([day, isSelected]) => (
+                  <Form.Check 
+                    key={day}
+                    type="checkbox"
+                    id={`weekOff-${day}`}
+                    label={day}
+                    checked={isSelected}
+                    onChange={() => handleWeekOffDayChange(day)}
+                    inline
+                    className="me-2"
+                  />
+                ))}
+              </div>
             </Form.Group>
 
             <div className="d-grid gap-2">
@@ -480,6 +597,7 @@ const handleAssign = async (user) => {
         </Offcanvas.Body>
       </Offcanvas>
 
+      {/* Edit Shift Offcanvas */}
       <Offcanvas show={showEditCanvas} onHide={() => setShowEditCanvas(false)} placement="end">
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title>
@@ -492,13 +610,19 @@ const handleAssign = async (user) => {
             <Form.Group className="mb-3">
               <Form.Label className="fw-medium">Shift Name</Form.Label>
               <Form.Select 
-                value={selectedShiftName} 
-                onChange={(e) => setSelectedShiftName(e.target.value)}
+                value={selectedShift?._id || ''}
+                onChange={(e) => {
+                  const shiftId = e.target.value;
+                  const shift = shifts.find(s => s._id === shiftId);
+                  setSelectedShift(shift);
+                }}
                 className="py-2"
               >
                 <option value="">Select Shift</option>
-                {shiftNames.map((name, idx) => (
-                  <option key={idx} value={name}>{name}</option>
+                {shifts.map((shift) => (
+                  <option key={shift._id} value={shift._id}>
+                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
+                  </option>
                 ))}
               </Form.Select>
             </Form.Group>
@@ -513,7 +637,7 @@ const handleAssign = async (user) => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-4">
+            <Form.Group className="mb-3">
               <Form.Label className="fw-medium">End Date</Form.Label>
               <Form.Control 
                 type="date" 
@@ -521,6 +645,24 @@ const handleAssign = async (user) => {
                 onChange={(e) => setEndDate(e.target.value)} 
                 className="py-2"
               />
+            </Form.Group>
+
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-medium">Select Week Off Days</Form.Label>
+              <div className="d-flex flex-wrap gap-3">
+                {Object.entries(weekOffDays).map(([day, isSelected]) => (
+                  <Form.Check 
+                    key={day}
+                    type="checkbox"
+                    id={`weekOff-${day}`}
+                    label={day}
+                    checked={isSelected}
+                    onChange={() => handleWeekOffDayChange(day)}
+                    inline
+                    className="me-2"
+                  />
+                ))}
+              </div>
             </Form.Group>
 
             <div className="d-grid gap-2">
@@ -547,6 +689,7 @@ const handleAssign = async (user) => {
         </Offcanvas.Body>
       </Offcanvas>
 
+      {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Deletion</Modal.Title>
@@ -554,9 +697,11 @@ const handleAssign = async (user) => {
         <Modal.Body>
           Are you sure you want to delete the shift for {shiftToDelete?.DepartmentUser[0]?.Name}?
           <br />
-          <strong>Shift:</strong> {shiftToDelete?.DepartmentUser.find(u => u.ActualShift)?.ActualShift || 'N/A'}
+          <strong>Shift:</strong> {shiftToDelete?.DepartmentUser[0]?.ActualShift?.ShiftName || 'N/A'}
           <br />
           <strong>Dates:</strong> {formatDate(shiftToDelete?.DepartmentUser[0]?.StartDate)} to {formatDate(shiftToDelete?.DepartmentUser[0]?.EndDate)}
+          <br />
+          <strong>Week Off Days:</strong> {shiftToDelete?.DepartmentUser[0]?.SelectWeekOffdays?.join(', ') || 'None'}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

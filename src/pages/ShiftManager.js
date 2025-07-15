@@ -11,7 +11,8 @@ const ShiftManager = () => {
   const [formData, setFormData] = useState({
     ShiftName: '',
     ShiftStartTime: '',
-    ShiftEndTime: ''
+    ShiftEndTime: '',
+    BreakHours:''
   });
 
   const token = localStorage.getItem('access_token');
@@ -43,12 +44,14 @@ const ShiftManager = () => {
         ? {
             ShiftName: shift.ShiftName || '',
             ShiftStartTime: moment(shift.ShiftStartTime, ['hh:mm A', 'HH:mm']).format('HH:mm'),
-            ShiftEndTime: moment(shift.ShiftEndTime, ['hh:mm A', 'HH:mm']).format('HH:mm')
+            ShiftEndTime: moment(shift.ShiftEndTime, ['hh:mm A', 'HH:mm']).format('HH:mm'),
+            BreakHours:moment(shift.BreakHours, ['hh:mm A', 'HH:mm']).format('HH:mm')
           }
         : {
             ShiftName: '',
             ShiftStartTime: '',
-            ShiftEndTime: ''
+            ShiftEndTime: '',
+            BreakHours:''
           }
     );
     setShowForm(true);
@@ -57,7 +60,7 @@ const ShiftManager = () => {
   const handleCloseForm = () => {
     setShowForm(false);
     setSelectedShift(null);
-    setFormData({ ShiftName: '', ShiftStartTime: '', ShiftEndTime: '' });
+    setFormData({ ShiftName: '', ShiftStartTime: '', ShiftEndTime: '' , BreakHours:'' });
   };
 
   const handleChange = (e) => {
@@ -73,7 +76,8 @@ const ShiftManager = () => {
       const formattedData = {
         ...formData,
         ShiftStartTime: moment(formData.ShiftStartTime, 'HH:mm').format('hh:mm A'),
-        ShiftEndTime: moment(formData.ShiftEndTime, 'HH:mm').format('hh:mm A')
+        ShiftEndTime: moment(formData.ShiftEndTime, 'HH:mm').format('hh:mm A'),
+        BreakHours: moment(formData.BreakHours, 'HH:mm').format('hh:mm A')
       };
 
       if (isEditMode && selectedShift) {
@@ -135,6 +139,7 @@ const ShiftManager = () => {
                 <th className="ps-4">Shift Name</th>
                 <th>Start Time</th>
                 <th>End Time</th>
+                <th>Break Hours</th>
                 <th className="text-end pe-4">Actions</th>
               </tr>
             </thead>
@@ -144,6 +149,7 @@ const ShiftManager = () => {
                   <td className="ps-4 fw-medium">{shift.ShiftName}</td>
                   <td>{moment(shift.ShiftStartTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
                   <td>{moment(shift.ShiftEndTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
+                  <td>{moment(shift.BreakHours, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
                   <td className="text-end pe-4">
                     <Button
                       size="sm"
@@ -211,6 +217,17 @@ const ShiftManager = () => {
                 type="time"
                 name="ShiftEndTime"
                 value={formData.ShiftEndTime}
+                onChange={handleChange}
+                required
+                className="py-2"
+              />
+            </Form.Group>
+            <Form.Group className="mb-4">
+              <Form.Label>Break Hours</Form.Label>
+              <Form.Control
+                type="time"
+                name="BreakHours"
+                value={formData.BreakHours}
                 onChange={handleChange}
                 required
                 className="py-2"
