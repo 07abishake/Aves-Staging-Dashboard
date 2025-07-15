@@ -300,39 +300,6 @@ const ShiftAssignmentManager = () => {
   }
   };
 
-  const handleEditShift = (shift) => {
-    const userShift = shift.DepartmentUser.find(u => u.ActualShift) || shift.DepartmentUser[0];
-    setCurrentShift(shift);
-    setCurrentDepartmentUserId(userShift._id);
-    
-    const currentShiftObj = shifts.find(s => s._id === userShift.ActualShift?._id);
-    setSelectedShift(currentShiftObj || null);
-    
-    setStartDate(userShift?.StartDate?.split('T')[0] || '');
-    setEndDate(userShift?.EndDate?.split('T')[0] || '');
-    
-    const initialWeekOffDays = {
-      Monday: false,
-      Tuesday: false,
-      Wednesday: false,
-      Thursday: false,
-      Friday: false,
-      Saturday: false,
-      Sunday: false
-    };
-    
-    if (userShift.SelectWeekOffdays && Array.isArray(userShift.SelectWeekOffdays)) {
-      userShift.SelectWeekOffdays.forEach(day => {
-        if (initialWeekOffDays.hasOwnProperty(day)) {
-          initialWeekOffDays[day] = true;
-        }
-      });
-    }
-    
-    setWeekOffDays(initialWeekOffDays);
-    setShowEditCanvas(true);
-  };
-
   const handleDeleteClick = (shift) => {
     setShiftToDelete(shift);
     setShowDeleteModal(true);
@@ -549,15 +516,15 @@ const ShiftAssignmentManager = () => {
                                   {userShift.TotalShiftDays}
                                 </td>
                                 <td className="text-end pe-4">
-                                  <Button 
+                                  {/* <Button 
                                     variant="outline-primary" 
                                     size="sm" 
-                                    onClick={() => handleEditShift(shift)}
+                                   // onClick={() => (shift)}
                                     disabled={isLoading}
                                     className=" "
                                   >
                                     <i className="bi bi-pencil"></i>
-                                  </Button>
+                                  </Button> */}
                                   <Button 
                                     variant="outline-danger" 
                                     size="sm" 
