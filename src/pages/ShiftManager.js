@@ -140,6 +140,7 @@ const ShiftManager = () => {
                 <th>Start Time</th>
                 <th>End Time</th>
                 <th>Break Hours</th>
+                <th>Working Hours</th>
                 <th className="text-end pe-4">Actions</th>
               </tr>
             </thead>
@@ -150,6 +151,7 @@ const ShiftManager = () => {
                   <td>{moment(shift.ShiftStartTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
                   <td>{moment(shift.ShiftEndTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
                   <td>{moment(shift.BreakHours, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
+                  <td className='fw-medium'>{shift.TotalShiftWorkingHours}</td>
                   <td className="text-end pe-4">
                     <Button
                       size="sm"

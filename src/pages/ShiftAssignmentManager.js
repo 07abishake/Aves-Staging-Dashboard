@@ -141,51 +141,163 @@ const ShiftAssignmentManager = () => {
     }));
   };
 
-  const handleUpdateShift = async () => {
-    if (!selectedUser || !selectedShift) {
-      alert("Please select a user and shift first");
-      return;
+  const calculateTotalWorkingHours = (shift, userShift) => {
+    if (!shift || !userShift || !userShift.StartDate || !userShift.EndDate) {
+      return 'N/A';
     }
 
     try {
-      setIsLoading(true);
-      const payload = {
-        ActualShift: selectedShift._id,
-        StartDate: startDate,
-        EndDate: endDate,
-        SelectWeekOffdays: Object.entries(weekOffDays)
-          .filter(([_, isOff]) => isOff)
-          .map(([day]) => day)
-      };
+      // Parse working hours from shift
+      const workingHoursMatch = shift.TotalShiftWorkingHours?.match(/(\d+) hours (\d+) minutes/);
+      const hours = workingHoursMatch ? parseInt(workingHoursMatch[1]) : 0;
+      const minutes = workingHoursMatch ? parseInt(workingHoursMatch[2]) : 0;
+      const dailyHours = hours + (minutes / 60);
 
-      await axios.put(
-        `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Parse dates
+      const startDate = new Date(userShift.StartDate);
+      const endDate = new Date(userShift.EndDate);
+      const weekOffDays = userShift.SelectWeekOffdays || [];
 
-      alert("Shift Assigned successfully!");
-      setShowCanvas(false);
-      setShowEditCanvas(false);
-      setSelectedShift(null);
-      setStartDate('');
-      setEndDate('');
-      setWeekOffDays({
-        Monday: false,
-        Tuesday: false,
-        Wednesday: false,
-        Thursday: false,
-        Friday: false,
-        Saturday: false,
-        Sunday: false
-      });
-      fetchAssignedShifts();
+      // Calculate working days
+      let workingDays = 0;
+      let currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+        if (!weekOffDays.includes(dayName)) {
+          workingDays++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Calculate total hours
+      const totalHours = dailyHours * workingDays;
+      const totalHoursInt = Math.floor(totalHours);
+      const totalMinutes = Math.round((totalHours - totalHoursInt) * 60);
+
+      return `${totalHoursInt} hours ${totalMinutes} minutes`;
     } catch (error) {
-      console.error("Error updating shift:", error);
-      alert(error.response?.data?.message || "Failed to update shift");
-    } finally {
-      setIsLoading(false);
+      console.error("Error calculating working hours:", error);
+      return 'N/A';
     }
+  };
+
+  //check if shift already assign 
+
+  const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate) => {
+  try {
+    const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
+      const existingAssignment = res.data.Shift.find(shift => {
+        return shift.DepartmentUser.some(userShift => {
+          // Check if same user and same shift
+          const isSameUser = userShift.userId === userId || userShift.userId?._id === userId;
+          const isSameShift = userShift.ActualShift?._id === shiftId;
+          
+          // Parse dates for comparison
+          const existingStart = new Date(userShift.StartDate);
+          const existingEnd = new Date(userShift.EndDate);
+          const newStart = new Date(startDate);
+          const newEnd = new Date(endDate);
+          
+          // Check for date overlap
+          const dateOverlap = (
+            (newStart >= existingStart && newStart <= existingEnd) ||
+            (newEnd >= existingStart && newEnd <= existingEnd) ||
+            (newStart <= existingStart && newEnd >= existingEnd)
+          );
+
+          return isSameUser && isSameShift && dateOverlap;
+        });
+      });
+
+      return !!existingAssignment;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error checking existing shifts:", error);
+    return false;
+  }
+};
+
+  const handleUpdateShift = async () => {
+   if (!selectedShift) {
+    alert("Please select shift first");
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+    const weekOffDaysList = Object.entries(weekOffDays)
+      .filter(([_, isOff]) => isOff)
+      .map(([day]) => day);
+
+    // Check for existing assignment
+    const hasExistingAssignment = await checkExistingShiftAssignment(
+      selectedUser._id,
+      selectedShift._id,
+      startDate,
+      endDate
+    );
+
+    if (hasExistingAssignment) {
+      alert("This user already has the same shift assigned for the selected dates");
+      return;
+    }
+
+    // Rest of your existing code...
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let totalDays = 0;
+    let current = new Date(start);
+    
+    while (current <= end) {
+      const dayName = current.toLocaleDateString('en-US', { weekday: 'long' });
+      if (!weekOffDaysList.includes(dayName)) {
+        totalDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    const payload = {
+      ActualShift: selectedShift._id,
+      StartDate: startDate,
+      EndDate: endDate,
+      SelectWeekOffdays: weekOffDaysList,
+      TotalShiftDays: totalDays
+    };
+
+    await axios.put(
+      `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    alert("Shift Assigned successfully!");
+    setShowCanvas(false);
+    setShowEditCanvas(false);
+    setSelectedShift(null);
+    setStartDate('');
+    setEndDate('');
+    setWeekOffDays({
+      Monday: false,
+      Tuesday: false,
+      Wednesday: false,
+      Thursday: false,
+      Friday: false,
+      Saturday: false,
+      Sunday: false
+    });
+    fetchAssignedShifts();
+  } catch (error) {
+    console.error("Error updating shift:", error);
+    alert(error.response?.data?.message || "Failed to update shift");
+  } finally {
+    setIsLoading(false);
+  }
   };
 
   const handleEditShift = (shift) => {
@@ -269,28 +381,6 @@ const ShiftAssignmentManager = () => {
       return `${hours}:${minutes || '00'} ${period || ''}`.trim();
     } catch {
       return timeString;
-    }
-  };
-
-  const calculateWorkingHours = (startTime, endTime, weekOffDaysCount, startDate, endDate) => {
-    if (!startTime || !endTime || !startDate || !endDate) return 'N/A';
-    
-    try {
-      // Parse times (simplified calculation - adjust as needed)
-      const [startHour] = startTime.split(':').map(Number);
-      const [endHour] = endTime.split(':').map(Number);
-      let dailyHours = endHour > startHour ? endHour - startHour : (24 - startHour) + endHour;
-      
-      // Parse dates
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-      const workingDays = diffDays - weekOffDaysCount;
-      
-      const totalHours = dailyHours * workingDays;
-      return `${totalHours} hours`;
-    } catch {
-      return 'N/A';
     }
   };
 
@@ -395,13 +485,14 @@ const ShiftAssignmentManager = () => {
                 <Table hover className="mb-0">
                   <thead className="bg-light">
                     <tr>
-                      <th className="ps-4">USER</th>
-                      <th>DEPARTMENT</th>
-                      <th>SHIFT DETAILS</th>
-                      <th>ASSIGNMENT PERIOD</th>
-                      <th>WEEK OFF DAYS</th>
-                      <th>TOTAL NO OF WORKING HOURS</th>
-                      <th className="text-end pe-4">ACTIONS</th>
+                      <th className="ps-4">User</th>
+                      <th>DepartMent</th>
+                      <th>Shift Details</th>
+                      <th>Assignment Period</th>
+                      <th>Week Off Days</th>
+                      <th>Total Working Hours</th>
+                      <th>Total Shift Days</th>
+                      <th className="text-end pe-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,16 +502,6 @@ const ShiftAssignmentManager = () => {
                         shift.DepartmentUser
                           .filter(userShift => userShift.ActualShift)
                           .map((userShift, index) => {
-                            const workingHours = userShift.ActualShift?.TotalShiftWorkingHours || 
-                              (userShift.ActualShift?.ShiftStartTime && userShift.ActualShift?.ShiftEndTime ? 
-                                calculateWorkingHours(
-                                  userShift.ActualShift.ShiftStartTime, 
-                                  userShift.ActualShift.ShiftEndTime,
-                                  userShift.SelectWeekOffdays?.length || 0,
-                                  userShift.StartDate,
-                                  userShift.EndDate
-                                ) : 'N/A');
-                            
                             return (
                               <tr key={`${shift._id}-${index}`}>
                                 <td className="ps-4">
@@ -462,7 +543,10 @@ const ShiftAssignmentManager = () => {
                                   )}
                                 </td>
                                 <td className="fw-medium">
-                                  {workingHours}
+                                  {calculateTotalWorkingHours(userShift.ActualShift, userShift)}
+                                </td>
+                                <td className='fw-medium'>
+                                  {userShift.TotalShiftDays}
                                 </td>
                                 <td className="text-end pe-4">
                                   <Button 
@@ -470,7 +554,7 @@ const ShiftAssignmentManager = () => {
                                     size="sm" 
                                     onClick={() => handleEditShift(shift)}
                                     disabled={isLoading}
-                                    className="me-2 "
+                                    className=" "
                                   >
                                     <i className="bi bi-pencil"></i>
                                   </Button>
@@ -529,7 +613,7 @@ const ShiftAssignmentManager = () => {
                 <option value="">Select Shift</option>
                 {shifts.map((shift) => (
                   <option key={shift._id} value={shift._id}>
-                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
+                    {shift.ShiftName} 
                   </option>
                 ))}
               </Form.Select>
@@ -702,6 +786,11 @@ const ShiftAssignmentManager = () => {
           <strong>Dates:</strong> {formatDate(shiftToDelete?.DepartmentUser[0]?.StartDate)} to {formatDate(shiftToDelete?.DepartmentUser[0]?.EndDate)}
           <br />
           <strong>Week Off Days:</strong> {shiftToDelete?.DepartmentUser[0]?.SelectWeekOffdays?.join(', ') || 'None'}
+          <br />
+          <strong>Total Working Hours:</strong> {calculateTotalWorkingHours(
+            shiftToDelete?.DepartmentUser[0]?.ActualShift,
+            shiftToDelete?.DepartmentUser[0]
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
