@@ -2,6 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { Container, Table, Button, Offcanvas, Form, Row, Col, Card, Badge, Modal } from 'react-bootstrap';
 import axios from 'axios';
 
+// Helper functions
+const dateRangesOverlap = (start1, end1, start2, end2) => {
+  return (start1 <= end2 && end1 >= start2);
+};
+
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch {
+    return 'N/A';
+  }
+};
+
+const formatTime = (timeString) => {
+  if (!timeString) return 'N/A';
+  try {
+    const [time, period] = timeString.split(' ');
+    const [hours, minutes] = time.split(':');
+    return `${hours}:${minutes || '00'} ${period || ''}`.trim();
+  } catch {
+    return timeString;
+  }
+};
+
 const ShiftAssignmentManager = () => {
   const [departments, setDepartments] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -16,9 +51,6 @@ const ShiftAssignmentManager = () => {
   const [showCanvas, setShowCanvas] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [assignedShifts, setAssignedShifts] = useState([]);
-  const [showEditCanvas, setShowEditCanvas] = useState(false);
-  const [currentShift, setCurrentShift] = useState(null);
-  const [currentDepartmentUserId, setCurrentDepartmentUserId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState(null);
   const [weekOffDays, setWeekOffDays] = useState({
@@ -147,18 +179,15 @@ const ShiftAssignmentManager = () => {
     }
 
     try {
-      // Parse working hours from shift
       const workingHoursMatch = shift.TotalShiftWorkingHours?.match(/(\d+) hours (\d+) minutes/);
       const hours = workingHoursMatch ? parseInt(workingHoursMatch[1]) : 0;
       const minutes = workingHoursMatch ? parseInt(workingHoursMatch[2]) : 0;
       const dailyHours = hours + (minutes / 60);
 
-      // Parse dates
       const startDate = new Date(userShift.StartDate);
       const endDate = new Date(userShift.EndDate);
       const weekOffDays = userShift.SelectWeekOffdays || [];
 
-      // Calculate working days
       let workingDays = 0;
       let currentDate = new Date(startDate);
       
@@ -170,7 +199,6 @@ const ShiftAssignmentManager = () => {
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      // Calculate total hours
       const totalHours = dailyHours * workingDays;
       const totalHoursInt = Math.floor(totalHours);
       const totalMinutes = Math.round((totalHours - totalHoursInt) * 60);
@@ -182,122 +210,127 @@ const ShiftAssignmentManager = () => {
     }
   };
 
-  //check if shift already assign 
-
   const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate) => {
-  try {
-    const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
-      const existingAssignment = res.data.Shift.find(shift => {
-        return shift.DepartmentUser.some(userShift => {
-          // Check if same user and same shift
-          const isSameUser = userShift.userId === userId || userShift.userId?._id === userId;
-          const isSameShift = userShift.ActualShift?._id === shiftId;
-          
-          // Parse dates for comparison
-          const existingStart = new Date(userShift.StartDate);
-          const existingEnd = new Date(userShift.EndDate);
-          const newStart = new Date(startDate);
-          const newEnd = new Date(endDate);
-          
-          // Check for date overlap
-          const dateOverlap = (
-            (newStart >= existingStart && newStart <= existingEnd) ||
-            (newEnd >= existingStart && newEnd <= existingEnd) ||
-            (newStart <= existingStart && newEnd >= existingEnd)
-          );
-
-          return isSameUser && isSameShift && dateOverlap;
-        });
+    if (!userId || !startDate || !endDate) return false;
+    
+    try {
+      const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      return !!existingAssignment;
+      if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
+        const existingAssignment = res.data.Shift.find(shift => {
+          return shift.DepartmentUser.some(userShift => {
+            const isSameUser = userShift.userId === userId || userShift.userId?._id === userId;
+            
+            if (!isSameUser) return false;
+            
+            const existingStart = new Date(userShift.StartDate);
+            const existingEnd = new Date(userShift.EndDate);
+            const newStart = new Date(startDate);
+            const newEnd = new Date(endDate);
+            
+            return dateRangesOverlap(
+              newStart, 
+              newEnd,
+              existingStart,
+              existingEnd
+            );
+          });
+        });
+
+        return !!existingAssignment;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing shifts:", error);
+      return false;
     }
-    return false;
-  } catch (error) {
-    console.error("Error checking existing shifts:", error);
-    return false;
-  }
-};
+  };
 
   const handleUpdateShift = async () => {
-   if (!selectedShift) {
-    alert("Please select shift first");
-    return;
-  }
-
-  try {
-    setIsLoading(true);
-    const weekOffDaysList = Object.entries(weekOffDays)
-      .filter(([_, isOff]) => isOff)
-      .map(([day]) => day);
-
-    // Check for existing assignment
-    const hasExistingAssignment = await checkExistingShiftAssignment(
-      selectedUser._id,
-      selectedShift._id,
-      startDate,
-      endDate
-    );
-
-    if (hasExistingAssignment) {
-      alert("This user already has the same shift assigned for the selected dates");
+    if (!selectedShift) {
+      alert("Please select shift first");
       return;
     }
 
-    // Rest of your existing code...
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    let totalDays = 0;
-    let current = new Date(start);
-    
-    while (current <= end) {
-      const dayName = current.toLocaleDateString('en-US', { weekday: 'long' });
-      if (!weekOffDaysList.includes(dayName)) {
-        totalDays++;
-      }
-      current.setDate(current.getDate() + 1);
+    if (!startDate || !endDate) {
+      alert("Please select both start and end dates");
+      return;
     }
 
-    const payload = {
-      ActualShift: selectedShift._id,
-      StartDate: startDate,
-      EndDate: endDate,
-      SelectWeekOffdays: weekOffDaysList,
-      TotalShiftDays: totalDays
-    };
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      alert("End date cannot be before start date");
+      return;
+    }
 
-    await axios.put(
-      `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    try {
+      setIsLoading(true);
+      const weekOffDaysList = Object.entries(weekOffDays)
+        .filter(([_, isOff]) => isOff)
+        .map(([day]) => day);
 
-    alert("Shift Assigned successfully!");
-    setShowCanvas(false);
-    setShowEditCanvas(false);
-    setSelectedShift(null);
-    setStartDate('');
-    setEndDate('');
-    setWeekOffDays({
-      Monday: false,
-      Tuesday: false,
-      Wednesday: false,
-      Thursday: false,
-      Friday: false,
-      Saturday: false,
-      Sunday: false
-    });
-    fetchAssignedShifts();
-  } catch (error) {
-    console.error("Error updating shift:", error);
-    alert(error.response?.data?.message || "Failed to update shift");
-  } finally {
-    setIsLoading(false);
-  }
+      const hasExistingAssignment = await checkExistingShiftAssignment(
+        selectedUser._id,
+        selectedShift._id,
+        startDate,
+        endDate
+      );
+
+      if (hasExistingAssignment) {
+        alert("This user already has a shift assigned that overlaps with the selected date range");
+        return;
+      }
+
+      let totalDays = 0;
+      let current = new Date(start);
+      
+      while (current <= end) {
+        const dayName = current.toLocaleDateString('en-US', { weekday: 'long' });
+        if (!weekOffDaysList.includes(dayName)) {
+          totalDays++;
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      const payload = {
+        ActualShift: selectedShift._id,
+        StartDate: startDate,
+        EndDate: endDate,
+        SelectWeekOffdays: weekOffDaysList,
+        TotalShiftDays: totalDays
+      };
+
+      await axios.put(
+        `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("Shift Assigned successfully!");
+      setShowCanvas(false);
+      setSelectedShift(null);
+      setStartDate('');
+      setEndDate('');
+      setWeekOffDays({
+        Monday: false,
+        Tuesday: false,
+        Wednesday: false,
+        Thursday: false,
+        Friday: false,
+        Saturday: false,
+        Sunday: false
+      });
+      fetchAssignedShifts();
+    } catch (error) {
+      console.error("Error updating shift:", error);
+      alert(error.response?.data?.message || "Failed to update shift");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteClick = (shift) => {
@@ -323,31 +356,6 @@ const ShiftAssignmentManager = () => {
       alert("Failed to delete shift");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return 'N/A';
-    }
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    try {
-      const [time, period] = timeString.split(' ');
-      const [hours, minutes] = time.split(':');
-      return `${hours}:${minutes || '00'} ${period || ''}`.trim();
-    } catch {
-      return timeString;
     }
   };
 
@@ -516,15 +524,6 @@ const ShiftAssignmentManager = () => {
                                   {userShift.TotalShiftDays}
                                 </td>
                                 <td className="text-end pe-4">
-                                  {/* <Button 
-                                    variant="outline-primary" 
-                                    size="sm" 
-                                   // onClick={() => (shift)}
-                                    disabled={isLoading}
-                                    className=" "
-                                  >
-                                    <i className="bi bi-pencil"></i>
-                                  </Button> */}
                                   <Button 
                                     variant="outline-danger" 
                                     size="sm" 
@@ -591,7 +590,13 @@ const ShiftAssignmentManager = () => {
               <Form.Control 
                 type="date" 
                 value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)} 
+                min={getTodayDate()}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (endDate && new Date(e.target.value) > new Date(endDate)) {
+                    setEndDate('');
+                  }
+                }} 
                 className="py-2"
               />
             </Form.Group>
@@ -601,10 +606,17 @@ const ShiftAssignmentManager = () => {
               <Form.Control 
                 type="date" 
                 value={endDate} 
+                min={startDate || getTodayDate()}
                 onChange={(e) => setEndDate(e.target.value)} 
                 className="py-2"
               />
             </Form.Group>
+
+            {startDate && endDate && new Date(startDate) > new Date(endDate) && (
+              <div className="text-danger small mb-3">
+                End date cannot be before start date
+              </div>
+            )}
 
             <Form.Group className="mb-4">
               <Form.Label className="fw-medium">Select Week Off Days</Form.Label>
@@ -640,98 +652,6 @@ const ShiftAssignmentManager = () => {
                   <>
                     <i className="bi bi-check-circle me-2"></i>
                     Assign Shift
-                  </>
-                )}
-              </Button>
-            </div>
-          </Form>
-        </Offcanvas.Body>
-      </Offcanvas>
-
-      {/* Edit Shift Offcanvas */}
-      <Offcanvas show={showEditCanvas} onHide={() => setShowEditCanvas(false)} placement="end">
-        <Offcanvas.Header closeButton className="border-bottom">
-          <Offcanvas.Title>
-            <i className="bi bi-pencil me-2"></i>
-            Edit Shift for {currentShift?.DepartmentUser[0]?.Name}
-          </Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-medium">Shift Name</Form.Label>
-              <Form.Select 
-                value={selectedShift?._id || ''}
-                onChange={(e) => {
-                  const shiftId = e.target.value;
-                  const shift = shifts.find(s => s._id === shiftId);
-                  setSelectedShift(shift);
-                }}
-                className="py-2"
-              >
-                <option value="">Select Shift</option>
-                {shifts.map((shift) => (
-                  <option key={shift._id} value={shift._id}>
-                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-medium">Start Date</Form.Label>
-              <Form.Control 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)} 
-                className="py-2"
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-medium">End Date</Form.Label>
-              <Form.Control 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)} 
-                className="py-2"
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-4">
-              <Form.Label className="fw-medium">Select Week Off Days</Form.Label>
-              <div className="d-flex flex-wrap gap-3">
-                {Object.entries(weekOffDays).map(([day, isSelected]) => (
-                  <Form.Check 
-                    key={day}
-                    type="checkbox"
-                    id={`weekOff-${day}`}
-                    label={day}
-                    checked={isSelected}
-                    onChange={() => handleWeekOffDayChange(day)}
-                    inline
-                    className="me-2"
-                  />
-                ))}
-              </div>
-            </Form.Group>
-
-            <div className="d-grid gap-2">
-              <Button 
-                onClick={handleUpdateShift} 
-                variant="primary" 
-                size="lg"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-check-circle me-2"></i>
-                    Update Shift
                   </>
                 )}
               </Button>
