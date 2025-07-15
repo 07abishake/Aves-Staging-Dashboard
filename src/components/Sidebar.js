@@ -157,12 +157,12 @@ function Sidebar() {
                                         <>
                                             <li className="nav-item">
                                                 <NavLink to="/ShiftCreate" className="nav-link">
-                                                    <i className="bi bi-calendar-check me-2"></i> Shift Create
+                                                    <i className="bi bi-calendar-check me-2"></i>  Create Shift
                                                 </NavLink>
                                             </li>
                                             <li className="nav-item">
                                                 <NavLink to="/assign" className="nav-link">
-                                                    <i className="bi bi-calendar-check me-2"></i> Shift Assign
+                                                    <i className="bi bi-calendar-check me-2"></i>  Assign Shift
                                                 </NavLink>
                                             </li>
                                         </>

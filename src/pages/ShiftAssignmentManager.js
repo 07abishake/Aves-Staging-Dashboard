@@ -365,7 +365,7 @@ const ShiftAssignmentManager = () => {
         <Card.Body className="p-4">
           <Row className="mb-4 align-items-center">
             <Col>
-              <h4 className="mb-0 text-dark">Shift Assignment Manager</h4>
+              <h4 className="mb-0 text-dark">Shift Manager</h4>
               <p className="text-muted mb-0">Assign and manage shifts to department users</p>
             </Col>
           </Row>
