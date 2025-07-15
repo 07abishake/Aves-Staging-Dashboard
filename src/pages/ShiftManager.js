@@ -12,11 +12,10 @@ const ShiftManager = () => {
     ShiftName: '',
     ShiftStartTime: '',
     ShiftEndTime: '',
-    BreakHours:''
+    BreakHours: '00:01' // Default to 1 minute
   });
 
   const token = localStorage.getItem('access_token');
-  // if (!token) window.location.href = '/login';
 
   useEffect(() => {
     fetchShifts();
@@ -45,13 +44,15 @@ const ShiftManager = () => {
             ShiftName: shift.ShiftName || '',
             ShiftStartTime: moment(shift.ShiftStartTime, ['hh:mm A', 'HH:mm']).format('HH:mm'),
             ShiftEndTime: moment(shift.ShiftEndTime, ['hh:mm A', 'HH:mm']).format('HH:mm'),
-            BreakHours:moment(shift.BreakHours, ['hh:mm A', 'HH:mm']).format('HH:mm')
+            BreakHours: shift.BreakHours.includes('.') 
+              ? shift.BreakHours.replace('.', ':') 
+              : shift.BreakHours
           }
         : {
             ShiftName: '',
             ShiftStartTime: '',
             ShiftEndTime: '',
-            BreakHours:''
+            BreakHours: '00:01' // Default to 1 minute
           }
     );
     setShowForm(true);
@@ -60,7 +61,12 @@ const ShiftManager = () => {
   const handleCloseForm = () => {
     setShowForm(false);
     setSelectedShift(null);
-    setFormData({ ShiftName: '', ShiftStartTime: '', ShiftEndTime: '' , BreakHours:'' });
+    setFormData({
+      ShiftName: '',
+      ShiftStartTime: '',
+      ShiftEndTime: '',
+      BreakHours: '00:01'
+    });
   };
 
   const handleChange = (e) => {
@@ -77,7 +83,7 @@ const ShiftManager = () => {
         ...formData,
         ShiftStartTime: moment(formData.ShiftStartTime, 'HH:mm').format('hh:mm A'),
         ShiftEndTime: moment(formData.ShiftEndTime, 'HH:mm').format('hh:mm A'),
-        BreakHours: moment(formData.BreakHours, 'HH:mm').format('hh:mm A')
+        BreakHours: formData.BreakHours // Already in HH:mm format
       };
 
       if (isEditMode && selectedShift) {
@@ -118,6 +124,24 @@ const ShiftManager = () => {
     }
   };
 
+  // Generate options for BreakHours dropdown (00:01 to 24:00)
+  const generateBreakHoursOptions = () => {
+    const options = [];
+    for (let hours = 0; hours <= 24; hours++) {
+      const maxMinutes = hours === 24 ? 0 : 59;
+      for (let minutes = hours === 0 ? 1 : 0; minutes <= maxMinutes; minutes++) {
+        const value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        const display = `${String(hours).padStart(2, '0')}.${String(minutes).padStart(2, '0')}`;
+        options.push(
+          <option key={value} value={value}>
+            {display}
+          </option>
+        );
+      }
+    }
+    return options;
+  };
+
   return (
     <Container className="py-4">
       <Row className="mb-4 align-items-center">
@@ -126,7 +150,7 @@ const ShiftManager = () => {
         </Col>
         <Col className="text-end">
           <Button variant="primary" onClick={() => handleOpenForm()} className="shadow-sm">
-            <i className="me-2"></i>Create Shift
+            Create Shift
           </Button>
         </Col>
       </Row>
@@ -150,8 +174,14 @@ const ShiftManager = () => {
                   <td className="ps-4 fw-medium">{shift.ShiftName}</td>
                   <td>{moment(shift.ShiftStartTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
                   <td>{moment(shift.ShiftEndTime, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
-                  <td>{moment(shift.BreakHours, ['HH:mm', 'hh:mm A']).format('hh:mm A')}</td>
-                  <td className='fw-medium'>{shift.TotalShiftWorkingHours}</td>
+                  <td>
+                    {shift.BreakHours.includes(':') 
+                      ? shift.BreakHours.replace(':', '.') 
+                      : shift.BreakHours.includes('.')
+                      ? shift.BreakHours
+                      : `${shift.BreakHours.substring(0, 2)}.${shift.BreakHours.substring(2)}`}
+                  </td>
+                  <td className="fw-medium">{shift.TotalShiftWorkingHours}</td>
                   <td className="text-end pe-4">
                     <Button
                       size="sm"
@@ -183,9 +213,7 @@ const ShiftManager = () => {
 
       <Offcanvas show={showForm} onHide={handleCloseForm} placement="end">
         <Offcanvas.Header closeButton className="border-bottom">
-          <Offcanvas.Title>
-            {isEditMode ? 'Edit Shift' : 'Create New Shift'}
-          </Offcanvas.Title>
+          <Offcanvas.Title>{isEditMode ? 'Edit Shift' : 'Create New Shift'}</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <Form onSubmit={handleSubmit}>
@@ -213,7 +241,7 @@ const ShiftManager = () => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-4">
+            <Form.Group className="mb-3">
               <Form.Label>End Time</Form.Label>
               <Form.Control
                 type="time"
@@ -224,25 +252,22 @@ const ShiftManager = () => {
                 className="py-2"
               />
             </Form.Group>
+
             <Form.Group className="mb-4">
-              <Form.Label>Break Hours</Form.Label>
-              <Form.Control
-                type="time"
+              <Form.Label>Break Hours (HH.mm)</Form.Label>
+              <Form.Select
                 name="BreakHours"
                 value={formData.BreakHours}
                 onChange={handleChange}
                 required
                 className="py-2"
-              />
+              >
+                {generateBreakHoursOptions()}
+              </Form.Select>
             </Form.Group>
 
             <div className="d-grid gap-2">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="fw-medium"
-              >
+              <Button type="submit" variant="primary" size="lg" className="fw-medium">
                 {isEditMode ? 'Update Shift' : 'Create Shift'}
               </Button>
             </div>
