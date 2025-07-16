@@ -267,6 +267,12 @@ const ShiftAssignmentManager = () => {
       return;
     }
 
+    // Add validation to prevent same dates
+    if (startDate === endDate) {
+      alert("Start date and end date cannot be the same");
+      return;
+    }
+
     try {
       setIsLoading(true);
       const weekOffDaysList = Object.entries(weekOffDays)
@@ -592,8 +598,10 @@ const ShiftAssignmentManager = () => {
                 value={startDate} 
                 min={getTodayDate()}
                 onChange={(e) => {
-                  setStartDate(e.target.value);
-                  if (endDate && new Date(e.target.value) > new Date(endDate)) {
+                  const newStartDate = e.target.value;
+                  setStartDate(newStartDate);
+                  // If end date is same as new start date, clear it
+                  if (endDate && newStartDate === endDate) {
                     setEndDate('');
                   }
                 }} 
@@ -606,15 +614,25 @@ const ShiftAssignmentManager = () => {
               <Form.Control 
                 type="date" 
                 value={endDate} 
-                min={startDate || getTodayDate()}
-                onChange={(e) => setEndDate(e.target.value)} 
+                min={startDate ? new Date(new Date(startDate).setDate(new Date(startDate).getDate() + 1)).toISOString().split('T')[0] : getTodayDate()}
+                onChange={(e) => {
+                  const newEndDate = e.target.value;
+                  if (newEndDate !== startDate) {
+                    setEndDate(newEndDate);
+                  } else {
+                    // Show immediate feedback if user tries to select same date
+                    alert("End date cannot be the same as start date");
+                  }
+                }} 
                 className="py-2"
               />
             </Form.Group>
 
-            {startDate && endDate && new Date(startDate) > new Date(endDate) && (
+            {(startDate && endDate && (new Date(startDate) > new Date(endDate) || startDate === endDate)) && (
               <div className="text-danger small mb-3">
-                End date cannot be before start date
+                {new Date(startDate) > new Date(endDate) 
+                  ? "End date cannot be before start date" 
+                  : "Start date and end date cannot be the same"}
               </div>
             )}
 
@@ -641,7 +659,7 @@ const ShiftAssignmentManager = () => {
                 onClick={handleUpdateShift} 
                 variant="primary" 
                 size="lg"
-                disabled={isLoading}
+                disabled={isLoading || !selectedShift || !startDate || !endDate || startDate === endDate || new Date(startDate) > new Date(endDate)}
               >
                 {isLoading ? (
                   <>

@@ -84,7 +84,8 @@ import InventoryManager from './pages/InventoryManager';
 import CCTvRequest from './pages/CCTvRequest';
 import SustainabilityManager from './pages/SustainabilityManager';
 import FirstAidReport from './pages/FirstAidReport';
-
+import EmergencyCodeManager from './pages/EmergencyCodeManager'
+import PassSetup from './pages/PassSetup';
 
 
 function App() {
@@ -135,6 +136,8 @@ function App() {
           <Route path ='/cctv-request' element={<CCTvRequest/>}/>
           <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/>
           <Route path ='/FirstAidReport' element={<FirstAidReport/>}/>
+          <Route path ='/EmergencyCodeManager'element={<EmergencyCodeManager/>}/>
+          <Route path ='/PassSetup' element={<PassSetup/>}/>
        
 
            

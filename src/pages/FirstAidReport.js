@@ -88,7 +88,7 @@ const FirstAidReport = () => {
     setError(null);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.get('http://api.avessecurity.com:6378/api/firstaidreport/FirstAid/get', {
+      const response = await axios.get('https://api.avessecurity.com/api/firstaidreport/FirstAid/get', {
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -129,13 +129,13 @@ const FirstAidReport = () => {
 
       if (editData) {
         await axios.put(
-          `http://api.avessecurity.com:6378/api/firstaidreport/FirstAid/update/${editData._id}`,
+          `https://api.avessecurity.com/api/firstaidreport/FirstAid/update/${editData._id}`,
           formData,
           config
         );
       } else {
         await axios.post(
-          'http://api.avessecurity.com:6378/api/firstaidreport/FirstAid/create',
+          'https://api.avessecurity.com/api/firstaidreport/FirstAid/create',
           formData,
           config
         );
@@ -158,7 +158,7 @@ const FirstAidReport = () => {
     try {
       const token = localStorage.getItem('access_token');
       await axios.delete(
-        `http://api.avessecurity.com:6378/api/firstaidreport/FirstAid/delete/${reportToDelete._id}`,
+        `https://api.avessecurity.com/api/firstaidreport/FirstAid/delete/${reportToDelete._id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -269,29 +269,29 @@ const FirstAidReport = () => {
               <td>{Array.isArray(report.items) ? report.items.length : 0}</td>
               <td>
                 <Button 
-                  variant="info" 
+                  variant="outline-info" 
                   size="sm" 
                   onClick={() => handleView(report)}
                   className="me-2"
                 >
-                  View
+                <i className="bi bi-eye"></i>
                 </Button>
                 <Button 
-                  variant="warning" 
+                  variant="outline-warning" 
                   size="sm" 
                   onClick={() => handleEdit(report)}
                   className="me-2"
                   disabled={loading.form}
                 >
-                  Edit
+                 <i className="bi bi-pencil-square"></i>
                 </Button>
                 <Button 
-                  variant="danger" 
+                  variant="outline-danger" 
                   size="sm" 
                   onClick={() => handleDeleteClick(report)}
                   disabled={loading.delete}
                 >
-                  Delete
+                     <i className="bi bi-trash"></i>
                 </Button>
               </td>
             </tr>

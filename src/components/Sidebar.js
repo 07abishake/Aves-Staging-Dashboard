@@ -172,13 +172,13 @@ function Sidebar() {
                                         </NavLink>
                                     </li>
                                     <li className="nav-item">
-                                        <NavLink to="/pass-setup" className="nav-link">
+                                        <NavLink to="/PassSetup" className="nav-link">
                                             <i className="bi bi-person-badge me-2"></i> Pass Setup
                                         </NavLink>
                                     </li>
                                  
                                         <li className="nav-item">
-                                            <NavLink to="/emergency-code" className="nav-link">
+                                            <NavLink to="/EmergencyCodeManager" className="nav-link">
                                                 <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
                                             </NavLink>
                                         </li>
