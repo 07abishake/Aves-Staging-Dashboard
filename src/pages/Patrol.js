@@ -232,6 +232,11 @@ const [endDate, setEndDate] = useState('');
         return;
     }
 
+       if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
+        alert("This user already has a patrol assignment during the selected time period.");
+        return;
+    }
+
     const data = {
         userId: selectedUser,
         startDate: startDate,
@@ -258,6 +263,15 @@ const [endDate, setEndDate] = useState('');
         alert("Failed to assign patrol.");
     }
     };
+    
+    useEffect(() => {
+    if (selectedUser && startDate && endDate && startTime && endTime) {
+        if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
+            alert("Warning: This time overlaps with an existing assignment for this user.");
+        }
+    }
+}, [startTime, endTime]);
+
 
     const handleSubmit = () => {
         const payload = {
@@ -382,6 +396,43 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
 };
 
 
+//function to handle overlapping time options
+const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
+    // Convert time strings to minutes for easier comparison
+    const timeToMinutes = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let total = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) total += 12 * 60;
+        if (period === 'AM' && hours === 12) total -= 12 * 60;
+        return total;
+    };
+
+    const newStartMinutes = timeToMinutes(newStartTime);
+    const newEndMinutes = timeToMinutes(newEndTime);
+    const newStartDateObj = new Date(newStartDate);
+    const newEndDateObj = new Date(newEndDate);
+
+    return assignedPatrols.some(assignment => {
+        // Skip if not the same user
+        if (assignment.userId._id !== userId) return false;
+
+        const assignmentStartDate = new Date(assignment.startDate);
+        const assignmentEndDate = new Date(assignment.endDate);
+        
+        // Check if date ranges overlap
+        if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
+            return false;
+        }
+
+        // If dates overlap, check time ranges
+        const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
+        const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
+
+        return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
+    });
+};
+
     return (
         <div className="container mt-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -440,7 +491,7 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
                                 <td>{assignment?.userId ? assignment?.userId.Name : 'Unknown User'}</td>
                                 <td>{assignment?.PatrolSet ? assignment?.PatrolSet.Name : 'Unknown Patrol'}</td>
                                 <td>{new Date(assignment.startDate).toLocaleDateString('en-GB')}</td>
-                                <td>{new Date(assignment.startDate).toLocaleDateString('en-GB')}</td>
+                                <td>{new Date(assignment.endDate).toLocaleDateString('en-GB')}</td>
                                 <td>{assignment.StartedAt}</td>
                                 <td>{assignment.EndedAt}</td>
                                 <td>
