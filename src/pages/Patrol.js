@@ -267,7 +267,7 @@ const [endDate, setEndDate] = useState('');
     useEffect(() => {
     if (selectedUser && startDate && endDate && startTime && endTime) {
         if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
-            alert("Warning: This time overlaps with an existing assignment for this user.");
+            alert("User Not Available for this patrol. Please select another user or adjust the time.");
         }
     }
 }, [startTime, endTime]);
