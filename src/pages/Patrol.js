@@ -31,12 +31,12 @@ const greenIcon = new L.Icon({
 
 // Time options for dropdown
 const timeOptions = [
-    "12:00am", "12:30am", "1:00am", "1:30am", "2:00am", "2:30am", "3:00am", "3:30am",
-    "4:00am", "4:30am", "5:00am", "5:30am", "6:00am", "6:30am", "7:00am", "7:30am",
-    "8:00am", "8:30am", "9:00am", "9:30am", "10:00am", "10:30am", "11:00am", "11:30am",
-    "12:00pm", "12:30pm", "1:00pm", "1:30pm", "2:00pm", "2:30pm", "3:00pm", "3:30pm",
-    "4:00pm", "4:30pm", "5:00pm", "5:30pm", "6:00pm", "6:30pm", "7:00pm", "7:30pm",
-    "8:00pm", "8:30pm", "9:00pm", "9:30pm", "10:00pm", "10:30pm", "11:00pm", "11:30pm"
+  "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM",
+    "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM",
+    "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+    "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
+    "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM",
+    "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
 ];
 
 function SetViewToCurrentLocation() {
@@ -92,7 +92,8 @@ function Patrol() {
     const [selectedUser, setSelectedUser] = useState("");
     const [selectedPatrolToAssign, setSelectedPatrolToAssign] = useState('');
     const [showAssignCanvas, setShowAssignCanvas] = useState(false);
-    const [date, setDate] = useState('');
+ const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     
@@ -226,35 +227,36 @@ function Patrol() {
     };
 
     const handleAssignPatrol = async () => {
-        if (!selectedUser || !date || !startTime || !endTime || !selectedPatrolToAssign) {
-            alert("Please fill in all fields.");
-            return;
-        }
+        if (!selectedUser || !startDate || !endDate || !startTime || !endTime || !selectedPatrolToAssign) {
+        alert("Please fill in all fields.");
+        return;
+    }
 
-        const data = {
-            userId: selectedUser,
-            Date: date,
-            patrollSetId: selectedPatrolToAssign,
-            StartedAt: startTime,
-            EndedAt: endTime,
-        };
+    const data = {
+        userId: selectedUser,
+        startDate: startDate,
+        endDate: endDate,
+        patrollSetId: selectedPatrolToAssign,
+        StartedAt: startTime,
+        EndedAt: endTime,
+    };
 
-        try {
-            const response = await axios.post(
-                "https://api.avessecurity.com/api/Patrol/Assign", 
-                data, 
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            if (response.status === 200) {
-                alert("Patrol Assigned Successfully!");
-                setShowAssignCanvas(false);
-                fetchAssignedPatrols();
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Failed to assign patrol.");
+    try {
+        const response = await axios.post(
+            "https://api.avessecurity.com/api/Patrol/Assign", 
+            data, 
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (response.status === 200) {
+            alert("Patrol Assigned Successfully!");
+            setShowAssignCanvas(false);
+            fetchAssignedPatrols();
         }
+    } catch (err) {
+        console.error(err);
+        alert("Failed to assign patrol.");
+    }
     };
 
     const handleSubmit = () => {
@@ -310,6 +312,19 @@ function Patrol() {
         }
     };
 
+    const handleDeleteAssignpatrol = async (assignmentId) => {
+               const confirmDelete = window.confirm("Are you sure you want to delete this patrol?");
+        if (!confirmDelete) return;
+ try{
+       await axios.delete(
+            `https://api.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
+            { headers: { Authorization: `Bearer ${token}` } })
+            alert("Patrol assignment deleted successfully");
+ }
+ catch(err){
+    console.error('Submit error:', err);
+    alert("Failed to delete patrol assignment.");
+ }    }
     const openFormCanvas = () => {
         setPatrolName('');
         setSelectedPrimary('');
@@ -337,6 +352,35 @@ function Patrol() {
     const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
     const getSelectedSecondary = () => getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
     const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
+//     Add a function to get filtered time options based on shift hours
+// Then update the getFilteredTimeOptions function to properly filter based on shift times
+const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+    if (!shiftStart || !shiftEnd) return timeOptions;
+    
+    // Convert shift times to 24-hour format for easier comparison
+    const convertToMinutes = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let total = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) total += 12 * 60;
+        if (period === 'AM' && hours === 12) total -= 12 * 60;
+        return total;
+    };
+
+    const startMinutes = convertToMinutes(shiftStart);
+    const endMinutes = convertToMinutes(shiftEnd);
+    
+    return timeOptions.filter(time => {
+        const [timeStr, period] = time.split(' ');
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        let total = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) total += 12 * 60;
+        if (period === 'AM' && hours === 12) total -= 12 * 60;
+        
+        return total >= startMinutes && total <= endMinutes;
+    });
+};
+
 
     return (
         <div className="container mt-4">
@@ -383,9 +427,11 @@ function Patrol() {
                         <tr>
                             <th>User</th>
                             <th>Patrol</th>
-                            <th>Date</th>
+                            <th>StartDate</th>
+                            <th>EndDate</th>
                             <th>Start Time</th>
                             <th>End Time</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -393,9 +439,16 @@ function Patrol() {
                             <tr key={assignment._id}>
                                 <td>{assignment?.userId ? assignment?.userId.Name : 'Unknown User'}</td>
                                 <td>{assignment?.PatrolSet ? assignment?.PatrolSet.Name : 'Unknown Patrol'}</td>
-                                <td>{new Date(assignment.Date).toLocaleDateString('en-GB')}</td>
+                                <td>{new Date(assignment.startDate).toLocaleDateString('en-GB')}</td>
+                                <td>{new Date(assignment.startDate).toLocaleDateString('en-GB')}</td>
                                 <td>{assignment.StartedAt}</td>
                                 <td>{assignment.EndedAt}</td>
+                                <td>
+                                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteAssignpatrol(assignment._id)}>
+                                        <i className="bi bi-trash"></i> Delete
+                                    </button>
+                                    </td>
+
                             </tr>
                         ))}
                     </tbody>
@@ -404,105 +457,146 @@ function Patrol() {
 
             {/* Assign Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showAssignCanvas ? 'show' : ''}`} style={{ visibility: showAssignCanvas ? 'visible' : 'hidden' }}>
-                <div className="offcanvas-header">
-                    <h5>Assign Patrol</h5>
-                    <button className="btn-close" onClick={() => setShowAssignCanvas(false)}></button>
-                </div>
-                <div className="offcanvas-body">
-                    <div className="mb-3">
-                        <label className="form-label">Select Shift</label>
-                        <select 
-                            className="form-select"
-                            value={selectedShift}
-                            onChange={(e) => {
-                                setSelectedShift(e.target.value);
-                                fetchUsersForShift(e.target.value);
-                            }}
-                        >
-                            <option value="">-- Select Shift --</option>
-                            {shifts.map(shift => (
-                                <option key={shift._id} value={shift._id}>
-                                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+    <div className="offcanvas-header">
+        <h5>Assign Patrol</h5>
+        <button className="btn-close" onClick={() => setShowAssignCanvas(false)}></button>
+    </div>
+    <div className="offcanvas-body">
+        <div className="mb-3">
+            <label className="form-label">Select Shift</label>
+            <select 
+                className="form-select"
+                value={selectedShift}
+                onChange={(e) => {
+                    setSelectedShift(e.target.value);
+                    fetchUsersForShift(e.target.value);
+                }}
+            >
+                <option value="">-- Select Shift --</option>
+                {shifts.map(shift => (
+                    <option key={shift._id} value={shift._id}>
+                        {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
+                    </option>
+                ))}
+            </select>
+        </div>
 
-               <div className="mb-3">
-  <label className="form-label">Select User</label>
-  <select
-    className="form-select"
-    value={selectedUser}
-    onChange={(e) => setSelectedUser(e.target.value)}
-    disabled={!selectedShift}
-  >
-    <option value="">-- Select User --</option>
-    {shiftAssignedUsers.map((user) => (
-      <option key={user.userId} value={user.userId}>
-        {user.userName} ({user.designation}) - {user.shiftName} ({user.shiftTime.start} to {user.shiftTime.end})
-      </option>
-    ))}
-  </select>
+        <div className="mb-3">
+            <label className="form-label">Select User</label>
+            <select
+                className="form-select"
+                value={selectedUser}
+                onChange={(e) => {
+                    const selectedUserId = e.target.value;
+                    setSelectedUser(selectedUserId);
+                    
+                    // Auto-fill dates when user is selected
+                    const selectedUserData = shiftAssignedUsers.find(u => u.userId === selectedUserId);
+                    if (selectedUserData) {
+                        setStartDate(selectedUserData.dateRange.startDate.split('T')[0]);
+                        setEndDate(selectedUserData.dateRange.endDate.split('T')[0]);
+                    }
+                }}
+                disabled={!selectedShift}
+            >
+                <option value="">-- Select User --</option>
+                {shiftAssignedUsers.map((user) => (
+                    <option key={user.userId} value={user.userId}>
+                        {user.userName} ({user.designation}) - {user.shiftName} ({user.shiftTime.start} to {user.shiftTime.end})
+                    </option>
+                ))}
+            </select>
+        </div>
+
+        <div className="mb-3">
+            <label className="form-label">Patrol</label>
+            <input
+                type="text"
+                className="form-control"
+                value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''}
+                readOnly
+            />
+        </div>
+
+        <div className="mb-3">
+            <label className="form-label">Start Date</label>
+            <input
+                type="date"
+                className="form-control"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+            />
+        </div>
+
+        <div className="mb-3">
+            <label className="form-label">End Date</label>
+            <input
+                type="date"
+                className="form-control"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+            />
+        </div>
+
+      <div className="mb-3">
+    <label className="form-label">Start Time</label>
+    <select 
+        className="form-select" 
+        value={startTime} 
+        onChange={e => setStartTime(e.target.value)}
+        disabled={!selectedUser}
+    >
+        <option value="">-- Select Start Time --</option>
+        {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
+            getFilteredTimeOptions(
+                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
+                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
+            ).map(time => (
+                <option key={time} value={time}>{time}</option>
+            ))
+        ) : (
+            timeOptions.map(time => (
+                <option key={time} value={time}>{time}</option>
+            ))
+        )}
+    </select>
 </div>
 
-                    <div className="mb-3">
-                        <label className="form-label">Patrol</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''}
-                            readOnly
-                        />
-                    </div>
+<div className="mb-3">
+    <label className="form-label">End Time</label>
+    <select 
+        className="form-select" 
+        value={endTime} 
+        onChange={e => setEndTime(e.target.value)}
+        disabled={!selectedUser}
+    >
+        <option value="">-- Select End Time --</option>
+        {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
+            getFilteredTimeOptions(
+                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
+                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
+            ).map(time => (
+                <option key={time} value={time}>{time}</option>
+            ))
+        ) : (
+            timeOptions.map(time => (
+                <option key={time} value={time}>{time}</option>
+            ))
+        )}
+    </select>
+</div>
 
-                    <div className="mb-3">
-                        <label className="form-label">Date</label>
-                        <input
-                            type="date"
-                            className="form-control"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="mb-3">
-                        <label className="form-label">Start Time</label>
-                        <select 
-                            className="form-select" 
-                            value={startTime} 
-                            onChange={e => setStartTime(e.target.value)}
-                        >
-                            <option value="">-- Select Start Time --</option>
-                            {timeOptions.map(time => (
-                                <option key={time} value={time}>{time}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="mb-3">
-                        <label className="form-label">End Time</label>
-                        <select 
-                            className="form-select" 
-                            value={endTime} 
-                            onChange={e => setEndTime(e.target.value)}
-                        >
-                            <option value="">-- Select End Time --</option>
-                            {timeOptions.map(time => (
-                                <option key={time} value={time}>{time}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleAssignPatrol}
-                        disabled={!selectedUser || !date || !startTime || !endTime}
-                    >
-                        Assign Patrol
-                    </button>
-                </div>
-            </div>
+        <button
+            className="btn btn-primary"
+            onClick={handleAssignPatrol}
+            disabled={!selectedUser || !startDate || !endDate || !startTime || !endTime}
+        >
+            Assign Patrol
+        </button>
+    </div>
+</div>
 
             {/* Add Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} style={{ visibility: showFormCanvas ? 'visible' : 'hidden' }}>
