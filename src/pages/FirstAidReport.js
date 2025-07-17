@@ -252,7 +252,7 @@ const FirstAidReport = () => {
     }
 
     return (
-      <Table striped bordered hover responsive>
+      <Table striped  hover responsive>
         <thead>
           <tr>
             <th>Report No</th>
@@ -422,7 +422,7 @@ const FirstAidReport = () => {
           </ListGroup>
 
           <div className="mt-3 d-flex justify-content-end">
-            <Button 
+            {/* <Button 
               variant="warning" 
               onClick={() => {
                 setShowViewCanvas(false);
@@ -431,8 +431,8 @@ const FirstAidReport = () => {
               className="me-2"
             >
               Edit Report
-            </Button>
-            <Button 
+            </Button> */}
+            {/* <Button 
               variant="danger" 
               onClick={() => {
                 setShowViewCanvas(false);
@@ -440,7 +440,7 @@ const FirstAidReport = () => {
               }}
             >
               Delete Report
-            </Button>
+            </Button> */}
           </div>
         </Offcanvas.Body>
       </Offcanvas>

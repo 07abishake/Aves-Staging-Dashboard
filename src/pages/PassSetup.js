@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
- 
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Button,
+  ListGroup,
+  Offcanvas,
+  Badge,
+  Alert,
+  Modal,
+  Spinner,
+  InputGroup
+} from 'react-bootstrap';
+import { Plus, Trash, Pencil, Eye, X, Check } from 'react-bootstrap-icons';
+
 function PassSetup() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [color, setColor] = useState('#ff0000');
@@ -10,9 +26,13 @@ function PassSetup() {
   const [editPass, setEditPass] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editLocation, setEditLocation] = useState('');
- 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [passToDelete, setPassToDelete] = useState(null);
   const token = localStorage.getItem('access_token');
- 
+
   useEffect(() => {
     if (!token) {
       window.location.href = '/login';
@@ -21,8 +41,9 @@ function PassSetup() {
     fetchLocations();
     fetchPasses();
   }, []);
- 
+
   const fetchLocations = async () => {
+    setLoading(true);
     try {
       const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
         headers: { Authorization: `Bearer ${token}` },
@@ -32,9 +53,12 @@ function PassSetup() {
       setLocations(flattened);
     } catch (error) {
       console.error('Failed to fetch locations:', error);
+      setError('Failed to load locations. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
- 
+
   const flattenLocations = (data) => {
     const result = [];
     data.forEach((primary) => {
@@ -54,8 +78,9 @@ function PassSetup() {
     });
     return result;
   };
- 
+
   const fetchPasses = async () => {
+    setLoading(true);
     try {
       const res = await axios.get('https://api.avessecurity.com/api/Color/get', {
         headers: { Authorization: `Bearer ${token}` },
@@ -63,17 +88,23 @@ function PassSetup() {
       setPasses(res.data.CustomColorSet || []);
     } catch (error) {
       console.error('Failed to fetch color passes:', error);
+      setError('Failed to load passes. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
- 
+
   const handleCreate = async () => {
     if (!selectedLocation) {
-      alert('Please select a location');
+      setError('Please select a location');
       return;
     }
-    const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
- 
+
+    setLoading(true);
+    setError(null);
     try {
+      const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
+      
       await axios.post(
         'https://api.avessecurity.com/api/Color/create',
         {
@@ -85,28 +116,45 @@ function PassSetup() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      alert('Pass created');
+      
+      setSuccess('Pass created successfully!');
       setSelectedLocation('');
       setColor('#ff0000');
       fetchPasses();
     } catch (error) {
       console.error('Failed to create color pass:', error);
-      alert('Failed to create pass');
+      setError('Failed to create pass. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
- 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure to delete this pass?')) return;
+
+  const confirmDelete = (pass) => {
+    setPassToDelete(pass);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!passToDelete) return;
+    
+    setLoading(true);
     try {
-      await axios.delete(`https://api.avessecurity.com/api/Color/delete/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `https://api.avessecurity.com/api/Color/delete/${passToDelete._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSuccess('Pass deleted successfully!');
       fetchPasses();
     } catch (error) {
       console.error('Failed to delete pass:', error);
+      setError('Failed to delete pass. Please try again.');
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setPassToDelete(null);
     }
   };
- 
+
   const handleEdit = (pass) => {
     setEditPass(pass);
     setColor(`#${pass.Hexa}`);
@@ -114,11 +162,15 @@ function PassSetup() {
     setEditLocation(matchedLocation ? matchedLocation.id : '');
     setShowEditModal(true);
   };
- 
+
   const handleUpdate = async () => {
     if (!editPass) return;
-    const selectedLabel = locations.find(loc => loc.id === editLocation)?.label || editPass.title;
+    
+    setLoading(true);
+    setError(null);
     try {
+      const selectedLabel = locations.find(loc => loc.id === editLocation)?.label || editPass.title;
+      
       await axios.put(
         `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
         {
@@ -130,7 +182,8 @@ function PassSetup() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      alert('Pass updated');
+      
+      setSuccess('Pass updated successfully!');
       setEditPass(null);
       setColor('#ff0000');
       setEditLocation('');
@@ -138,131 +191,264 @@ function PassSetup() {
       fetchPasses();
     } catch (error) {
       console.error('Failed to update pass:', error);
-      alert('Failed to update pass');
+      setError('Failed to update pass. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
- 
+
   const toggleCanvas = () => setShowCanvas(!showCanvas);
- 
+
   return (
-    <div className="container mt-5 text-black">
-      <div className="row">
-        <div className="col-lg-6 col-md-8">
-          <div className="card border border-dark shadow p-4 rounded-4">
-            <h4 className="mb-4 fw-bold">Pass Setup</h4>
- 
-            <div className="mb-3">
-              <label className="form-label fw-bold">Location</label>
-              <select
-                className="form-select border border-dark"
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-              >
-                <option value="">Select Location</option>
-                {locations.map((loc, index) => (
-                  <option key={index} value={loc.id}>{loc.label}</option>
-                ))}
-              </select>
-            </div>
- 
-            <div className="mb-3">
-              <label className="form-label fw-bold">Choose Color</label><br />
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="color-picker"
-              />
-              <div className="mt-2">Selected HEX Code: <strong>{color}</strong></div>
-            </div>
- 
-            <div className="d-flex gap-2">
-              <button className="btn btn-primary fw-bold" onClick={handleCreate}>+ Create</button>
-              <button className="btn btn-outline-danger fw-bold" onClick={toggleCanvas}>View Created Passes</button>
-            </div>
-          </div>
-        </div>
-      </div>
- 
-      {/* Offcanvas */}
-      <div
-        className={`offcanvas offcanvas-end ${showCanvas ? 'show' : ''}`}
-        tabIndex="-1"
-        style={{ visibility: showCanvas ? 'visible' : 'hidden', backgroundColor: 'white' }}
-      >
-        <div className="offcanvas-header border-bottom border-dark">
-          <h5 className="offcanvas-title">Created Passes</h5>
-          <button type="button" className="btn-close" onClick={toggleCanvas}></button>
-        </div>
-        <div className="offcanvas-body">
-          {Array.isArray(passes) && passes.length > 0 ? (
-            <ul className="list-group">
-              {passes.map((pass) => (
-                <li key={pass._id} className="list-group-item shadow-sm rounded-3 mb-2 border border-dark text-black">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>{pass.title}</strong><br />
-                      <span className="badge rounded-pill" style={{ backgroundColor: `#${pass.Hexa}` }}>#{pass.Hexa}</span>
-                    </div>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(pass)}>Edit</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(pass._id)}>Delete</button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted">No passes created.</p>
-          )}
-        </div>
-      </div>
- 
-      {/* Edit Modal */}
-      {showEditModal && editPass && (
-        <div className="modal show d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Edit Pass</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEditModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <label className="form-label fw-bold">Select Location</label>
-                <select
-                  className="form-select border border-dark mb-3"
-                  value={editLocation}
-                  onChange={(e) => setEditLocation(e.target.value)}
+    <Container className="py-4">
+      <Row className="justify-content-center">
+        <Col lg={8} xl={6}>
+          <Card className="shadow-sm border-primary">
+            <Card.Header className="bg-primary text-white">
+              <h4 className="mb-0">
+                <Badge bg="light" className="me-2 text-primary">1</Badge>
+                Pass Setup
+              </h4>
+            </Card.Header>
+            <Card.Body>
+              {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
+              {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
+
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold">
+                  <Badge bg="light" className="me-2 text-primary">2</Badge>
+                  Location
+                </Form.Label>
+                <Form.Select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="border-primary"
                 >
-                  <option value="">Select Location</option>
+                  <option value="">Select a location</option>
                   {locations.map((loc, index) => (
                     <option key={index} value={loc.id}>{loc.label}</option>
                   ))}
-                </select>
- 
-                <label className="form-label fw-bold">Choose New Color</label>
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="form-control form-control-color"
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-4">
+                <Form.Label className="fw-bold">
+                  <Badge bg="light" className="me-2 text-primary">3</Badge>
+                  Choose Color
+                </Form.Label>
+                <div className="d-flex align-items-center gap-3">
+                  <Form.Control
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="form-control-color p-1 border border-primary rounded"
+                    title="Choose your color"
+                  />
+                  <div>
+                    <Badge bg="light" className="text-dark fs-6">
+                      HEX: <strong>{color}</strong>
+                    </Badge>
+                    <div 
+                      className="mt-1 rounded border border-primary" 
+                      style={{
+                        width: '100px',
+                        height: '30px',
+                        backgroundColor: color
+                      }}
+                    />
+                  </div>
+                </div>
+              </Form.Group>
+
+              <div className="d-flex gap-2 mt-4">
+                <Button 
+                  variant="primary" 
+                  onClick={handleCreate}
+                  disabled={loading || !selectedLocation}
+                >
+                  {loading ? (
+                    <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                  ) : (
+                    <>
+                      <Plus className="me-1" /> Create Pass
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline-secondary" onClick={toggleCanvas}>
+                  <Eye className="me-1" /> View Passes
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Offcanvas for viewing passes */}
+      <Offcanvas show={showCanvas} onHide={toggleCanvas} placement="end" className="w-50">
+        <Offcanvas.Header closeButton className="bg-light">
+          <Offcanvas.Title>
+            <h4 className="mb-0">
+              <Badge bg="primary" className="me-2">P</Badge>
+              Created Passes
+            </h4>
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          {loading ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-2">Loading passes...</p>
+            </div>
+          ) : error ? (
+            <Alert variant="danger">{error}</Alert>
+          ) : Array.isArray(passes) && passes.length > 0 ? (
+            <ListGroup variant="flush">
+              {passes.map((pass) => (
+                <ListGroup.Item key={pass._id} className="py-3">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5 className="mb-1">{pass.title}</h5>
+                      <Badge 
+                        pill 
+                        style={{ 
+                          backgroundColor: `#${pass.Hexa}`,
+                          color: getContrastColor(pass.Hexa)
+                        }}
+                      >
+                        #{pass.Hexa}
+                      </Badge>
+                    </div>
+                    <div className="d-flex gap-2">
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm" 
+                        onClick={() => handleEdit(pass)}
+                        aria-label="Edit pass"
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => confirmDelete(pass)}
+                        aria-label="Delete pass"
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
+          ) : (
+            <Alert variant="info">
+              No passes created yet. Create your first one above.
+            </Alert>
+          )}
+        </Offcanvas.Body>
+      </Offcanvas>
+
+      {/* Edit Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>Edit Pass</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold">Location</Form.Label>
+            <Form.Select
+              value={editLocation}
+              onChange={(e) => setEditLocation(e.target.value)}
+              className="border-primary"
+            >
+              <option value="">Select a location</option>
+              {locations.map((loc, index) => (
+                <option key={index} value={loc.id}>{loc.label}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group>
+            <Form.Label className="fw-bold">Color</Form.Label>
+            <div className="d-flex align-items-center gap-3">
+              <Form.Control
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="form-control-color p-1 border border-primary rounded"
+                title="Choose your color"
+              />
+              <div>
+                <Badge bg="light" className="text-dark fs-6">
+                  HEX: <strong>{color}</strong>
+                </Badge>
+                <div 
+                  className="mt-1 rounded border border-primary" 
+                  style={{
+                    width: '100px',
+                    height: '30px',
+                    backgroundColor: color
+                  }}
                 />
               </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button className="btn btn-success" onClick={handleUpdate}>Save Changes</button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="success" onClick={handleUpdate} disabled={loading}>
+            {loading ? (
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+            ) : (
+              <>
+                <Check className="me-1" /> Save Changes
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>Confirm Deletion</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete the pass: <strong>{passToDelete?.title}</strong>?
+          <br />
+          This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDelete} disabled={loading}>
+            {loading ? (
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+            ) : (
+              'Delete'
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </Container>
   );
 }
- 
-export default PassSetup;
- 
- 
- 
 
- 
+// Helper function to determine text color based on background
+function getContrastColor(hexColor) {
+  // Convert hex to RGB
+  const r = parseInt(hexColor.substring(0, 2), 16);
+  const g = parseInt(hexColor.substring(2, 4), 16);
+  const b = parseInt(hexColor.substring(4, 6), 16);
+  
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return dark or light color based on luminance
+  return luminance > 0.5 ? '#000000' : '#FFFFFF';
+}
+
+export default PassSetup;

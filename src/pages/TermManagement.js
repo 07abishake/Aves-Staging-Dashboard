@@ -7,7 +7,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api.avessecurity.com/api/termandcondition';
+const API_BASE_URL = 'http://localhost:6378/api/termandcondition';
 
 const token = localStorage.getItem("access_token");
 if (!token) {
@@ -401,14 +401,24 @@ const TermDetails = ({ term, onHide }) => {
             </ListGroup.Item>
             <ListGroup.Item>
               <div className="d-flex justify-content-between">
-                <strong>Location ID:</strong> 
-                <span>{term.Location || 'N/A'}</span>
+                <strong>Location :</strong> 
+                <span>     {term.Location ? (
+        <>
+          {term.Location.PrimaryLocation} - {term.Location.SubLocation}
+          {term.Location.SecondaryLocation?.[0] && (
+            <> / {term.Location.SecondaryLocation[0].SecondaryLocation}</>
+          )}
+          {term.Location.SecondaryLocation?.[0]?.ThirdLocation?.[0] && (
+            <> / {term.Location.SecondaryLocation[0].ThirdLocation[0].ThirdLocation}</>
+          )}
+        </>
+      ) : 'N/A'}</span>
               </div>
             </ListGroup.Item>
             <ListGroup.Item>
               <div className="d-flex justify-content-between">
                 <strong>Department ID:</strong> 
-                <span>{term.Department || 'N/A'}</span>
+                <span>{term.Department?.name || 'N/A'}</span>
               </div>
             </ListGroup.Item>
           </ListGroup>
@@ -585,7 +595,7 @@ const TermManagement = () => {
                             : term.Create}
                         </div>
                       </td>
-                      <td>{term.Department || 'N/A'}</td>
+                      <td>{term.Department?.name || 'N/A'}</td>
                       <td className="text-center">
                         <Button
                           variant="outline-info"

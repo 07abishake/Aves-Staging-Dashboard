@@ -7,6 +7,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 import { format } from 'date-fns';
+import debounce from "lodash.debounce";
 
 const API_BASE_URL = 'https://api.avessecurity.com/api/event';
 
@@ -211,6 +212,133 @@ const LocationDropdown = ({ value, onChange }) => {
           ))}
         </Form.Select>
       )}
+    </Form.Group>
+  );
+};
+
+// Event Incharge Dropdown Component with Search
+const EventInchargeDropdown = ({ value, onChange }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [inputValue, setInputValue] = useState(value || '');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const fetchUsers = debounce(async (query) => {
+    if (!query || query.length < 2) {
+      setUsers([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.get(
+        `https://api.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data && response.data.Report) {
+        setUsers(response.data.Report);
+        setShowSuggestions(true);
+      } else {
+        setUsers([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setError(error.response?.data?.message || error.message || 'Failed to fetch users');
+      setUsers([]);
+      setShowSuggestions(false);
+    } finally {
+      setLoading(false);
+    }
+  }, 300);
+
+  useEffect(() => {
+    fetchUsers(inputValue);
+    return () => {
+      fetchUsers.cancel();
+    };
+  }, [inputValue]);
+
+  const handleInputChange = (e) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    if (!newValue) {
+      onChange({ target: { name: 'EventIncharge', value: '' } });
+    }
+  };
+
+  const handleSelectUser = (user) => {
+    setInputValue(user.username);
+    onChange({ target: { name: 'EventIncharge', value: user.username } });
+    setShowSuggestions(false);
+  };
+
+  const handleFocus = () => {
+    if (inputValue && users.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  return (
+    <Form.Group controlId="EventIncharge" className="mb-3">
+      <Form.Label>Event Incharge</Form.Label>
+      <div className="position-relative">
+        <Form.Control
+          type="text"
+          name="EventIncharge"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder="Start typing to search..."
+          autoComplete="off"
+          disabled={loading}
+        />
+        
+        {loading && (
+          <div className="position-absolute end-0 top-0 mt-2 me-2">
+            <Spinner animation="border" size="sm" />
+          </div>
+        )}
+        
+        {error && (
+          <Alert variant="danger" className="mt-2 py-1">
+            {error}
+          </Alert>
+        )}
+        
+        {showSuggestions && users.length > 0 && (
+          <ListGroup 
+            className="position-absolute w-100 mt-1 border shadow" 
+            style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
+          >
+            {users.map((user) => (
+              <ListGroup.Item 
+                key={user._id}
+                action
+                onClick={() => handleSelectUser(user)}
+                className="py-2"
+              >
+                {user.username}
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        )}
+      </div>
     </Form.Group>
   );
 };
@@ -454,13 +582,9 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         </Form.Group>
 
         <Form.Group as={Col} controlId="EventIncharge">
-          <Form.Label>Event Incharge</Form.Label>
-          <Form.Control
-            type="text"
-            name="EventIncharge"
+          <EventInchargeDropdown
             value={formData.EventIncharge}
             onChange={handleChange}
-            placeholder="Enter incharge name"
           />
         </Form.Group>
       </Row>
@@ -768,15 +892,15 @@ const EventManagement = () => {
     loadEvents();
   };
 
- const filteredEvents = events.filter(event => {
-  if (!event) return false;
-  const matchesSearch = (
-    event.EventName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    event.Client?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const matchesType = filterType === 'All' || event.Type === filterType;
-  return matchesSearch && matchesType;
-});
+  const filteredEvents = events.filter(event => {
+    if (!event) return false;
+    const matchesSearch = (
+      event.EventName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      event.Client?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const matchesType = filterType === 'All' || event.Type === filterType;
+    return matchesSearch && matchesType;
+  });
 
   if (loading) {
     return (
