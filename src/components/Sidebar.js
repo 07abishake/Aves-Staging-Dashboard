@@ -199,12 +199,12 @@ function Sidebar() {
                                         </NavLink>
                                     </li>
                                     <li className="nav-item">
-                                        <NavLink to="/policy" className="nav-link">
+                                        <NavLink to="/Property" className="nav-link">
                                             <i className="bi bi-file-earmark-text me-2"></i> Policy
                                         </NavLink>
                                     </li>
                                     <li className="nav-item">
-                                        <NavLink to="/sustainability" className="nav-link">
+                                        <NavLink to="/SustainablityManager" className="nav-link">
                                             <i className="bi bi-tree me-2"></i> Sustainability
                                         </NavLink>
                                     </li>

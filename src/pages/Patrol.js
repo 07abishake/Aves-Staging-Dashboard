@@ -32,11 +32,11 @@ const greenIcon = new L.Icon({
 // Time options for dropdown
 const timeOptions = [
   "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM",
-    "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM",
-    "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
-    "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
-    "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM",
-    "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
+  "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM",
+  "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+  "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
+  "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM",
+  "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
 ];
 
 function SetViewToCurrentLocation() {
@@ -92,8 +92,8 @@ function Patrol() {
     const [selectedUser, setSelectedUser] = useState("");
     const [selectedPatrolToAssign, setSelectedPatrolToAssign] = useState('');
     const [showAssignCanvas, setShowAssignCanvas] = useState(false);
- const [startDate, setStartDate] = useState('');
-const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     
@@ -147,7 +147,7 @@ const [endDate, setEndDate] = useState('');
         axios.get('https://api.avessecurity.com/api/Location/getLocations', {
             headers: { Authorization: `Bearer ${token}` }
         })
-        .then(res => setLocations(res.data.Location))
+        .then(res => setLocations(res.data.Location || []))
         .catch(err => console.error('Error fetching locations:', err));
     };
 
@@ -228,50 +228,116 @@ const [endDate, setEndDate] = useState('');
 
     const handleAssignPatrol = async () => {
         if (!selectedUser || !startDate || !endDate || !startTime || !endTime || !selectedPatrolToAssign) {
-        alert("Please fill in all fields.");
-        return;
-    }
-
-       if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
-        alert("This user already has a patrol assignment during the selected time period.");
-        return;
-    }
-
-    const data = {
-        userId: selectedUser,
-        startDate: startDate,
-        endDate: endDate,
-        patrollSetId: selectedPatrolToAssign,
-        StartedAt: startTime,
-        EndedAt: endTime,
-    };
-
-    try {
-        const response = await axios.post(
-            "https://api.avessecurity.com/api/Patrol/Assign", 
-            data, 
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        if (response.status === 200) {
-            alert("Patrol Assigned Successfully!");
-            setShowAssignCanvas(false);
-            fetchAssignedPatrols();
+            alert("Please fill in all fields.");
+            return;
         }
-    } catch (err) {
-        console.error(err);
-        alert("Failed to assign patrol.");
-    }
+
+        if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
+            alert("This user already has a patrol assignment during the selected time period.");
+            return;
+        }
+
+        const data = {
+            userId: selectedUser,
+            startDate: startDate,
+            endDate: endDate,
+            patrollSetId: selectedPatrolToAssign,
+            StartedAt: startTime,
+            EndedAt: endTime,
+        };
+
+        try {
+            const response = await axios.post(
+                "https://api.avessecurity.com/api/Patrol/Assign", 
+                data, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            if (response.status === 200) {
+                alert("Patrol Assigned Successfully!");
+                setShowAssignCanvas(false);
+                fetchAssignedPatrols();
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to assign patrol.");
+        }
     };
     
-    useEffect(() => {
-    if (selectedUser && startDate && endDate && startTime && endTime) {
-        if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
-            alert("User Not Available for this patrol. Please select another user or adjust the time.");
-        }
-    }
-}, [startTime, endTime]);
+    const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+        if (!shiftStart || !shiftEnd) return timeOptions;
+        
+        // Get current time
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTotalMinutes = currentHours * 60 + currentMinutes;
+        
+        // Convert shift times to 24-hour format for easier comparison
+        const convertToMinutes = (timeStr) => {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let total = hours * 60 + minutes;
+            if (period === 'PM' && hours !== 12) total += 12 * 60;
+            if (period === 'AM' && hours === 12) total -= 12 * 60;
+            return total;
+        };
 
+        const startMinutes = convertToMinutes(shiftStart);
+        const endMinutes = convertToMinutes(shiftEnd);
+        
+        return timeOptions.filter(time => {
+            const [timeStr, period] = time.split(' ');
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            let total = hours * 60 + minutes;
+            if (period === 'PM' && hours !== 12) total += 12 * 60;
+            if (period === 'AM' && hours === 12) total -= 12 * 60;
+            
+            // Check if time is within shift hours AND not in the past
+            return total >= startMinutes && 
+                   total <= endMinutes && 
+                   total >= currentTotalMinutes;
+        });
+    };
+
+    const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
+        // Convert time strings to minutes for easier comparison
+        const timeToMinutes = (timeStr) => {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let total = hours * 60 + minutes;
+            if (period === 'PM' && hours !== 12) total += 12 * 60;
+            if (period === 'AM' && hours === 12) total -= 12 * 60;
+            return total;
+        };
+
+        const newStartMinutes = timeToMinutes(newStartTime);
+        const newEndMinutes = timeToMinutes(newEndTime);
+        const newStartDateObj = new Date(newStartDate);
+        const newEndDateObj = new Date(newEndDate);
+
+        return assignedPatrols.some(assignment => {
+            // Skip if assignment or userId is null
+            if (!assignment || !assignment.userId || !assignment.userId._id) return false;
+            
+            // Skip if not the same user
+            if (assignment.userId._id !== userId) return false;
+
+            const assignmentStartDate = new Date(assignment.startDate);
+            const assignmentEndDate = new Date(assignment.endDate);
+            
+            // Check if date ranges overlap
+            if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
+                return false;
+            }
+
+            // If dates overlap, check time ranges
+            const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
+            const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
+
+            return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
+        });
+    };
 
     const handleSubmit = () => {
         const payload = {
@@ -327,18 +393,21 @@ const [endDate, setEndDate] = useState('');
     };
 
     const handleDeleteAssignpatrol = async (assignmentId) => {
-               const confirmDelete = window.confirm("Are you sure you want to delete this patrol?");
+        const confirmDelete = window.confirm("Are you sure you want to delete this patrol?");
         if (!confirmDelete) return;
- try{
-       await axios.delete(
-            `https://api.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
-            { headers: { Authorization: `Bearer ${token}` } })
+        try {
+            await axios.delete(
+                `https://api.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             alert("Patrol assignment deleted successfully");
- }
- catch(err){
-    console.error('Submit error:', err);
-    alert("Failed to delete patrol assignment.");
- }    }
+            fetchAssignedPatrols();
+        } catch(err) {
+            console.error('Submit error:', err);
+            alert("Failed to delete patrol assignment.");
+        }
+    };
+
     const openFormCanvas = () => {
         setPatrolName('');
         setSelectedPrimary('');
@@ -366,72 +435,6 @@ const [endDate, setEndDate] = useState('');
     const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
     const getSelectedSecondary = () => getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
     const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
-//     Add a function to get filtered time options based on shift hours
-// Then update the getFilteredTimeOptions function to properly filter based on shift times
-const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
-    if (!shiftStart || !shiftEnd) return timeOptions;
-    
-    // Convert shift times to 24-hour format for easier comparison
-    const convertToMinutes = (timeStr) => {
-        const [time, period] = timeStr.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
-        let total = hours * 60 + minutes;
-        if (period === 'PM' && hours !== 12) total += 12 * 60;
-        if (period === 'AM' && hours === 12) total -= 12 * 60;
-        return total;
-    };
-
-    const startMinutes = convertToMinutes(shiftStart);
-    const endMinutes = convertToMinutes(shiftEnd);
-    
-    return timeOptions.filter(time => {
-        const [timeStr, period] = time.split(' ');
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        let total = hours * 60 + minutes;
-        if (period === 'PM' && hours !== 12) total += 12 * 60;
-        if (period === 'AM' && hours === 12) total -= 12 * 60;
-        
-        return total >= startMinutes && total <= endMinutes;
-    });
-};
-
-
-//function to handle overlapping time options
-const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
-    // Convert time strings to minutes for easier comparison
-    const timeToMinutes = (timeStr) => {
-        const [time, period] = timeStr.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
-        let total = hours * 60 + minutes;
-        if (period === 'PM' && hours !== 12) total += 12 * 60;
-        if (period === 'AM' && hours === 12) total -= 12 * 60;
-        return total;
-    };
-
-    const newStartMinutes = timeToMinutes(newStartTime);
-    const newEndMinutes = timeToMinutes(newEndTime);
-    const newStartDateObj = new Date(newStartDate);
-    const newEndDateObj = new Date(newEndDate);
-
-    return assignedPatrols.some(assignment => {
-        // Skip if not the same user
-        if (assignment.userId._id !== userId) return false;
-
-        const assignmentStartDate = new Date(assignment.startDate);
-        const assignmentEndDate = new Date(assignment.endDate);
-        
-        // Check if date ranges overlap
-        if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
-            return false;
-        }
-
-        // If dates overlap, check time ranges
-        const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
-        const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
-
-        return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
-    });
-};
 
     return (
         <div className="container mt-4">

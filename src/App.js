@@ -82,10 +82,12 @@ import TermManagement from './pages/TermManagement';
 import ProductManager from './pages/Product';
 import InventoryManager from './pages/InventoryManager';
 import CCTvRequest from './pages/CCTvRequest';
-import SustainabilityManager from './pages/SustainabilityManager';
+// import SustainabilityManager from './pages/SustainabilityManager';
 import FirstAidReport from './pages/FirstAidReport';
 import EmergencyCodeManager from './pages/EmergencyCodeManager'
 import PassSetup from './pages/PassSetup';
+import PropertyPolices from './pages/PropertyPolices';
+// import SustainabilityManagement from './pages/SustainabilityManagement';
 
 
 function App() {
@@ -134,11 +136,13 @@ function App() {
           <Route path='/inventory-manager' element={<InventoryManager/>}/>
           <Route path ='/product' element={<ProductManager/>}/>
           <Route path ='/cctv-request' element={<CCTvRequest/>}/>
-          <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/>
+          {/* <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/> */}
           <Route path ='/FirstAidReport' element={<FirstAidReport/>}/>
           <Route path ='/EmergencyCodeManager'element={<EmergencyCodeManager/>}/>
           <Route path ='/PassSetup' element={<PassSetup/>}/>
-       
+       <Route path='/Property' element={<PropertyPolices/>} />
+       {/* <Route path ='/SustainablityManager' element={<SustainabilityManagement/>}/> */}
+
 
            
             </Route>
