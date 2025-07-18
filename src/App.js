@@ -69,7 +69,7 @@ import AddLocation from './pages/GeoLocation';
 import LocationForm from './pages/Location';
 import Patrol from './pages/Patrol';
 import SopManager from './pages/SopManager';
-import  InventoryStatus  from './pages/InventoryStatus';
+import InventoryStatus from './pages/InventoryStatus';
 import { LocationInfo } from './pages/LocationInfo';
 import ItemDetails from './pages/ItemDetails'
 import OccurrenceManager from './pages/OccurrenceManager'
@@ -88,6 +88,7 @@ import EmergencyCodeManager from './pages/EmergencyCodeManager'
 import PassSetup from './pages/PassSetup';
 import PropertyPolices from './pages/PropertyPolices';
 import SustainabilityManagement from './pages/SustainabilityManagement';
+import OshaInvite from './pages/OshaInvite';
 
 
 function App() {
@@ -109,15 +110,15 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/organization" element={<OrganizationSettings />} />
-              <Route path="/organisation-chart" element={<OrganizationView/>}/>
+              <Route path="/organisation-chart" element={<OrganizationView />} />
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/department" element={<Departments />} />
               <Route path="/teams" element={<Teams />} />
-              <Route path="/patrol" element={<Patrol/>} />
+              <Route path="/patrol" element={<Patrol />} />
               <Route path="/location/add-location" element={<AddLocation />} />
-              <Route path="/sop" element={<SopManager/>} />
-              <Route path='/loaction-info' element={<LocationInfo/>}/>
-              <Route path ='/items-details' element={<ItemDetails/>}/>
+              <Route path="/sop" element={<SopManager />} />
+              <Route path='/loaction-info' element={<LocationInfo />} />
+              <Route path='/items-details' element={<ItemDetails />} />
               <Route path="/designation" element={<Designation />} />
               <Route path="/resources" element={<ResourceManagement />} />
               <Route path="/customization" element={<Customization />} />
@@ -126,25 +127,26 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/location" element={<LocationForm />} />
               <Route path='/inventory-status' element={<InventoryStatus />} />
-              <Route path='/OccurrenceManager'element={<OccurrenceManager/>}/>
-             <Route path='/ShiftCreate' element={<ShiftManager/>}/>
-          <Route path="/assign" element={<ShiftAssignmentManager/>}/>
-          <Route path="/upgrade" element={<UpgradeManager/>}/>
-          <Route path='/event-management' element={<EventManagement/>}/>
-          <Route path ='/terms-condition' element={<TermManagement/>}/>
-          <Route path='/department' element={<Departments/>}/>
-          <Route path='/inventory-manager' element={<InventoryManager/>}/>
-          <Route path ='/product' element={<ProductManager/>}/>
-          <Route path ='/cctv-request' element={<CCTvRequest/>}/>
-          {/* <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/> */}
-          <Route path ='/FirstAidReport' element={<FirstAidReport/>}/>
-          <Route path ='/EmergencyCodeManager'element={<EmergencyCodeManager/>}/>
-          <Route path ='/PassSetup' element={<PassSetup/>}/>
-       <Route path='/Property' element={<PropertyPolices/>} />
-       <Route path ='/SustainablityManager' element={<SustainabilityManagement/>}/>
+              <Route path='/OccurrenceManager' element={<OccurrenceManager />} />
+              <Route path='/ShiftCreate' element={<ShiftManager />} />
+              <Route path="/assign" element={<ShiftAssignmentManager />} />
+              <Route path="/upgrade" element={<UpgradeManager />} />
+              <Route path='/event-management' element={<EventManagement />} />
+              <Route path='/terms-condition' element={<TermManagement />} />
+              <Route path='/department' element={<Departments />} />
+              <Route path='/inventory-manager' element={<InventoryManager />} />
+              <Route path='/product' element={<ProductManager />} />
+              <Route path='/cctv-request' element={<CCTvRequest />} />
+              {/* <Route path='/SustainabilityManager' element={<SustainabilityManager/>}/> */}
+              <Route path='/FirstAidReport' element={<FirstAidReport />} />
+              <Route path='/EmergencyCodeManager' element={<EmergencyCodeManager />} />
+              <Route path='/PassSetup' element={<PassSetup />} />
+              <Route path='/Property' element={<PropertyPolices />} />
+              <Route path='/SustainablityManager' element={<SustainabilityManagement />} />
+              <Route path='/osha-invite' element={<OshaInvite />} />
 
 
-           
+
             </Route>
           </Routes>
         </main>
