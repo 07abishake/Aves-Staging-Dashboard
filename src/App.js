@@ -87,7 +87,7 @@ import FirstAidReport from './pages/FirstAidReport';
 import EmergencyCodeManager from './pages/EmergencyCodeManager'
 import PassSetup from './pages/PassSetup';
 import PropertyPolices from './pages/PropertyPolices';
-// import SustainabilityManagement from './pages/SustainabilityManagement';
+import SustainabilityManagement from './pages/SustainabilityManagement';
 
 
 function App() {
@@ -141,7 +141,7 @@ function App() {
           <Route path ='/EmergencyCodeManager'element={<EmergencyCodeManager/>}/>
           <Route path ='/PassSetup' element={<PassSetup/>}/>
        <Route path='/Property' element={<PropertyPolices/>} />
-       {/* <Route path ='/SustainablityManager' element={<SustainabilityManagement/>}/> */}
+       <Route path ='/SustainablityManager' element={<SustainabilityManagement/>}/>
 
 
            
