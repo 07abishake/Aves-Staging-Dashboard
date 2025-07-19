@@ -103,9 +103,9 @@ function Sidebar() {
                                     <li className="nav-item">
                                         <NavLink to="/organization" className="nav-link">Company Info</NavLink>
                                     </li>
-                                    <li className="nav-item">
+                                    {/* <li className="nav-item">
                                         <NavLink to="/organisation-chart" className="nav-link">Organization Chart</NavLink>
-                                    </li>
+                                    </li> */}
                                 </ul>
                             )}
                         </li>
@@ -126,9 +126,9 @@ function Sidebar() {
                             </div>
                             {locationMenuOpen && (
                                 <ul className="nav flex-column ms-4">
-                                    <li className="nav-item">
+                                    {/* <li className="nav-item">
                                         <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
-                                    </li>
+                                    </li> */}
                                     <li className="nav-item">
                                         <NavLink to="/location" className="nav-link">Location</NavLink>
                                     </li>
@@ -209,7 +209,7 @@ function Sidebar() {
                                         </NavLink>
                                     </li>
                                         <li className="nav-item">
-                                            <NavLink to="/training" className="nav-link">
+                                            <NavLink to="/Training" className="nav-link">
                                                 <i className="bi bi-mortarboard me-2"></i> Training
                                             </NavLink>
                                         </li>

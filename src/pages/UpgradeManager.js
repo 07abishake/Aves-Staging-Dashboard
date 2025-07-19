@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Container, Card, Button, Offcanvas, Form, 
+  Container, Button, Offcanvas, Form, 
   Row, Col, Badge, Spinner, Alert, Image, 
-  ListGroup, Modal 
+  ListGroup, Modal, Table
 } from 'react-bootstrap';
 import axios from 'axios';
 import moment from 'moment';
@@ -215,181 +215,159 @@ const UpgradeManager = () => {
 
   return (
     <Container className="py-4">
-      <Card className="shadow-sm border-0">
-        <Card.Body className="p-4">
-          <Row className="mb-4 align-items-center">
-            <Col>
-              <h4 className="mb-0 text-primary">Upgrade Manager</h4>
-              <p className="text-muted mb-0">Manage equipment upgrades and requests</p>
-            </Col>
-            <Col className="text-end">
-              <Button 
-                variant="primary" 
-                onClick={() => handleOpenForm()}
-                className="shadow-sm"
-              >
-                <i className=" me-2"></i>Add Upgrade
-              </Button>
-            </Col>
-          </Row>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="mb-0">Upgrade Manager</h4>
+        <Button 
+          variant="primary" 
+          onClick={() => handleOpenForm()}
+          className="shadow-sm"
+        >
+          <i className=" me-2"></i>Add Upgrade
+        </Button>
+      </div>
 
-          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
-          {loading && upgrades.length === 0 ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="primary" />
-              <p className="mt-3">Loading upgrades...</p>
-            </div>
-          ) : upgrades.length === 0 ? (
-            <Card className="text-center py-5 shadow-sm">
-              <Card.Body>
-                <i className="bi bi-box-seam text-muted" style={{ fontSize: '3rem' }}></i>
-                <h5 className="mt-3">No Upgrades Found</h5>
-                <p className="text-muted">Create your first upgrade request</p>
-              </Card.Body>
-            </Card>
-          ) : (
-            <Row xs={1} md={2} lg={3} className="g-4">
-              {upgrades.map((item) => (
-                <Col key={item._id}>
-                  <Card className="h-100 shadow-sm">
-                    <Card.Body>
-                      <div className="d-flex justify-content-between align-items-start mb-3">
-                        <Card.Title className="mb-0">
-                          {item.OEItems || 'No Item Name'}
-                          {item.ReportNo && (
-                            <small className="d-block text-muted">Report #: {item.ReportNo}</small>
-                          )}
-                        </Card.Title>
-                        <Badge bg="info" className="text-dark">
-                          {item.Department || 'No Department'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="mb-3">
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Qty Required:</span>
-                          <strong>{item.Quantityrequired || 'N/A'}</strong>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Total Price:</span>
-                          <strong>${item.TotalPrice || '0.00'}</strong>
-                        </div>
-                      </div>
-
-                      {item.Description && (
-                        <Card.Text className="text-muted small mb-3">
-                          {item.Description.length > 100 
-                            ? `${item.Description.substring(0, 100)}...` 
-                            : item.Description}
-                        </Card.Text>
-                      )}
-
-                      <div className="d-flex justify-content-between align-items-center">
-                        <small className="text-muted">
-                          Submitted by {item.SubmittedBy || 'Unknown'} on {moment(item.SubmittedDate).format('MMM D, YYYY')}
-                        </small>
-                        <div>
-                          <Button 
-                            variant="outline-info" 
-                            size="sm" 
-                            onClick={() => handleViewUpgrade(item)}
-                            className="me-2"
-                          >
-                            <i className="bi bi-eye "></i>
-                          </Button>
-                          <Button 
-                            variant="outline-primary" 
-                            size="sm" 
-                            onClick={() => handleOpenForm(item)}
-                            className="me-2"
-                          >
-                            <i className="bi bi-pencil"></i>
-                          </Button>
-                          <Button 
-                            variant="outline-danger" 
-                            size="sm" 
-                            onClick={() => confirmDelete(item._id)}
-                          >
-                            <i className="bi bi-trash"></i>
-                          </Button>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
+      {loading && upgrades.length === 0 ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Loading upgrades...</p>
+        </div>
+      ) : upgrades.length === 0 ? (
+        <div className="text-center py-5 border rounded">
+          <i className="bi bi-box-seam text-muted" style={{ fontSize: '3rem' }}></i>
+          <h5 className="mt-3">No Upgrades Found</h5>
+          <p className="text-muted">Create your first upgrade request</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded shadow-sm p-3">
+          <Table striped  responsive>
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>OE Items</th>
+                <th>Department</th>
+                <th>Qty Required</th>
+                <th>Total Price</th>
+                <th>Submitted On</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {upgrades.map((item, index) => (
+                <tr key={item._id}>
+                  <td>{index + 1}</td>
+                  <td>{item.OEItems || 'N/A'}</td>
+                  <td>{item.Department || 'N/A'}</td>
+                  <td>{item.Quantityrequired || 'N/A'}</td>
+                  <td>${item.TotalPrice || '0.00'}</td>
+                  <td>
+                    {moment(item.SubmittedDate).format('MMM D, YYYY')}
+                    <div className="text-muted small">{item.SubmittedTime}</div>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-2">
+                      <Button 
+                        variant="outline-info" 
+                        size="sm" 
+                        onClick={() => handleViewUpgrade(item)}
+                        title="View"
+                      >
+                        <i className="bi bi-eye"></i>
+                      </Button>
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm" 
+                        onClick={() => handleOpenForm(item)}
+                        title="Edit"
+                      >
+                        <i className="bi bi-pencil"></i>
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => confirmDelete(item._id)}
+                        title="Delete"
+                      >
+                        <i className="bi bi-trash"></i>
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </Row>
-          )}
-        </Card.Body>
-      </Card>
+            </tbody>
+          </Table>
+        </div>
+      )}
 
       {/* View Offcanvas */}
       <Offcanvas show={showViewCanvas} onHide={handleCloseAll} placement="end" style={{ width: '600px' }}>
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title>
-            <i className="bi bi-eye p-3"></i>
+            <i className="bi bi-eye me-2"></i>
             Upgrade Details
           </Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           {currentUpgrade && (
             <>
-              <ListGroup variant="flush">
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Report #:</span>
-                  <span>{currentUpgrade.ReportNo || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">OE Items:</span>
-                  <span>{currentUpgrade.OEItems || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Original Product:</span>
-                  <span>{currentUpgrade.OriginalProduct || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Quantity On Hand:</span>
-                  <span>{currentUpgrade.QuantityOnhand || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Quantity Required:</span>
-                  <span>{currentUpgrade.Quantityrequired || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Quantity In Stock:</span>
-                  <span>{currentUpgrade.QuantityInStock || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Price Per Item:</span>
-                  <span>${currentUpgrade.PricePerItem || '0.00'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Total Price:</span>
-                  <span>${currentUpgrade.TotalPrice || '0.00'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Department:</span>
-                  <span>{currentUpgrade.Department || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item>
-                  <span className="fw-bold">Description:</span>
-                  <p>{currentUpgrade.Description || 'No description provided'}</p>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Submitted By:</span>
-                  <span>{currentUpgrade.SubmittedBy || 'N/A'}</span>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span className="fw-bold">Submitted On:</span>
-                  <span>
-                    {moment(currentUpgrade.SubmittedDate).format('MMM D, YYYY')} at {currentUpgrade.SubmittedTime || 'N/A'}
-                  </span>
-                </ListGroup.Item>
-              </ListGroup>
+              <div className="mb-4">
+                <h5>{currentUpgrade.OEItems || 'N/A'}</h5>
+                <p className="text-muted">Report #: {currentUpgrade.ReportNo || 'N/A'}</p>
+              </div>
+
+              <Table borderless className="mb-4">
+                <tbody>
+                  <tr>
+                    <td className="fw-bold" style={{ width: '40%' }}>Original Product:</td>
+                    <td>{currentUpgrade.OriginalProduct || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Quantity On Hand:</td>
+                    <td>{currentUpgrade.QuantityOnhand || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Quantity Required:</td>
+                    <td>{currentUpgrade.Quantityrequired || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Quantity In Stock:</td>
+                    <td>{currentUpgrade.QuantityInStock || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Price Per Item:</td>
+                    <td>${currentUpgrade.PricePerItem || '0.00'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Total Price:</td>
+                    <td>${currentUpgrade.TotalPrice || '0.00'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Department:</td>
+                    <td>{currentUpgrade.Department || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Submitted By:</td>
+                    <td>{currentUpgrade.SubmittedBy || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Submitted On:</td>
+                    <td>
+                      {moment(currentUpgrade.SubmittedDate).format('MMM D, YYYY')} at {currentUpgrade.SubmittedTime || 'N/A'}
+                    </td>
+                  </tr>
+                </tbody>
+              </Table>
+
+              <div className="mb-4">
+                <h6>Description</h6>
+                <div className="border p-3 rounded bg-light">
+                  {currentUpgrade.Description || 'No description provided'}
+                </div>
+              </div>
 
               {currentUpgrade.PictureOfTheNewproduct?.length > 0 && (
-                <div className="mt-4">
+                <div className="mb-4">
                   <h6>New Product Images</h6>
                   <div className="d-flex flex-wrap gap-2">
                     {currentUpgrade.PictureOfTheNewproduct.map((img, index) => (
@@ -400,7 +378,7 @@ const UpgradeManager = () => {
               )}
 
               {currentUpgrade.PictureOfTheExistingProduct?.length > 0 && (
-                <div className="mt-3">
+                <div className="mb-4">
                   <h6>Existing Product Images</h6>
                   <div className="d-flex flex-wrap gap-2">
                     {currentUpgrade.PictureOfTheExistingProduct.map((img, index) => (
@@ -410,7 +388,7 @@ const UpgradeManager = () => {
                 </div>
               )}
 
-              <div className="mt-4 d-flex justify-content-end gap-2">
+              <div className="d-flex justify-content-end gap-2 mt-4">
                 <Button 
                   variant="secondary" 
                   onClick={handleCloseAll}
@@ -424,7 +402,7 @@ const UpgradeManager = () => {
                     handleOpenForm(currentUpgrade);
                   }}
                 >
-                  <i className="bi bi-pencil me-2"></i>Edit Upgrade
+                  <i className="bi bi-pencil me-2"></i>Edit
                 </Button>
               </div>
             </>
@@ -633,7 +611,7 @@ const UpgradeManager = () => {
                   </>
                 ) : (
                   <>
-                    <i className={editMode ? ' me-2' : ' me-'}></i>
+                    <i className={editMode ? 'bi bi-save me-2' : ' me-2'}></i>
                     {editMode ? 'Update Upgrade' : 'Create Upgrade'}
                   </>
                 )}

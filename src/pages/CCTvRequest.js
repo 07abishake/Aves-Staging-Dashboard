@@ -25,12 +25,17 @@ import {
   X, 
   Check,
   Clock,
-  Calendar,
+  Calendar as CalendarIcon,
   Person,
   GeoAlt,
   CardChecklist,
   InfoCircle
 } from 'react-bootstrap-icons';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const localizer = momentLocalizer(moment);
 
 const CCTvRequest = () => {
   // Main state
@@ -49,6 +54,38 @@ const CCTvRequest = () => {
     generalError: ''
   });
   const [activeTab, setActiveTab] = useState('all');
+  const [viewData, setViewData] = useState(null);
+
+  // Calendar events
+  const calendarEvents = requests.map(request => {
+    const requestDate = request.ForMySelf ? request.MySelfDate : request.ForOthersDate;
+    return {
+      id: request._id,
+      title: request.Title,
+      start: new Date(requestDate),
+      end: new Date(requestDate),
+      allDay: true,
+      status: request.Status
+    };
+  });
+
+  const eventStyleGetter = (event) => {
+    let backgroundColor = '#3174ad'; // default blue
+    if (event.status === 'Approved') backgroundColor = '#28a745'; // green
+    if (event.status === 'Rejected') backgroundColor = '#dc3545'; // red
+    if (event.status === 'Pending') backgroundColor = '#ffc107'; // yellow
+
+    return {
+      style: {
+        backgroundColor,
+        borderRadius: '4px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+      }
+    };
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -78,7 +115,6 @@ const CCTvRequest = () => {
       [name]: type === 'checkbox' ? checked : value
     });
     
-    // Clear location error when a location is selected
     if (name === 'MySelfLocationOFIncident' || name === 'ForOthersLocationOFIncident') {
       setFormErrors({
         ...formErrors,
@@ -128,19 +164,17 @@ const CCTvRequest = () => {
     });
   };
 
-  // Process nested location data to create a flat list of all possible locations
+  // Process nested location data
   const processLocations = (locations) => {
     const allLocations = [];
     
     locations.forEach(location => {
-      // Add primary location option
       allLocations.push({
         id: location._id,
         value: `${location.PrimaryLocation} > ${location.SubLocation}`,
         label: `${location.PrimaryLocation} - ${location.SubLocation}`
       });
 
-      // Add secondary locations if they exist
       if (location.SecondaryLocation && location.SecondaryLocation.length > 0) {
         location.SecondaryLocation.forEach(secondary => {
           allLocations.push({
@@ -149,7 +183,6 @@ const CCTvRequest = () => {
             label: `${secondary.SecondaryLocation} - ${secondary.SubLocation} (${location.PrimaryLocation})`
           });
 
-          // Add tertiary locations if they exist
           if (secondary.ThirdLocation && secondary.ThirdLocation.length > 0) {
             secondary.ThirdLocation.forEach(tertiary => {
               allLocations.push({
@@ -305,6 +338,10 @@ const CCTvRequest = () => {
     setShowForm(true);
   };
 
+  const handleView = (request) => {
+    setViewData(request);
+  };
+
   const handleDeleteClick = (request) => {
     setRequestToDelete(request);
     setShowDeleteModal(true);
@@ -382,7 +419,7 @@ const CCTvRequest = () => {
                 <Accordion.Body>
                   <Row>
                     <Col md={6}>
-                      <p><strong><Calendar className="me-2" />Date:</strong> {request.MySelfDate}</p>
+                      <p><strong><CalendarIcon className="me-2" />Date:</strong> {request.MySelfDate}</p>
                     </Col>
                     <Col md={6}>
                       <p><strong><Clock className="me-2" />Time:</strong> {request.MySelfTime}</p>
@@ -407,7 +444,7 @@ const CCTvRequest = () => {
                   <p><strong>Name:</strong> {request.ForOthersName}</p>
                   <Row>
                     <Col md={6}>
-                      <p><strong><Calendar className="me-2" />Date:</strong> {request.ForOthersDate}</p>
+                      <p><strong><CalendarIcon className="me-2" />Date:</strong> {request.ForOthersDate}</p>
                     </Col>
                     <Col md={6}>
                       <p><strong><Clock className="me-2" />Time:</strong> {request.ForOthersTime}</p>
@@ -478,55 +515,72 @@ const CCTvRequest = () => {
     }
 
     return (
-      <Table striped  hover responsive className="mt-3">
-        <thead className="bg-light">
-          <tr>
-            <th>Title</th>
-            <th>Request Type</th>
-            <th>Location</th>
-            <th>Date</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredRequests.map(request => (
-            <tr key={request._id}>
-              <td>{request.Title}</td>
-              <td>
-                {request.ForMySelf ? <Badge bg="info" className="me-1">Myself</Badge> : null}
-                {request.ForOthers ? <Badge bg="secondary">Others</Badge> : null}
-              </td>
-              <td>
-                {request.ForMySelf && request.MySelfLocationOFIncident}
-                {request.ForOthers && request.ForOthersLocationOFIncident}
-              </td>
-              <td>
-                {request.ForMySelf && request.MySelfDate}
-                {request.ForOthers && request.ForOthersDate}
-              </td>
-              <td>{renderStatusBadge(request.Status)}</td>
-              <td>
-                <Button 
-                  variant="outline-primary" 
-                  size="sm" 
-                  onClick={() => handleEdit(request)}
-                  className="me-2"
-                >
-                  <Pencil size={16} />
-                </Button>
-                <Button 
-                  variant="outline-danger" 
-                  size="sm" 
-                  onClick={() => handleDeleteClick(request)}
-                >
-                  <Trash size={16} />
-                </Button>
-              </td>
+      <>
+        <div className="mb-4 p-3 bg-white rounded shadow-sm">
+          <Calendar
+            localizer={localizer}
+            events={calendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 500 }}
+            eventPropGetter={eventStyleGetter}
+            onSelectEvent={(event) => {
+              const selected = requests.find(r => r._id === event.id);
+              if (selected) handleView(selected);
+            }}
+          />
+        </div>
+
+        <Table striped hover responsive className="mt-3">
+          <thead className="bg-light">
+            <tr>
+              <th>Title</th>
+              <th>Request Type</th>
+              <th>Location</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {filteredRequests.map(request => (
+              <tr key={request._id}>
+                <td>{request.Title}</td>
+                <td>
+                  {request.ForMySelf ? <Badge bg="info" className="me-1">Myself</Badge> : null}
+                  {request.ForOthers ? <Badge bg="secondary">Others</Badge> : null}
+                </td>
+                <td>
+                  {request.ForMySelf && request.MySelfLocationOFIncident}
+                  {request.ForOthers && request.ForOthersLocationOFIncident}
+                </td>
+                <td>
+                  {request.ForMySelf && request.MySelfDate}
+                  {request.ForOthers && request.ForOthersDate}
+                </td>
+                <td>{renderStatusBadge(request.Status)}</td>
+                <td>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={() => handleEdit(request)}
+                    className="me-2"
+                  >
+                    <Pencil size={16} />
+                  </Button>
+                  <Button 
+                    variant="outline-danger" 
+                    size="sm" 
+                    onClick={() => handleDeleteClick(request)}
+                  >
+                    <Trash size={16} />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </>
     );
   };
 
@@ -632,7 +686,7 @@ const CCTvRequest = () => {
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>
-                          <Calendar className="me-2" />
+                          <CalendarIcon className="me-2" />
                           Date
                         </Form.Label>
                         <Form.Control
@@ -725,7 +779,7 @@ const CCTvRequest = () => {
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>
-                          <Calendar className="me-2" />
+                          <CalendarIcon className="me-2" />
                           Date
                         </Form.Label>
                         <Form.Control
@@ -871,7 +925,7 @@ const CCTvRequest = () => {
           CCTV Requests Management
         </h2>
         <Button variant="primary" onClick={() => setShowForm(true)}>
-       
+          <PlusCircle className="me-2" />
           New Request
         </Button>
       </div>
@@ -888,8 +942,8 @@ const CCTvRequest = () => {
           >
             <Tab eventKey="all" title="All Requests" />
             <Tab eventKey="Pending" title="Pending" />
-             <Tab eventKey="Approved" title="Approved" />
-            <Tab eventKey="Rejected" title="Rejected" />  
+            <Tab eventKey="Approved" title="Approved" />
+            <Tab eventKey="Rejected" title="Rejected" />
           </Tabs>
 
           {renderTable()}
@@ -898,6 +952,20 @@ const CCTvRequest = () => {
 
       {renderForm()}
       {renderDeleteModal()}
+
+      {/* View Offcanvas */}
+      <Offcanvas show={!!viewData} onHide={() => setViewData(null)} placement="end" className="w-50">
+        {viewData && (
+          <>
+            <Offcanvas.Header closeButton>
+              <Offcanvas.Title>CCTV Request Details</Offcanvas.Title>
+            </Offcanvas.Header>
+            <Offcanvas.Body>
+              {renderRequestDetails(viewData)}
+            </Offcanvas.Body>
+          </>
+        )}
+      </Offcanvas>
     </Container>
   );
 };

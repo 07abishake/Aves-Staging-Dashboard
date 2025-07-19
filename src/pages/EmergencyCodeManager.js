@@ -38,22 +38,26 @@ function EmergencyCodeManager() {
     fetchCodes();
   }, []);
 
-  const fetchCodes = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get('http://api.avessecurity.com:6378/api/DrillCode/get', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const list = Array.isArray(res.data?.DrillCode) ? res.data.DrillCode : [];
-      setCodes(list);
-    } catch (error) {
-      console.error('Failed to fetch codes:', error);
-      setError('Failed to fetch emergency codes. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchCodes = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await axios.get('https://api.avessecurity.com/api/DrillCode/get', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // FIX: use 'Drilling' instead of 'DrillCode'
+    const list = Array.isArray(res.data?.Drilling) ? res.data.Drilling : [];
+    setCodes(list);
+
+  } catch (error) {
+    console.error('Failed to fetch codes:', error);
+    setError('Failed to fetch emergency codes. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleAddSummary = () => {
     if (summaryInput.trim()) {
@@ -87,7 +91,7 @@ function EmergencyCodeManager() {
       };
 
       const codeRes = await axios.post(
-        "http://api.avessecurity.com:6378/api/DrillCode/create",
+        "https://api.avessecurity.com/api/DrillCode/create",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -117,7 +121,7 @@ function EmergencyCodeManager() {
     setLoading(true);
     try {
       await axios.delete(
-        `http://api.avessecurity.com:6378/api/DrillCode/delete/${codeToDelete._id}`,
+        `https://api.avessecurity.com/api/DrillCode/delete/${codeToDelete._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Emergency code deleted successfully!');

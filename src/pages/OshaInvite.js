@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Form, Table, Offcanvas } from 'react-bootstrap';
+import { Button, Form, Table, Offcanvas, Badge, Modal } from 'react-bootstrap';
 import Select from "react-select";
 import { debounce } from 'lodash';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
@@ -8,6 +8,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import { sendPushNotification } from '../Utils/SendNotification';
 import CreatableSelect from "react-select/creatable";
+
 const localizer = momentLocalizer(moment);
 
 const OshaInvite = () => {
@@ -20,6 +21,7 @@ const OshaInvite = () => {
     const [editId, setEditId] = useState(null);
     const [viewData, setViewData] = useState(null);
     const [users, setUsers] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [inputValue, setInputValue] = useState("");
     const [menuOpen, setMenuOpen] = useState(false);
     const [showParticipantCanvas, setShowParticipantCanvas] = useState(false);
@@ -29,14 +31,66 @@ const OshaInvite = () => {
     const [emailList, setEmailList] = useState([]);
     const [emailMeetingId, setEmailMeetingId] = useState(null);
     const [location, setLocation] = useState("");
-    const handleSelectChange = (field, selected) => {
-        setForm(prev => ({
-            ...prev,
-            [field]: selected?.value || '',
-        }));
-        // }
-    };
+    const [showFollowUp, setShowFollowUp] = useState(false);
+    const [followUpType, setFollowUpType] = useState('Description');
+    const [followUpForm, setFollowUpForm] = useState({
+        Title: '',
+        Status: '',
+        Department: '',
+        ActionBy: '',
+        DaedLine: '',
+        Remarks: ''
+    });
+    const [showRemarksCanvas, setShowRemarksCanvas] = useState(false);
+    const [currentRemarks, setCurrentRemarks] = useState({
+        type: '',
+        meetingId: '',
+        itemId: '',
+        remarks: '',
+        closeItem: true
+    });
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [meetingToDelete, setMeetingToDelete] = useState(null);
+
     const token = localStorage.getItem("access_token");
+    
+    const statusOptions = [
+        { value: 'Open', label: 'Open', color: 'danger' },
+        { value: 'Closed', label: 'Closed', color: 'success' },
+        { value: 'Pending', label: 'Pending', color: 'warning' }
+    ];
+
+    const fetchDepartments = async () => {
+        try {
+            const response = await axios.get(
+                'https://api.avessecurity.com/api/Department/getAll',
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+
+            const departmentOptions = [];
+            response.data.forEach(parent => {
+                departmentOptions.push({ value: parent._id, label: parent.name });
+
+                if (parent.children && parent.children.length > 0) {
+                    parent.children.forEach(child => {
+                        departmentOptions.push({
+                            value: child._id,
+                            label: child.name
+                        });
+                    });
+                }
+            });
+
+            setDepartments(departmentOptions);
+        } catch (error) {
+            console.error('Error fetching departments:', error);
+        }
+    };
+
     const fetchUsers = debounce(async (query) => {
         if (!query) return;
         try {
@@ -59,8 +113,10 @@ const OshaInvite = () => {
             console.error("Error fetching users:", error);
         }
     }, 500);
+
     useEffect(() => {
         fetchUsers(inputValue);
+        fetchDepartments();
     }, [inputValue]);
 
     const fetchData = async () => {
@@ -72,6 +128,18 @@ const OshaInvite = () => {
             setData(res.data?.OshaMinutes || []);
         } catch (error) {
             console.error("Error fetching data", error);
+        }
+    };
+
+    const deleteOSha = async () => {
+        try {
+            const res = await axios.delete(`https://api.avessecurity.com/api/oshaminutes/delete/${meetingToDelete}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setShowDeleteModal(false);
+            fetchData();
+        } catch (error) {
+            console.error("Error deleting OSHA", error);
         }
     };
 
@@ -110,7 +178,6 @@ const OshaInvite = () => {
         }
     };
 
-
     const handleView = (item) => {
         setViewData(item);
         setShowView(true);
@@ -129,7 +196,6 @@ const OshaInvite = () => {
             console.error("Error updating occurrence", error);
         }
     };
-
 
     const getLocationOptions = () => {
         const options = [];
@@ -154,21 +220,90 @@ const OshaInvite = () => {
         return options;
     };
 
+    const handleFollowUpSubmit = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const url = `https://api.avessecurity.com/api/oshaminutes/create/${viewData._id}/${followUpType}`;
+
+            await axios.post(url, followUpForm, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setFollowUpForm({
+                Title: '',
+                Status: '',
+                Department: '',
+                ActionBy: '',
+                DaedLine: '',
+                Remarks: ''
+            });
+            fetchData();
+        } catch (error) {
+            console.error("Error submitting follow-up", error);
+        }
+    };
+
+    const handleUpdateRemarks = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const { type, meetingId, itemId, remarks, closeItem } = currentRemarks;
+            
+            const url = `https://api.avessecurity.com/api/oshaminutes/update/${meetingId}/${type}/${itemId}`;
+            
+            const updateData = { 
+                Remarks: remarks,
+                Status: closeItem ? 'Closed' : undefined
+            };
+            
+            await axios.put(url, updateData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setShowRemarksCanvas(false);
+            fetchData();
+        } catch (error) {
+            console.error("Error updating remarks", error);
+        }
+    };
+
+    const groupParticipantsByStatus = (participants) => {
+        const grouped = {
+            'Not Responded': [],
+            'Submitted': []
+        };
+
+        participants?.forEach(participant => {
+            if (participant.Submitted) {
+                grouped['Submitted'].push(participant);
+            } else {
+                grouped['Not Responded'].push(participant);
+            }
+        });
+
+        return grouped;
+    };
+
+    const getStatusBadge = (status) => {
+        const option = statusOptions.find(opt => opt.value === status);
+        if (!option) return null;
+        return <Badge bg={option.color}>{option.label}</Badge>;
+    };
+
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h4 className="fw-bold">Meetings</h4>
                 <Button variant="primary" onClick={() => setShowCreate(true)}>Create Invitation</Button>
             </div>
+            
             <div className="mb-4 p-3 bg-white rounded shadow-sm">
-                {/* <h5 className="fw-bold mb-3">Meeting Calendar</h5> */}
                 <Calendar
                     localizer={localizer}
                     events={data.map((item) => ({
                         id: item._id,
                         title: item.MeetingTitle || 'Meeting',
                         start: new Date(item.Date),
-                        end: new Date(item.Date), // Assuming meeting is same-day
+                        end: new Date(item.Date),
                         allDay: true
                     }))}
                     startAccessor="start"
@@ -176,7 +311,10 @@ const OshaInvite = () => {
                     style={{ height: 500 }}
                     onSelectEvent={(event) => {
                         const selected = data.find(d => d._id === event.id);
-                        if (selected) handleView(selected); // Open edit drawer
+                        if (selected) {
+                            setViewData(selected);
+                            setShowView(true);
+                        }
                     }}
                 />
             </div>
@@ -189,7 +327,6 @@ const OshaInvite = () => {
                             <th>Meeting Title</th>
                             <th>Meeting Date & Time</th>
                             <th>Venue</th>
-                            {/* <th>Followup Required</th> */}
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -200,18 +337,6 @@ const OshaInvite = () => {
                                 <td>{item.MeetingTitle}</td>
                                 <td>{new Date(item?.Date).toLocaleDateString()} - {item.Time}</td>
                                 <td>{item?.Venue}</td>
-                                {/* <td>
-                                    <span style={{
-                                        padding: '4px 10px',
-                                        borderRadius: '999px',
-                                        fontWeight: '500',
-                                        color: '#000',
-                                        backgroundColor: item.FollowupRequired === 'Yes' ? '#fff3cd' : '#d4edda',
-                                        border: item.FollowupRequired === 'Yes' ? '1px solid #ffeeba' : '1px solid #c3e6cb'
-                                    }}>
-                                        {item.FollowupRequired === 'Yes' ? 'Yes' : 'No'}
-                                    </span>
-                                </td> */}
                                 <td>
                                     <Button
                                         size="sm"
@@ -219,7 +344,7 @@ const OshaInvite = () => {
                                         className="me-1"
                                         onClick={() => {
                                             setSelectedMeetingId(item._id);
-                                            setSelectedParticipants([]); // reset
+                                            setSelectedParticipants([]);
                                             setShowParticipantCanvas(true);
                                         }}
                                         title='Add Participant'
@@ -227,7 +352,13 @@ const OshaInvite = () => {
                                         <i className="bi bi-person-plus"></i>
                                     </Button>
 
-                                    <Button size="sm" variant="outline-primary" title='View Meeting Details' onClick={() => handleView(item)} className="me-1">
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline-primary" 
+                                        title='View Meeting Details' 
+                                        onClick={() => handleView(item)} 
+                                        className="me-1"
+                                    >
                                         <i className="bi bi-eye"></i>
                                     </Button>
                                     <Button
@@ -236,17 +367,36 @@ const OshaInvite = () => {
                                         className="me-1"
                                         onClick={() => {
                                             setEmailMeetingId(item._id);
-                                            setEmailList([]); // reset list
-                                            setShowEmailCanvas(true); // open canvas
+                                            setEmailList([]);
+                                            setShowEmailCanvas(true);
                                         }}
                                         title='Invite via mail'
                                     >
                                         <i className="bi bi-envelope"></i>
                                     </Button>
-
-                                    {/* <Button size="sm" variant="outline-danger" onClick={() => handleDelete(item._id)}>
+                                    <Button 
+                                        size="sm"
+                                        variant="outline-danger"
+                                        className="me-1"
+                                        onClick={() => {
+                                            setMeetingToDelete(item._id);
+                                            setShowDeleteModal(true);
+                                        }}
+                                        title='Delete Meeting'
+                                    >
                                         <i className="bi bi-trash"></i>
-                                    </Button> */}
+                                    </Button>
+                                    <Button 
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => {
+                                            setViewData(item);
+                                            setShowFollowUp(true);
+                                            setShowView(false); // Close the view offcanvas if open
+                                        }}
+                                    >
+                                        <i className="bi bi-bell-fill"></i> Follow Up
+                                    </Button>
                                 </td>
                             </tr>
                         ))}
@@ -254,61 +404,389 @@ const OshaInvite = () => {
                 </Table>
             </div>
 
-            {/* View Offcanvas */}
-            <Offcanvas show={showView} onHide={() => setShowView(false)} placement="end" className="w-50">
-                <Offcanvas.Header closeButton>
-                    <Offcanvas.Title>Meeting Details</Offcanvas.Title>
-                </Offcanvas.Header>
-                <Offcanvas.Body>
-                    {viewData && (
-                        <>
-                            <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
-                            <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
-                            <p><strong>Time:</strong> {viewData.Time}</p>
-                            <p><strong>Venue:</strong> {viewData.Venue}</p>
+            {/* Delete Confirmation Modal */}
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Delete</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Are you sure you want to delete this meeting? This action cannot be undone.
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+                        Cancel
+                    </Button>
+                    <Button variant="danger" onClick={deleteOSha}>
+                        Delete
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
-                            <p><strong>Participants:</strong></p>
+            {/* Follow Up Offcanvas */}
+            <Offcanvas show={showFollowUp} onHide={() => setShowFollowUp(false)} placement="end" className="w-50">
+                {viewData && (
+                    <>
+                        <Offcanvas.Header closeButton>
+                            <Offcanvas.Title>Follow Up - {viewData.MeetingTitle}</Offcanvas.Title>
+                        </Offcanvas.Header>
+                        <Offcanvas.Body>
+                            <div className="mb-4">
+                                <h5>Meeting Details</h5>
+                                <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
+                                <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
+                                <p><strong>Time:</strong> {viewData.Time}</p>
+                                <p><strong>Venue:</strong> {viewData.Venue}</p>
+                            </div>
 
-                            {viewData.Participants && viewData.Participants.length > 0 ? (
-                                <>
-                                    {['Yes', 'No', 'Maybe', ''].map((status) => {
-                                        const group = viewData.Participants.filter(p => (p.Available || '') === status);
-                                        if (group.length === 0) return null;
+                            <div className="mb-4">
+                                <h5>Participants</h5>
+                                {Object.entries(groupParticipantsByStatus(viewData.Participants)).map(([status, participants]) => (
+                                    participants.length > 0 && (
+                                        <div key={status} className="mb-3">
+                                            <h6>{status}</h6>
+                                            <ul className="list-unstyled ps-3">
+                                                {participants.map((p, i) => (
+                                                    <li key={i} className="d-flex align-items-center justify-content-between">
+                                                        <span>{p.Name || p.EmailId}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )
+                                ))}
+                            </div>
 
-                                        return (
-                                            <div key={status} className="mb-3">
-                                                <h6 className="text-capitalize">
-                                                    {status === '' ? 'Not Responded' : status}
-                                                </h6>
-                                                <ul className="list-unstyled ps-3">
-                                                    {group.map((p) => (
-                                                        <li key={p._id} className="d-flex align-items-center justify-content-between">
-                                                            <span>{p.Name}</span>
-                                                            <div className="form-check">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="form-check-input"
-                                                                    checked={p.Submitted}
-                                                                    readOnly
-                                                                />
-                                                                <label className="form-check-label ms-1">Submitted</label>
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                            <div className="mb-4">
+                                <h5>Add Follow Up</h5>
+                                <Form>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Type</Form.Label>
+                                        <Form.Select 
+                                            value={followUpType}
+                                            onChange={(e) => setFollowUpType(e.target.value)}
+                                        >
+                                            <option value="Description">Description</option>
+                                            <option value="Discussion">Discussion</option>
+                                        </Form.Select>
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Title</Form.Label>
+                                        <Form.Control
+                                            name="Title"
+                                            value={followUpForm.Title}
+                                            onChange={(e) => setFollowUpForm({...followUpForm, Title: e.target.value})}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Status</Form.Label>
+                                        <Select
+                                            options={statusOptions}
+                                            value={statusOptions.find(opt => opt.value === followUpForm.Status)}
+                                            onChange={(selected) => setFollowUpForm({...followUpForm, Status: selected?.value || ''})}
+                                            placeholder="Select status"
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Department</Form.Label>
+                                        <Select
+                                            options={departments}
+                                            value={departments.find(d => d.value === followUpForm.Department)}
+                                            onChange={(selected) => setFollowUpForm({...followUpForm, Department: selected?.value || ''})}
+                                            placeholder="Select department"
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Action By</Form.Label>
+                                        <Select
+                                            options={users}
+                                            value={users.find(u => u.value === followUpForm.ActionBy)}
+                                            onInputChange={(value) => {
+                                                setInputValue(value);
+                                                setMenuOpen(!!value);
+                                            }}
+                                            menuIsOpen={menuOpen}
+                                            onChange={(selected) => setFollowUpForm({...followUpForm, ActionBy: selected?.value || ''})}
+                                            placeholder="Select user"
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Deadline</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            name="DaedLine"
+                                            value={followUpForm.DaedLine}
+                                            onChange={(e) => setFollowUpForm({...followUpForm, DaedLine: e.target.value})}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Remarks</Form.Label>
+                                        <Form.Control
+                                            as="textarea"
+                                            rows={3}
+                                            name="Remarks"
+                                            value={followUpForm.Remarks}
+                                            onChange={(e) => setFollowUpForm({...followUpForm, Remarks: e.target.value})}
+                                        />
+                                    </Form.Group>
+
+                                    <Button 
+                                        variant="primary" 
+                                        onClick={handleFollowUpSubmit}
+                                    >
+                                        Add {followUpType}
+                                    </Button>
+                                </Form>
+                            </div>
+
+                            {viewData.Description?.length > 0 && (
+                                <div className="mb-4">
+                                    <h5>Descriptions</h5>
+                                    {viewData.Description.map((desc, index) => (
+                                        <div key={index} className="card mb-2">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6>{desc.Title}</h6>
+                                                        <p>Status: {getStatusBadge(desc.Status)}</p>
+                                                        <p>Department: {departments.find(d => d.value === desc.Department)?.label || desc.Department}</p>
+                                                        <p>Action By: {users.find(u => u.value === desc.ActionBy)?.label || desc.ActionBy}</p>
+                                                        <p>Deadline: {desc.DaedLine}</p>
+                                                        <p>Remarks: {desc.Remarks}</p>
+                                                    </div>
+                                                    {desc.Status === 'Pending' && (
+                                                        <Button 
+                                                            variant="outline-secondary" 
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setCurrentRemarks({
+                                                                    type: 'Description',
+                                                                    meetingId: viewData._id,
+                                                                    itemId: desc._id,
+                                                                    remarks: desc.Remarks || '',
+                                                                    closeItem: true
+                                                                });
+                                                                setShowRemarksCanvas(true);
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-pencil"></i> Update Remarks
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
-                                        );
-                                    })}
-                                </>
-                            ) : (
-                                <p>No participants added.</p>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
-                        </>
-                    )}
-                </Offcanvas.Body>
 
+                            {viewData.Discussion?.length > 0 && (
+                                <div className="mb-4">
+                                    <h5>Discussions</h5>
+                                    {viewData.Discussion.map((disc, index) => (
+                                        <div key={index} className="card mb-2">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6>{disc.Title}</h6>
+                                                        <p>Status: {getStatusBadge(disc.Status)}</p>
+                                                        <p>Department: {departments.find(d => d.value === disc.Department)?.label || disc.Department}</p>
+                                                        <p>Action By: {users.find(u => u.value === disc.ActionBy)?.label || disc.ActionBy}</p>
+                                                        <p>Deadline: {disc.DaedLine}</p>
+                                                        <p>Remarks: {disc.Remarks}</p>
+                                                    </div>
+                                                    {disc.Status === 'Pending' && (
+                                                        <Button 
+                                                            variant="outline-secondary" 
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setCurrentRemarks({
+                                                                    type: 'Discussion',
+                                                                    meetingId: viewData._id,
+                                                                    itemId: disc._id,
+                                                                    remarks: disc.Remarks || '',
+                                                                    closeItem: true
+                                                                });
+                                                                setShowRemarksCanvas(true);
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-pencil"></i> Update Remarks
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Offcanvas.Body>
+                    </>
+                )}
             </Offcanvas>
 
+            {/* Remarks Update Offcanvas */}
+            <Offcanvas show={showRemarksCanvas} onHide={() => setShowRemarksCanvas(false)} placement="end">
+                <Offcanvas.Header closeButton>
+                    <Offcanvas.Title>Update Remarks</Offcanvas.Title>
+                </Offcanvas.Header>
+                <Offcanvas.Body>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Remarks</Form.Label>
+                        <Form.Control
+                            as="textarea"
+                            rows={5}
+                            value={currentRemarks.remarks}
+                            onChange={(e) => setCurrentRemarks({
+                                ...currentRemarks,
+                                remarks: e.target.value
+                            })}
+                        />
+                    </Form.Group>
+                    
+                    <Form.Group className="mb-3">
+                        <Form.Check 
+                            type="checkbox"
+                            label="Close this Meeting after updating remarks"
+                            checked={currentRemarks.closeItem}
+                            onChange={(e) => setCurrentRemarks({
+                                ...currentRemarks,
+                                closeItem: e.target.checked
+                            })}
+                        />
+                    </Form.Group>
+                    
+                    <Button 
+                        variant="primary" 
+                        onClick={handleUpdateRemarks}
+                    >
+                        Update Remarks
+                    </Button>
+                </Offcanvas.Body>
+            </Offcanvas>
+
+            {/* View Offcanvas */}
+            <Offcanvas show={showView && !showFollowUp} onHide={() => setShowView(false)} placement="end" className="w-50">
+                {viewData && (
+                    <>
+                        <Offcanvas.Header closeButton>
+                            <Offcanvas.Title>Meeting Details</Offcanvas.Title>
+                        </Offcanvas.Header>
+                        <Offcanvas.Body>
+                            <div className="mb-4">
+                                <h5>Meeting Details</h5>
+                                <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
+                                <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
+                                <p><strong>Time:</strong> {viewData.Time}</p>
+                                <p><strong>Venue:</strong> {viewData.Venue}</p>
+                            </div>
+
+                            <div className="mb-4">
+                                <h5>Participants</h5>
+                                {Object.entries(groupParticipantsByStatus(viewData.Participants)).map(([status, participants]) => (
+                                    participants.length > 0 && (
+                                        <div key={status} className="mb-3">
+                                            <h6>{status}</h6>
+                                            <ul className="list-unstyled ps-3">
+                                                {participants.map((p, i) => (
+                                                    <li key={i} className="d-flex align-items-center justify-content-between">
+                                                        <span>{p.Name || p.EmailId}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )
+                                ))}
+                            </div>
+
+                            {viewData.Description?.length > 0 && (
+                                <div className="mb-4">
+                                    <h5>Descriptions</h5>
+                                    {viewData.Description.map((desc, index) => (
+                                        <div key={index} className="card mb-2">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6>{desc.Title}</h6>
+                                                        <p>Status: {getStatusBadge(desc.Status)}</p>
+                                                        <p>Department: {departments.find(d => d.value === desc.Department)?.label || desc.Department}</p>
+                                                        <p>Action By: {users.find(u => u.value === desc.ActionBy)?.label || desc.ActionBy}</p>
+                                                        <p>Deadline: {desc.DaedLine}</p>
+                                                        <p>Remarks: {desc.Remarks}</p>
+                                                    </div>
+                                                    {desc.Status === 'Pending' && (
+                                                        <Button 
+                                                            variant="outline-secondary" 
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setCurrentRemarks({
+                                                                    type: 'Description',
+                                                                    meetingId: viewData._id,
+                                                                    itemId: desc._id,
+                                                                    remarks: desc.Remarks || '',
+                                                                    closeItem: true
+                                                                });
+                                                                setShowRemarksCanvas(true);
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-pencil"></i> Update Remarks
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {viewData.Discussion?.length > 0 && (
+                                <div className="mb-4">
+                                    <h5>Discussions</h5>
+                                    {viewData.Discussion.map((disc, index) => (
+                                        <div key={index} className="card mb-2">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6>{disc.Title}</h6>
+                                                        <p>Status: {getStatusBadge(disc.Status)}</p>
+                                                        <p>Department: {departments.find(d => d.value === disc.Department)?.label || disc.Department}</p>
+                                                        <p>Action By: {users.find(u => u.value === disc.ActionBy)?.label || disc.ActionBy}</p>
+                                                        <p>Deadline: {disc.DaedLine}</p>
+                                                        <p>Remarks: {disc.Remarks}</p>
+                                                    </div>
+                                                    {disc.Status === 'Pending' && (
+                                                        <Button 
+                                                            variant="outline-secondary" 
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setCurrentRemarks({
+                                                                    type: 'Discussion',
+                                                                    meetingId: viewData._id,
+                                                                    itemId: disc._id,
+                                                                    remarks: disc.Remarks || '',
+                                                                    closeItem: true
+                                                                });
+                                                                setShowRemarksCanvas(true);
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-pencil"></i> Update Remarks
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Offcanvas.Body>
+                    </>
+                )}
+            </Offcanvas>
+
+            {/* Create/Edit Meeting Offcanvas */}
             {[showCreate, showEdit].map((show, idx) => (
                 <Offcanvas
                     key={idx}
@@ -343,13 +821,23 @@ const OshaInvite = () => {
                                             }}
                                             menuIsOpen={menuOpen}
                                             value={users.find(opt => opt.value === form["Chaired"])}
-                                            onChange={selected => handleSelectChange("Chaired", selected)}
+                                            onChange={(selected) => {
+                                                setForm(prev => ({
+                                                    ...prev,
+                                                    Chaired: selected?.value || ''
+                                                }));
+                                            }}
                                         />
                                     ) : field === "Venue" ? (
                                         <Select
                                             options={getLocationOptions()}
-                                            value={getLocationOptions().find(opt => opt.value === form["Venue"] || opt.value === form["Venue"])}
-                                            onChange={selected => handleSelectChange("Venue", selected)}
+                                            value={getLocationOptions().find(opt => opt.value === form["Venue"])}
+                                            onChange={(selected) => {
+                                                setForm(prev => ({
+                                                    ...prev,
+                                                    Venue: selected?.value || ''
+                                                }));
+                                            }}
                                             placeholder="Select location"
                                             isClearable
                                             className="w-100"
@@ -369,9 +857,10 @@ const OshaInvite = () => {
                             </Button>
                         </Form>
                     </Offcanvas.Body>
-
                 </Offcanvas>
             ))}
+
+            {/* Add Participants Offcanvas */}
             <Offcanvas
                 show={showParticipantCanvas}
                 onHide={() => setShowParticipantCanvas(false)}
@@ -391,7 +880,6 @@ const OshaInvite = () => {
                                     .find(d => d._id === selectedMeetingId)
                                     ?.Participants?.some(p => p._id === u.value)
                             )}
-
                             onInputChange={(value) => {
                                 setInputValue(value);
                                 setMenuOpen(!!value);
@@ -408,14 +896,12 @@ const OshaInvite = () => {
                             try {
                                 const token = localStorage.getItem("access_token");
 
-                                // 1. Add participants
                                 await axios.post(
                                     `https://api.avessecurity.com/api/oshaminutes/Osha/AddParticipant/${selectedMeetingId}`,
                                     { _id: selectedParticipants },
                                     { headers: { Authorization: `Bearer ${token}` } }
                                 );
 
-                                // 2. Send notifications one-by-one
                                 for (const userId of selectedParticipants) {
                                     await sendPushNotification({
                                         userId,
@@ -424,7 +910,6 @@ const OshaInvite = () => {
                                     });
                                 }
 
-                                // 3. Close canvas and refresh data
                                 setShowParticipantCanvas(false);
                                 fetchData();
                             } catch (err) {
@@ -436,6 +921,8 @@ const OshaInvite = () => {
                     </Button>
                 </Offcanvas.Body>
             </Offcanvas>
+
+            {/* Email Invitation Offcanvas */}
             <Offcanvas
                 show={showEmailCanvas}
                 onHide={() => setShowEmailCanvas(false)}
@@ -453,7 +940,7 @@ const OshaInvite = () => {
                             placeholder="Type and press enter..."
                             value={emailList.map(email => ({ label: email, value: email }))}
                             onChange={(selected) => setEmailList(selected.map((s) => s.value))}
-                            options={[]} // No predefined options
+                            options={[]}
                             onCreateOption={(inputValue) => {
                                 if (/\S+@\S+\.\S+/.test(inputValue)) {
                                     setEmailList([...emailList, inputValue]);
@@ -468,7 +955,6 @@ const OshaInvite = () => {
                             isSearchable
                             components={{ DropdownIndicator: null }}
                         />
-
                     </Form.Group>
                     <Button
                         className="mt-3"
@@ -494,7 +980,6 @@ const OshaInvite = () => {
                     </Button>
                 </Offcanvas.Body>
             </Offcanvas>
-
         </div>
     );
 };

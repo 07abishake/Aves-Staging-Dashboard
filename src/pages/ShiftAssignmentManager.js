@@ -135,6 +135,20 @@ const ShiftAssignmentManager = () => {
     }
   };
 
+  const sendPushNotification = async (userIds, title, body) => {
+    try {
+      await axios.post('https://api.avessecurity.com/api/firebase/send-notification', {
+        userIds,
+        title,
+        body,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error("Push notification error:", error);
+    }
+  };
+
   const handleAssign = async (user) => {
     setSelectedUser(user);
     setShowCanvas(true);
@@ -267,7 +281,6 @@ const ShiftAssignmentManager = () => {
       return;
     }
 
-    // Add validation to prevent same dates
     if (startDate === endDate) {
       alert("Start date and end date cannot be the same");
       return;
@@ -314,6 +327,13 @@ const ShiftAssignmentManager = () => {
         `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Send push notification after successful assignment
+      await sendPushNotification(
+        [selectedUser._id],
+        "Shift Assigned",
+        `You have been assigned to ${selectedShift.ShiftName} shift from ${formatDate(startDate)} to ${formatDate(endDate)}`
       );
 
       alert("Shift Assigned successfully!");
@@ -600,7 +620,6 @@ const ShiftAssignmentManager = () => {
                 onChange={(e) => {
                   const newStartDate = e.target.value;
                   setStartDate(newStartDate);
-                  // If end date is same as new start date, clear it
                   if (endDate && newStartDate === endDate) {
                     setEndDate('');
                   }
@@ -620,7 +639,6 @@ const ShiftAssignmentManager = () => {
                   if (newEndDate !== startDate) {
                     setEndDate(newEndDate);
                   } else {
-                    // Show immediate feedback if user tries to select same date
                     alert("End date cannot be the same as start date");
                   }
                 }} 

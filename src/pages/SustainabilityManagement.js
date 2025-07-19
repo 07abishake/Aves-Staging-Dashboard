@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Container, Accordion, Form, Button, Alert, Badge, 
-  Offcanvas, Stack, Card, Row, Col, ListGroup, Modal
+import {
+  Tabs, Tab, Spinner, Container, Button, Form,
+  Table, Alert, Offcanvas, Badge
 } from 'react-bootstrap';
+import { PencilSquare, Trash, PlusLg, Eye, ChevronDown, ChevronRight, X } from 'react-bootstrap-icons';
 import axios from 'axios';
-import { Pencil, Trash, Eye, Plus, ChevronDown, ChevronUp, Pen } from 'react-bootstrap-icons';
 
 const SustainabilityBuilder = () => {
-  // State for form inputs
-  const [formData, setFormData] = useState({
-    countryName: '',
-    hotelName: '',
-    moduleName: '',
-    subModuleName: '',
-    className: '',
-    inputName: ''
+  // State for data
+  const [isLoading, setIsLoading] = useState(false);
+  const [sustainabilityData, setSustainabilityData] = useState([]);
+  const [activeTab, setActiveTab] = useState('country');
+  
+  // State for Offcanvas (form)
+  const [offcanvasData, setOffcanvasData] = useState({ 
+    show: false, 
+    type: '', 
+    parentId: '', 
+    item: null 
   });
-
+  
+  // State for form values
+  const [formValue, setFormValue] = useState('');
+  const [expandedItems, setExpandedItems] = useState({});
+  const [error, setError] = useState(null);
+  
   // State for IDs
   const [ids, setIds] = useState({
     countryId: '',
@@ -26,21 +34,8 @@ const SustainabilityBuilder = () => {
     classId: ''
   });
 
-  // State for messages and errors
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  
-  // State for data
-  const [sustainabilityData, setSustainabilityData] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [modalContent, setModalContent] = useState(null);
-  const [currentAction, setCurrentAction] = useState(null);
-  const [currentItem, setCurrentItem] = useState(null);
-  const [currentLevel, setCurrentLevel] = useState('');
-
-  const token = localStorage.getItem("access_token");
-  const BASE_API = "http://api.avessecurity.com:6378/api/sustainabiity";
+  const token = localStorage.getItem('access_token');
+  const BASE_API = "https://api.avessecurity.com/api/sustainabiity";
 
   const config = {
     headers: {
@@ -48,604 +43,762 @@ const SustainabilityBuilder = () => {
     }
   };
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // Reset messages
-  const resetMessages = () => {
-    setMessage('');
-    setError('');
-  };
-
   // Fetch all sustainability data
   const fetchSustainabilityData = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const res = await axios.get(`${BASE_API}/get`, config);
-      setSustainabilityData(res.data.SustainAbility);
+      setSustainabilityData(res.data.SustainAbility || []);
     } catch (err) {
-      setError('Error fetching data');
+      console.error('Fetch error:', err);
+      setError('Failed to fetch sustainability data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Count items for statistics
-  // const countItems = (data, ...properties) => {
-  //   return data?.reduce((acc, item) => {
-  //     let current = item;
-  //     for (const prop of properties) {
-  //       current = current?.[prop];
-  //       if (!current) break;
-  //     }
-  //     return acc + (Array.isArray(current) ? current.length : 0);
-  //   }, 0) || 0;
-  // };
-
-  // Statistics
-  // const stats = {
-  //   countries: sustainabilityData.length,
-  //   hotels: countItems(sustainabilityData, 'Hotel'),
-  //   modules: countItems(sustainabilityData, 'Hotel', 'Module'),
-  //   subModules: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule'),
-  //   classes: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule', 'Class'),
-  //   inputs: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule', 'Class', 'Input')
-  // };
-
-  // Create operations
-  const createItem = async (level) => {
-    resetMessages();
-    try {
-      let url = BASE_API;
-      let data = {};
-      let idPath = '';
-
-      switch(level) {
-        case 'country':
-          url += '/create';
-          data = { Country: formData.countryName };
-          break;
-        case 'hotel':
-          url += `/create/${ids.countryId}/Hotel`;
-          data = { HotelName: formData.hotelName };
-          idPath = 'Hotel';
-          break;
-        case 'module':
-          url += `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module`;
-          data = { AddModule: formData.moduleName };
-          idPath = 'Hotel.Module';
-          break;
-        case 'subModule':
-          url += `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule`;
-          data = { AddSubModule: formData.subModuleName };
-          idPath = 'Hotel.Module.SubModule';
-          break;
-        case 'class':
-          url += `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class`;
-          data = { Addclass: formData.className };
-          idPath = 'Hotel.Module.SubModule.Class';
-          break;
-        case 'input':
-          url += `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${ids.classId}/Input`;
-          data = { AddInput: formData.inputName };
-          break;
-        default:
-          break;
-      }
-
-      const res = await axios.post(url, data, config);
-      
-      if (idPath) {
-        const path = idPath.split('.');
-        let item = res.data.SustainAbility;
-        path.forEach(p => {
-          item = item[p];
-          if (Array.isArray(item)) item = item[item.length - 1];
-        });
-        setIds(prev => ({ ...prev, [`${level}Id`]: item._id }));
-      }
-
-      setMessage(`${level.charAt(0).toUpperCase() + level.slice(1)} created successfully!`);
-      fetchSustainabilityData();
-    } catch (err) {
-      setError(`Error creating ${level}`);
-    }
-  };
-
-  // Open modal for actions
-  const openModal = (action, level, item = null, parentIds = {}) => {
-    setCurrentAction(action);
-    setCurrentLevel(level);
-    setCurrentItem(item);
+  // Handle open/close offcanvas
+  const handleOpenOffcanvas = (type, parentId = '', item = null) => {
+    setOffcanvasData({ show: true, type, parentId, item });
     
-    // Set form fields if editing
-    if (action === 'edit' && item) {
-      const fieldName = 
-        level === 'country' ? 'countryName' :
-        level === 'hotel' ? 'hotelName' :
-        level === 'module' ? 'moduleName' :
-        level === 'subModule' ? 'subModuleName' :
-        level === 'class' ? 'className' : 'inputName';
-      
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: item[`Add${level.charAt(0).toUpperCase() + level.slice(1)}`] || 
-                     item[`${level.charAt(0).toUpperCase() + level.slice(1)}Name`] || 
-                     item.Country || ''
-      }));
-      
-      setIds(prev => ({ ...prev, ...parentIds }));
+    // Set form value based on item being edited
+    if (item) {
+      const value = item[`Add${type.charAt(0).toUpperCase() + type.slice(1)}`] || 
+                   item[`${type.charAt(0).toUpperCase() + type.slice(1)}Name`] || 
+                   item.Country || '';
+      setFormValue(value);
+    } else {
+      setFormValue('');
     }
-
-    // Set modal content based on action
-    switch(action) {
-      case 'edit':
-        setModalTitle(`Edit ${level}`);
-        setModalContent(renderEditForm(level));
-        break;
-      case 'view':
-        setModalTitle(`View ${level}`);
-        setModalContent(renderViewContent(level, item));
-        break;
-      case 'delete':
-        setModalTitle(`Delete ${level}`);
-        setModalContent(renderDeleteConfirmation(level, item));
-        setIds(prev => ({ ...prev, ...parentIds }));
-        break;
-      default:
-        break;
-    }
-
-    setShowModal(true);
   };
 
-  // Handle update
-  const handleUpdate = async () => {
-    resetMessages();
-    try {
-      let url = BASE_API;
-      let data = {};
+  const handleCloseOffcanvas = () => {
+    setOffcanvasData({ show: false, type: '', parentId: '', item: null });
+    setFormValue('');
+  };
 
-      switch(currentLevel) {
-        case 'country':
-          url += `/update/${currentItem._id}`;
-          data = { Country: formData.countryName };
-          break;
-        case 'hotel':
-          url += `/update/${ids.countryId}/Hotel/${currentItem._id}`;
-          data = { HotelName: formData.hotelName };
-          break;
-        case 'module':
-          url += `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${currentItem._id}`;
-          data = { AddModule: formData.moduleName };
-          break;
-        case 'subModule':
-          url += `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${currentItem._id}`;
-          data = { AddSubModule: formData.subModuleName };
-          break;
-        case 'class':
-          url += `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${currentItem._id}`;
-          data = { Addclass: formData.className };
-          break;
-        case 'input':
-          url += `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${ids.classId}/Input/${currentItem._id}`;
-          data = { AddInput: formData.inputName };
-          break;
-        default:
-          break;
+  // Handle create/update
+  const handleSubmit = async () => {
+    const { type, parentId, item } = offcanvasData;
+    const body = {};
+    const fieldName = `Add${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    body[fieldName] = formValue;
+
+    try {
+      let endpoint = '';
+      let method = item ? 'PUT' : 'POST';
+
+      // Determine the endpoint based on hierarchy level
+      if (type === 'country') {
+        endpoint = item ? `/update/${item._id}` : '/create';
+      } else if (type === 'hotel') {
+        if (!parentId) throw new Error("Country ID is required for hotel creation");
+        endpoint = item 
+          ? `/update/${parentId}/Hotel/${item._id}` 
+          : `/create/${parentId}/Hotel`;
+      } else if (type === 'module') {
+        if (!ids.countryId || !parentId) throw new Error("Country and Hotel IDs are required");
+        endpoint = item
+          ? `/update/${ids.countryId}/Hotel/${parentId}/Module/${item._id}`
+          : `/create/${ids.countryId}/Hotel/${parentId}/Module`;
+      } else if (type === 'subModule') {
+        if (!ids.countryId || !ids.hotelId || !parentId) throw new Error("Country, Hotel and Module IDs are required");
+        endpoint = item
+          ? `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${parentId}/SubModule/${item._id}`
+          : `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${parentId}/SubModule`;
+      } else if (type === 'class') {
+        if (!ids.countryId || !ids.hotelId || !ids.moduleId || !parentId) throw new Error("All parent IDs are required");
+        endpoint = item
+          ? `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${parentId}/Class/${item._id}`
+          : `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${parentId}/Class`;
+      } else if (type === 'input') {
+        if (!ids.countryId || !ids.hotelId || !ids.moduleId || !ids.subModuleId || !parentId) {
+          throw new Error("All parent IDs are required");
+        }
+        endpoint = item
+          ? `/update/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${parentId}/Input/${item._id}`
+          : `/create/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${parentId}/Input`;
       }
 
-      await axios.put(url, data, config);
-      setMessage(`${currentLevel.charAt(0).toUpperCase() + currentLevel.slice(1)} updated successfully!`);
-      setShowModal(false);
+      const res = await axios({
+        method,
+        url: `${BASE_API}${endpoint}`,
+        data: body,
+        headers: config.headers
+      });
+
       fetchSustainabilityData();
+      handleCloseOffcanvas();
     } catch (err) {
-      setError(`Error updating ${currentLevel}`);
+      console.error('Error saving:', err);
+      setError(err.message || `Failed to save ${type}`);
     }
   };
 
   // Handle delete
-  const handleDelete = async () => {
-    resetMessages();
-    try {
-      let url = BASE_API;
+ const handleDelete = async (type, id) => {
+  if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
 
-      switch(currentLevel) {
-        case 'country':
-          url += `/delete/${currentItem._id}`;
-          break;
-        case 'hotel':
-          url += `/delete/${ids.countryId}/Hotel/${currentItem._id}`;
-          break;
-        case 'module':
-          url += `/delete/${ids.countryId}/Hotel/${ids.hotelId}/Module/${currentItem._id}`;
-          break;
-        case 'subModule':
-          url += `/delete/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${currentItem._id}`;
-          break;
-        case 'class':
-          url += `/delete/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${currentItem._id}`;
-          break;
-        case 'input':
-          url += `/delete/${ids.countryId}/Hotel/${ids.hotelId}/Module/${ids.moduleId}/SubModule/${ids.subModuleId}/Class/${ids.classId}/Input/${currentItem._id}`;
-          break;
-        default:
-          break;
-      }
+  try {
+    let endpoint = '';
 
-      await axios.delete(url, config);
-      setMessage(`${currentLevel.charAt(0).toUpperCase() + currentLevel.slice(1)} deleted successfully!`);
-      setShowModal(false);
-      fetchSustainabilityData();
-    } catch (err) {
-      setError(`Error deleting ${currentLevel}`);
-    }
-  };
-
-  // Render edit form
-  const renderEditForm = (level) => {
-    const fieldName = 
-      level === 'country' ? 'countryName' :
-      level === 'hotel' ? 'hotelName' :
-      level === 'module' ? 'moduleName' :
-      level === 'subModule' ? 'subModuleName' :
-      level === 'class' ? 'className' : 'inputName';
-
-    return (
-      <Form>
-        <Form.Group className="mb-3">
-          <Form.Label>{level.charAt(0).toUpperCase() + level.slice(1)} Name</Form.Label>
-          <Form.Control
-            type="text"
-            name={fieldName}
-            value={formData[fieldName]}
-            onChange={handleInputChange}
-          />
-        </Form.Group>
-        
-        <Stack direction="horizontal" gap={2} className="mt-4">
-          <Button variant="primary" onClick={handleUpdate}>
-            Save Changes
-          </Button>
-          <Button variant="outline-secondary" onClick={() => setShowModal(false)}>
-            Cancel
-          </Button>
-        </Stack>
-      </Form>
-    );
-  };
-
-  // Render view content
-  const renderViewContent = (level, item) => {
-    return (
-      <div>
-        <Card className="mb-3">
-          <Card.Body>
-            <Card.Title>{level.charAt(0).toUpperCase() + level.slice(1)} Details</Card.Title>
-            <Card.Text>
-              <strong>Name:</strong> {item[`Add${level.charAt(0).toUpperCase() + level.slice(1)}`] || 
-                                    item[`${level.charAt(0).toUpperCase() + level.slice(1)}Name`] || 
-                                    item.Country}
-            </Card.Text>
-            <Card.Text>
-              <strong>ID:</strong> {item._id}
-            </Card.Text>
-            {item.createdAt && (
-              <Card.Text>
-                <strong>Created:</strong> {new Date(item.createdAt).toLocaleString()}
-              </Card.Text>
-            )}
-          </Card.Body>
-        </Card>
-        
-        <Button 
-          variant="outline-primary" 
-          onClick={() => {
-            setShowModal(false);
-            setTimeout(() => openModal('edit', level, item), 300);
-          }}
-        >
-          <Pencil className="me-1" /> Edit
-        </Button>
-      </div>
-    );
-  };
-
-  // Render delete confirmation
-  const renderDeleteConfirmation = (level, item) => {
-    return (
-      <div>
-        <Alert variant="danger" className="mb-4">
-          <Alert.Heading>Confirm Deletion</Alert.Heading>
-          <p>
-            Are you sure you want to delete this {level}? This action cannot be undone.
-          </p>
-          <hr />
-          <p className="mb-0">
-            <strong>Item to delete:</strong> {item[`Add${level.charAt(0).toUpperCase() + level.slice(1)}`] || 
-                                            item[`${level.charAt(0).toUpperCase() + level.slice(1)}Name`] || 
-                                            item.Country}
-          </p>
-        </Alert>
-        
-        <Stack direction="horizontal" gap={2} className="mt-4">
-          <Button variant="danger" onClick={handleDelete}>
-            <Trash className="me-1" /> Delete
-          </Button>
-          <Button variant="outline-secondary" onClick={() => setShowModal(false)}>
-            Cancel
-          </Button>
-        </Stack>
-      </div>
-    );
-  };
-
-  // Render create form for a level
-  const renderCreateForm = (level, disabled) => {
-    const fieldName = 
-      level === 'country' ? 'countryName' :
-      level === 'hotel' ? 'hotelName' :
-      level === 'module' ? 'moduleName' :
-      level === 'subModule' ? 'subModuleName' :
-      level === 'class' ? 'className' : 'inputName';
-
-    const buttonText = 
-      level === 'country' ? 'Create Country' :
-      level === 'hotel' ? 'Add Hotel' :
-      level === 'module' ? 'Add Module' :
-      level === 'subModule' ? 'Add SubModule' :
-      level === 'class' ? 'Add Class' : 'Add Input';
-
-    return (
-      <Form.Group className="mb-3">
-        <Form.Label>{level.charAt(0).toUpperCase() + level.slice(1)} Name</Form.Label>
-        <Form.Control
-          type="text"
-          name={fieldName}
-          value={formData[fieldName]}
-          onChange={handleInputChange}
-          placeholder={`Enter ${level} name`}
-          disabled={disabled}
-        />
-        <Button 
-          variant="primary" 
-          className="mt-2" 
-          onClick={() => createItem(level)} 
-          disabled={!formData[fieldName] || disabled}
-        >
-          <Pencil className="me-1" /> {buttonText}
-        </Button>
-      </Form.Group>
-    );
-  };
-
-  // Render item with actions
-  const renderItem = (level, item, parentIds = {}) => {
-    const name = item[`Add${level.charAt(0).toUpperCase() + level.slice(1)}`] || 
-                 item[`${level.charAt(0).toUpperCase() + level.slice(1)}Name`] || 
-                 item.Country;
-    
-    const count = item[level === 'country' ? 'Hotel' : 
-                      level === 'hotel' ? 'Module' : 
-                      level === 'module' ? 'SubModule' : 
-                      level === 'subModule' ? 'Class' : 
-                      level === 'class' ? 'Input' : '']?.length || 0;
-
-    const badgeVariant = 
-      level === 'country' ? 'primary' : 
-      level === 'hotel' ? 'info' : 
-      level === 'module' ? 'warning' : 
-      level === 'subModule' ? 'success' : 
-      level === 'class' ? 'danger' : 'secondary';
-
-    return (
-      <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-        <div className="d-flex align-items-center">
-          <span className="fw-bold me-2">{name}</span>
-          {count > 0 && <Badge bg={badgeVariant}>{count}</Badge>}
-        </div>
-        <Stack direction="horizontal" gap={1}>
-          <Button 
-            variant="outline-info" 
-            size="sm" 
-            onClick={() => openModal('view', level, item)}
-            title="View"
-          >
-            <Eye />
-          </Button>
-          <Button 
-            variant="outline-primary" 
-            size="sm" 
-            onClick={() => openModal('edit', level, item, parentIds)}
-            title="Edit"
-          >
-            <Pencil />
-          </Button>
-          <Button 
-            variant="outline-danger" 
-            size="sm" 
-            onClick={() => openModal('delete', level, item, parentIds)}
-            title="Delete"
-          >
-            <Trash />
-          </Button>
-        </Stack>
-      </div>
-    );
-  };
-
-  // Render nested items
-  const renderNestedItems = (items, level, parentIds = {}) => {
-    if (!items || items.length === 0) return null;
-
-    return items.map(item => {
-      const newParentIds = { ...parentIds };
-      if (level === 'hotel') newParentIds.countryId = parentIds.countryId;
-      if (level === 'module') {
-        newParentIds.countryId = parentIds.countryId;
-        newParentIds.hotelId = item._id;
-      }
-      if (level === 'subModule') {
-        newParentIds.countryId = parentIds.countryId;
-        newParentIds.hotelId = parentIds.hotelId;
-        newParentIds.moduleId = item._id;
-      }
-      if (level === 'class') {
-        newParentIds.countryId = parentIds.countryId;
-        newParentIds.hotelId = parentIds.hotelId;
-        newParentIds.moduleId = parentIds.moduleId;
-        newParentIds.subModuleId = item._id;
-      }
-      if (level === 'input') {
-        newParentIds.countryId = parentIds.countryId;
-        newParentIds.hotelId = parentIds.hotelId;
-        newParentIds.moduleId = parentIds.moduleId;
-        newParentIds.subModuleId = parentIds.subModuleId;
-        newParentIds.classId = item._id;
-      }
-
-      return (
-        <Accordion.Item key={item._id} eventKey={item._id}>
-          <Accordion.Header>
-            {renderItem(level, item, parentIds)}
-          </Accordion.Header>
-          <Accordion.Body>
-            {level === 'country' && renderNestedItems(item.Hotel, 'hotel', { countryId: item._id })}
-            {level === 'hotel' && renderNestedItems(item.Module, 'module', { ...parentIds, hotelId: item._id })}
-            {level === 'module' && renderNestedItems(item.SubModule, 'subModule', { ...parentIds, moduleId: item._id })}
-            {level === 'subModule' && renderNestedItems(item.Class, 'class', { ...parentIds, subModuleId: item._id })}
-            {level === 'class' && renderNestedItems(item.Input, 'input', { ...parentIds, classId: item._id })}
-          </Accordion.Body>
-        </Accordion.Item>
+    if (type === 'country') {
+      endpoint = `/delete/${id}`;
+    } else if (type === 'hotel') {
+      const country = sustainabilityData.find(c =>
+        c.Hotel?.some(h => h._id === id)
       );
-    });
+      if (!country) throw new Error("Parent country not found");
+      endpoint = `/delete/${country._id}/Hotel/${id}`;
+    } else if (type === 'module') {
+      const country = sustainabilityData.find(c =>
+        c.Hotel?.some(h => h.Module?.some(m => m._id === id))
+      );
+      const hotel = country?.Hotel.find(h =>
+        h.Module?.some(m => m._id === id)
+      );
+      if (!country || !hotel) throw new Error("Parent country/hotel not found");
+      const module = hotel.Module.find(m => m._id === id);
+      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}`;
+    } else if (type === 'subModule') {
+      const country = sustainabilityData.find(c =>
+        c.Hotel?.some(h =>
+          h.Module?.some(m =>
+            m.SubModule?.some(sm => sm._id === id)
+          )
+        )
+      );
+      const hotel = country?.Hotel.find(h =>
+        h.Module?.some(m =>
+          m.SubModule?.some(sm => sm._id === id)
+        )
+      );
+      const module = hotel?.Module.find(m =>
+        m.SubModule?.some(sm => sm._id === id)
+      );
+      const subModule = module?.SubModule.find(sm => sm._id === id);
+      if (!country || !hotel || !module || !subModule) throw new Error("Parent hierarchy not found");
+      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}`;
+    } else if (type === 'class') {
+      const country = sustainabilityData.find(c =>
+        c.Hotel?.some(h =>
+          h.Module?.some(m =>
+            m.SubModule?.some(sm =>
+              sm.Class?.some(cls => cls._id === id)
+            )
+          )
+        )
+      );
+      const hotel = country?.Hotel.find(h =>
+        h.Module?.some(m =>
+          m.SubModule?.some(sm =>
+            sm.Class?.some(cls => cls._id === id)
+          )
+        )
+      );
+      const module = hotel?.Module.find(m =>
+        m.SubModule?.some(sm =>
+          sm.Class?.some(cls => cls._id === id)
+        )
+      );
+      const subModule = module?.SubModule.find(sm =>
+        sm.Class?.some(cls => cls._id === id)
+      );
+      const cls = subModule?.Class.find(c => c._id === id);
+      if (!country || !hotel || !module || !subModule || !cls) throw new Error("Parent hierarchy not found");
+      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}`;
+    } else if (type === 'input') {
+      const country = sustainabilityData.find(c =>
+        c.Hotel?.some(h =>
+          h.Module?.some(m =>
+            m.SubModule?.some(sm =>
+              sm.Class?.some(cls =>
+                cls.Input?.some(input => input._id === id)
+              )
+            )
+          )
+        )
+      );
+      const hotel = country?.Hotel.find(h =>
+        h.Module?.some(m =>
+          m.SubModule?.some(sm =>
+            sm.Class?.some(cls =>
+              cls.Input?.some(input => input._id === id)
+            )
+          )
+        )
+      );
+      const module = hotel?.Module.find(m =>
+        m.SubModule?.some(sm =>
+          sm.Class?.some(cls =>
+            cls.Input?.some(input => input._id === id)
+          )
+        )
+      );
+      const subModule = module?.SubModule.find(sm =>
+        sm.Class?.some(cls =>
+          cls.Input?.some(input => input._id === id)
+        )
+      );
+      const cls = subModule?.Class.find(c =>
+        c.Input?.some(input => input._id === id)
+      );
+      const input = cls?.Input.find(i => i._id === id);
+      if (!country || !hotel || !module || !subModule || !cls || !input) throw new Error("Parent hierarchy not found");
+      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}/Input/${id}`;
+    }
+
+    await axios.delete(`${BASE_API}${endpoint}`, config);
+    fetchSustainabilityData();
+  } catch (err) {
+    console.error('Delete error:', err);
+    setError(err.message || `Failed to delete ${type}`);
+  }
+};
+
+  // Toggle expand/collapse
+const toggleExpand = (type, id) => {
+  setExpandedItems(prev => ({
+    ...prev,
+    [`${type}-${id}`]: !prev[`${type}-${id}`]
+  }));
+};
+
+
+  const isExpanded = (type, id) => expandedItems[`${type}-${id}`];
+
+  // Count items for statistics
+  const countItems = (data, ...properties) => {
+    return data?.reduce((acc, item) => {
+      let current = item;
+      for (const prop of properties) {
+        current = current?.[prop];
+        if (!current) break;
+      }
+      return acc + (Array.isArray(current) ? current.length : 0);
+    }, 0) || 0;
   };
 
-  // Fetch data on component mount
+  // Statistics
+  const stats = {
+    countries: sustainabilityData.length,
+    hotels: countItems(sustainabilityData, 'Hotel'),
+    modules: countItems(sustainabilityData, 'Hotel', 'Module'),
+    subModules: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule'),
+    classes: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule', 'Class'),
+    inputs: countItems(sustainabilityData, 'Hotel', 'Module', 'SubModule', 'Class', 'Input')
+  };
+
+  // Render item name with proper field
+  const getItemName = (item, type) => {
+    return item[`Add${type.charAt(0).toUpperCase() + type.slice(1)}`] || 
+           item[`${type.charAt(0).toUpperCase() + type.slice(1)}Name`] || 
+           item.Country || '';
+  };
+
   useEffect(() => {
     fetchSustainabilityData();
   }, []);
 
   return (
-    <Container className="my-4">
-      <h2 className="mb-4 text-primary">
-        <span className=" me-2"></span>
-        Sustainability Management
-      </h2>
-      
-      {/* Stats Cards
-      <Row className="g-4 mb-4">
-        {Object.entries(stats).map(([key, value]) => (
-          <Col key={key} md={4} lg={2}>
-            <Card className="h-100 shadow-sm border-0">
-              <Card.Body className="text-center">
-                <Card.Title className="text-capitalize">{key}</Card.Title>
-                <Badge 
-                  bg={
-                    key === 'countries' ? 'primary' : 
-                    key === 'hotels' ? 'info' : 
-                    key === 'modules' ? 'warning' : 
-                    key === 'subModules' ? 'success' : 
-                    key === 'classes' ? 'danger' : 'secondary'
-                  } 
-                  pill 
-                  className="fs-5 px-3 py-2"
+    <Container className="mt-4">
+      <div className="border rounded shadow-sm p-3 mb-4 bg-white">
+        <h2 className="mb-3 text-primary">Sustainability Management</h2>
+
+        {error && (
+          <Alert variant="danger" onClose={() => setError(null)} dismissible>
+            {error}
+          </Alert>
+        )}
+
+        {isLoading ? (
+          <div className="text-center py-4">
+            <Spinner animation="border" variant="primary" />
+            <p className="mt-2">Loading sustainability data...</p>
+          </div>
+        ) : (
+          <>
+            <Tabs 
+              activeKey={activeTab} 
+              onSelect={(k) => setActiveTab(k)} 
+              className="mb-3"
+              fill
+            >
+              <Tab eventKey="country" title="Countries">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h4></h4>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => handleOpenOffcanvas('country')}
+                    className="d-flex align-items-center"
+                  >
+               Add Country
+                  </Button>
+                </div>
+                
+                <Table striped responsive>
+                  <thead>
+                    <tr>
+                      <th>Country Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="text-center">No countries found</td>
+                      </tr>
+                    ) : (
+                      sustainabilityData.map((country) => (
+                        <tr key={country._id}>
+                          <td>
+                            <div 
+                              className="d-flex align-items-center cursor-pointer" 
+                              onClick={() => toggleExpand('country', country._id)}
+                            >
+                              {getItemName(country, 'country')}
+                            </div>
+                          </td>
+                          <td className="text-end">
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm" 
+                              onClick={() => handleOpenOffcanvas('country', '', country)}
+                              className="me-2"
+                            >
+                              <PencilSquare size={14} className="me-1" /> Edit
+                            </Button>
+                            <Button 
+                              variant="outline-danger" 
+                              size="sm" 
+                              onClick={() => handleDelete('country', country._id)}
+                              className="me-2"
+                            >
+                              <Trash size={14} className="me-1" /> Delete
+                            </Button>
+                            <Button 
+                              variant="primary" 
+                              size="sm" 
+                              onClick={() => handleOpenOffcanvas('hotel', country._id)}
+                            >
+                            Hotel
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+
+              <Tab eventKey="hotel" title="Hotels">
+                <h4 className="mb-3"></h4>
+                <Table striped responsive>
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Hotel Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.flatMap(country => 
+                      country.Hotel?.map(hotel => (
+                        <tr key={hotel._id}>
+                          <td>{getItemName(country, 'country')}</td>
+                          <td>
+                            <div>
+                              {getItemName(hotel, 'hotel')}
+                            </div>
+                          </td>
+                          <td className="text-end">
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm" 
+                              onClick={() => handleOpenOffcanvas('hotel', country._id, hotel)}
+                              className="me-2"
+                            >
+                              <PencilSquare size={14} className="me-1" /> Edit
+                            </Button>
+                            <Button 
+                              variant="outline-danger" 
+                              size="sm" 
+                              onClick={() => handleDelete('hotel', hotel._id)}
+                              className="me-2"
+                            >
+                              <Trash size={14} className="me-1" /> Delete
+                            </Button>
+                            <Button 
+                              variant="primary" 
+                              size="sm" 
+                              onClick={() => {
+                                setIds(prev => ({ ...prev, countryId: country._id }));
+                                handleOpenOffcanvas('module', hotel._id);
+                              }}
+                            >
+                             Module
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+
+              <Tab eventKey="module" title="Modules">
+                <h4 className="mb-3"></h4>
+                <Table striped responsive>
+                  <thead>
+                    <tr>     
+                      <th>Country</th>
+                      <th>Hotel</th>
+                      <th>Module Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.flatMap(country => 
+                      country.Hotel?.flatMap(hotel => 
+                        hotel.Module?.map(module => (
+                          <tr key={module._id}>
+                            <td>{getItemName(country, 'country')}</td>
+                            <td>{getItemName(hotel, 'hotel')}</td>
+                            <td>
+                              <div 
+                                className="d-flex align-items-center cursor-pointer" 
+                                onClick={() => toggleExpand('module', module._id)}
+                              >
+                                {getItemName(module, 'module')}
+                        
+                              </div>
+                            </td>
+                            <td className="text-end">
+                              <Button 
+                                variant="outline-primary" 
+                                size="sm" 
+                                onClick={() => {
+                                  setIds(prev => ({ ...prev, countryId: country._id, hotelId: hotel._id }));
+                                  handleOpenOffcanvas('module', hotel._id, module);
+                                }}
+                                className="me-2"
+                              >
+                                <PencilSquare size={14} className="me-1" /> Edit
+                              </Button>
+                              <Button 
+                                variant="outline-danger" 
+                                size="sm" 
+                                onClick={() => handleDelete('module', module._id)}
+                                className="me-2"
+                              >
+                                <Trash size={14} className="me-1" /> Delete
+                              </Button>
+                              <Button 
+                                variant="primary" 
+                                size="sm" 
+                                onClick={() => {
+                                  setIds(prev => ({ 
+                                    ...prev, 
+                                    countryId: country._id, 
+                                    hotelId: hotel._id 
+                                  }));
+                                  handleOpenOffcanvas('subModule', module._id);
+                                }}
+                              > 
+                              SubModule
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+
+              <Tab eventKey="subModule" title="SubModules">
+                <h4 className="mb-3"></h4>
+                <Table striped responsive>
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Hotel</th>
+                      <th>Module</th>
+                      <th>SubModule Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.flatMap(country => 
+                      country.Hotel?.flatMap(hotel => 
+                        hotel.Module?.flatMap(module => 
+                          module.SubModule?.map(subModule => (
+                            <tr key={subModule._id}>
+                              <td>{getItemName(country, 'country')}</td>
+                              <td>{getItemName(hotel, 'hotel')}</td>
+                              <td>{getItemName(module, 'module')}</td>
+                              <td>
+                                <div 
+                                  className="d-flex align-items-center cursor-pointer" 
+                                  onClick={() => toggleExpand('subModule', subModule._id)}
+                                >
+                                  {getItemName(subModule, 'subModule')}
+                                 
+                                </div>
+                              </td>
+                              <td className="text-end">
+                                <Button 
+                                  variant="outline-primary" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setIds(prev => ({ 
+                                      ...prev, 
+                                      countryId: country._id, 
+                                      hotelId: hotel._id,
+                                      moduleId: module._id
+                                    }));
+                                    handleOpenOffcanvas('subModule', module._id, subModule);
+                                  }}
+                                  className="me-2"
+                                >
+                                  <PencilSquare size={14} className="me-1" /> Edit
+                                </Button>
+                                <Button 
+                                  variant="outline-danger" 
+                                  size="sm" 
+                                  onClick={() => handleDelete('subModule', subModule._id)}
+                                  className="me-2"
+                                >
+                                  <Trash size={14} className="me-1" /> Delete
+                                </Button>
+                                <Button 
+                                  variant="primary" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setIds(prev => ({ 
+                                      ...prev, 
+                                      countryId: country._id, 
+                                      hotelId: hotel._id,
+                                      moduleId: module._id
+                                    }));
+                                    handleOpenOffcanvas('class', subModule._id);
+                                  }}
+                                >
+                                 Class
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )
+                      )
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+
+              <Tab eventKey="class" title="Classes">
+                <h4 className="mb-3"></h4>
+                <Table striped responsive>
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Hotel</th>
+                      <th>Module</th>
+                      <th>SubModule</th>
+                      <th>Class Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.flatMap(country => 
+                      country.Hotel?.flatMap(hotel => 
+                        hotel.Module?.flatMap(module => 
+                          module.SubModule?.flatMap(subModule => 
+                            subModule.Class?.map(cls => (
+                              <tr key={cls._id}>
+                                <td>{getItemName(country, 'country')}</td>
+                                <td>{getItemName(hotel, 'hotel')}</td>
+                                <td>{getItemName(module, 'module')}</td>
+                                <td>{getItemName(subModule, 'subModule')}</td>
+                                <td>
+                                  <div 
+                                    className="d-flex align-items-center cursor-pointer" 
+                                    onClick={() => toggleExpand('class', cls._id)}
+                                  >
+                                    {getItemName(cls, 'class')}
+                                   
+                                  </div>
+                                </td>
+                                <td className="text-end">
+                                  <Button 
+                                    variant="outline-primary" 
+                                    size="sm" 
+                                    onClick={() => {
+                                      setIds(prev => ({ 
+                                        ...prev, 
+                                        countryId: country._id, 
+                                        hotelId: hotel._id,
+                                        moduleId: module._id,
+                                        subModuleId: subModule._id
+                                      }));
+                                      handleOpenOffcanvas('class', subModule._id, cls);
+                                    }}
+                                    className="me-2"
+                                  >
+                                    <PencilSquare size={14} className="me-1" /> Edit
+                                  </Button>
+                                  <Button 
+                                    variant="outline-danger" 
+                                    size="sm" 
+                                    onClick={() => handleDelete('class', cls._id)}
+                                    className="me-2"
+                                  >
+                                    <Trash size={14} className="me-1" /> Delete
+                                  </Button>
+                                  <Button 
+                                    variant="primary" 
+                                    size="sm" 
+                                    onClick={() => {
+                                      setIds(prev => ({ 
+                                        ...prev, 
+                                        countryId: country._id, 
+                                        hotelId: hotel._id,
+                                        moduleId: module._id,
+                                        subModuleId: subModule._id
+                                      }));
+                                      handleOpenOffcanvas('input', cls._id);
+                                    }}
+                                  >
+                                Input
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )
+                        )
+                      )
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+
+              <Tab eventKey="input" title="Inputs">
+                <h4 className="mb-3"></h4>
+                <Table striped responsive>
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Hotel</th>
+                      <th>Module</th>
+                      <th>SubModule</th>
+                      <th>Class</th>
+                      <th>Input Name</th>
+                      <th className="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sustainabilityData.flatMap(country => 
+                      country.Hotel?.flatMap(hotel => 
+                        hotel.Module?.flatMap(module => 
+                          module.SubModule?.flatMap(subModule => 
+                            subModule.Class?.flatMap(cls => 
+                              cls.Input?.map(input => (
+                                <tr key={input._id}>
+                                  <td>{getItemName(country, 'country')}</td>
+                                  <td>{getItemName(hotel, 'hotel')}</td>
+                                  <td>{getItemName(module, 'module')}</td>
+                                  <td>{getItemName(subModule, 'subModule')}</td>
+                                  <td>{getItemName(cls, 'class')}</td>
+                                  <td>
+                                    <div>
+                                      {getItemName(input, 'input')}
+                                    </div>
+                                  </td>
+                                  <td className="text-end">
+                                    <Button 
+                                      variant="outline-primary" 
+                                      size="sm" 
+                                      onClick={() => {
+                                        setIds(prev => ({ 
+                                          ...prev, 
+                                          countryId: country._id, 
+                                          hotelId: hotel._id,
+                                          moduleId: module._id,
+                                          subModuleId: subModule._id,
+                                          classId: cls._id
+                                        }));
+                                        handleOpenOffcanvas('input', cls._id, input);
+                                      }}
+                                      className="me-2"
+                                    >
+                                      <PencilSquare size={14} className="me-1" /> Edit
+                                    </Button>
+                                    <Button 
+                                      variant="outline-danger" 
+                                      size="sm" 
+                                      onClick={() => handleDelete('input', input._id)}
+                                    >
+                                      <Trash size={14} className="me-1" /> Delete
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))
+                            )
+                          )
+                        )
+                      )
+                    )}
+                  </tbody>
+                </Table>
+              </Tab>
+            </Tabs>
+
+            {/* Offcanvas for Add/Edit */}
+            <Offcanvas 
+              show={offcanvasData.show} 
+              onHide={handleCloseOffcanvas} 
+              placement="end"
+              className="w-50"
+            >
+              <Offcanvas.Header className={offcanvasData.item }>
+                <Offcanvas.Title>
+                  {offcanvasData.item ? 'Edit' : 'Add'} {offcanvasData.type.charAt(0).toUpperCase() + offcanvasData.type.slice(1)}
+                </Offcanvas.Title>
+                <Button 
+                  variant={offcanvasData.item ? 'outline-dark' : 'outline-light'} 
+                  onClick={handleCloseOffcanvas}
+                  className="ms-auto"
                 >
-                  {value}
-                </Badge>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row> */}
-
-      {/* Messages */}
-      {message && (
-        <Alert variant="success" onClose={() => setMessage('')} dismissible className="mb-4">
-          {message}
-        </Alert>
-      )}
-      {error && (
-        <Alert variant="danger" onClose={() => setError('')} dismissible className="mb-4">
-          {error}
-        </Alert>
-      )}
-
-      {/* Create Forms */}
-      <Card className="mb-4 shadow-sm">
-        <Card.Header className="bg-light">
-          <h5 className="mb-0">Create New Items</h5>
-        </Card.Header>
-        <Card.Body>
-          <Accordion defaultActiveKey="0">
-            <Accordion.Item eventKey="0">
-              <Accordion.Header>Create Country</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('country', false)}
-              </Accordion.Body>
-            </Accordion.Item>
-
-            <Accordion.Item eventKey="1" disabled={!ids.countryId}>
-              <Accordion.Header>Add Hotel</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('hotel', !ids.countryId)}
-              </Accordion.Body>
-            </Accordion.Item>
-
-            <Accordion.Item eventKey="2" disabled={!ids.hotelId}>
-              <Accordion.Header>Add Module</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('module', !ids.hotelId)}
-              </Accordion.Body>
-            </Accordion.Item>
-
-            <Accordion.Item eventKey="3" disabled={!ids.moduleId}>
-              <Accordion.Header>Add SubModule</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('subModule', !ids.moduleId)}
-              </Accordion.Body>
-            </Accordion.Item>
-
-            <Accordion.Item eventKey="4" disabled={!ids.subModuleId}>
-              <Accordion.Header>Add Class</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('class', !ids.subModuleId)}
-              </Accordion.Body>
-            </Accordion.Item>
-
-            <Accordion.Item eventKey="5" disabled={!ids.classId}>
-              <Accordion.Header>Add Input</Accordion.Header>
-              <Accordion.Body>
-                {renderCreateForm('input', !ids.classId)}
-              </Accordion.Body>
-            </Accordion.Item>
-          </Accordion>
-        </Card.Body>
-      </Card>
-
-      {/* Data Display */}
-      {sustainabilityData.length > 0 && (
-        <Card className="shadow-sm">
-          <Card.Header className="bg-light">
-            <h5 className="mb-0">Vew Sustainability</h5>
-          </Card.Header>
-          <Card.Body>
-            <Accordion>
-              {renderNestedItems(sustainabilityData, 'country')}
-            </Accordion>
-          </Card.Body>
-        </Card>
-      )}
-
-      {/* Modal for Edit/View/Delete */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{modalTitle}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {modalContent}
-        </Modal.Body>
-      </Modal>
+                  <X size={20} />
+                </Button>
+              </Offcanvas.Header>
+              <Offcanvas.Body>
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    <strong>{offcanvasData.type} Name</strong>
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formValue}
+                    onChange={(e) => setFormValue(e.target.value)}
+                    placeholder={`Enter ${offcanvasData.type} name`}
+                    autoFocus
+                  />
+                </Form.Group>
+              </Offcanvas.Body>
+              <div className="p-3 border-top">
+                <div className="d-flex justify-content-end gap-2">
+                  <Button variant="secondary" onClick={handleCloseOffcanvas}>Cancel</Button>
+                  <Button variant={offcanvasData.item ? 'warning' : 'primary'} onClick={handleSubmit}>
+                    {offcanvasData.item ? 'Update' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+            </Offcanvas>
+          </>
+        )}
+      </div>
     </Container>
   );
 };

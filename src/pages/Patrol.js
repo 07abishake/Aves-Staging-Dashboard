@@ -39,6 +39,24 @@ const timeOptions = [
   "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
 ];
 
+// Notification service function
+const sendPushNotification = async ({ userId, title, body }) => {
+  const token = localStorage.getItem("access_token");
+  try {
+    await axios.post('http://api.avessecurity.com:6378/api/firebase/send-notification', {
+      userIds: userId,
+      title,
+      body,
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+  } catch (error) {
+    console.error("Push notification error:", error);
+  }
+};
+
 function SetViewToCurrentLocation() {
   const [position, setPosition] = useState(null);
   const map = useMap();
@@ -108,16 +126,31 @@ function Patrol() {
     const [selectedShift, setSelectedShift] = useState('');
     const [shiftAssignedUsers, setShiftAssignedUsers] = useState([]);
     
+    // Loading state
+    const [isLoading, setIsLoading] = useState(false);
+    
     const token = localStorage.getItem("access_token");
 
     useEffect(() => {
-        fetchLocations();
-        fetchPatrols();
-        fetchShifts();
-        fetchAssignedPatrols();
+        fetchAllData();
     }, []);
 
-    // Fetch all available shifts
+    const fetchAllData = async () => {
+        setIsLoading(true);
+        try {
+            await Promise.all([
+                fetchLocations(),
+                fetchPatrols(),
+                fetchShifts(),
+                fetchAssignedPatrols()
+            ]);
+        } catch (error) {
+            console.error("Error fetching initial data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const fetchShifts = async () => {
         try {
             const res = await axios.get("https://api.avessecurity.com/api/shift/get/ShiftName", {
@@ -129,7 +162,6 @@ function Patrol() {
         }
     };
 
-    // Fetch users assigned to a specific shift
     const fetchUsersForShift = async (actualShiftId) => {
         try {
             const res = await axios.get(
@@ -143,48 +175,49 @@ function Patrol() {
         }
     };
 
-    const fetchLocations = () => {
-        axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(res => setLocations(res.data.Location || []))
-        .catch(err => console.error('Error fetching locations:', err));
+    const fetchLocations = async () => {
+        try {
+            const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setLocations(res.data.Location || []);
+        } catch (err) {
+            console.error('Error fetching locations:', err);
+        }
     };
 
-    const fetchPatrols = () => {
-        axios.get('https://api.avessecurity.com/api/Patrol/getAllcreatedPatroll', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(res => {
+    const fetchPatrols = async () => {
+        try {
+            const res = await axios.get('https://api.avessecurity.com/api/Patrol/getAllcreatedPatroll', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (res.data && res.data.data && Array.isArray(res.data.data)) {
                 setPatrols(res.data.data);
             } else {
                 console.error('Unexpected patrols data structure:', res.data);
                 setPatrols([]);
             }
-        })
-        .catch(err => {
+        } catch (err) {
             console.error('Error fetching patrols:', err);
             setPatrols([]);
-        });
+        }
     };
 
-    const fetchAssignedPatrols = () => {
-        axios.get('https://api.avessecurity.com/api/Patrol/getAllPatrol', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(res => {
+    const fetchAssignedPatrols = async () => {
+        try {
+            const res = await axios.get('https://api.avessecurity.com/api/Patrol/getAllPatrol', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (res.data && Array.isArray(res.data.assignedPatrols)) {
                 setAssignedPatrols(res.data.assignedPatrols);
             } else {
                 console.error('Unexpected assigned patrols data structure:', res.data);
                 setAssignedPatrols([]);
             }
-        })
-        .catch(err => {
+        } catch (err) {
             console.error('Error fetching assigned patrols:', err);
             setAssignedPatrols([]);
-        });
+        }
     };
 
     const handleMapClick = (latlng) => {
@@ -246,6 +279,7 @@ function Patrol() {
             EndedAt: endTime,
         };
 
+        setIsLoading(true);
         try {
             const response = await axios.post(
                 "https://api.avessecurity.com/api/Patrol/Assign", 
@@ -254,26 +288,42 @@ function Patrol() {
             );
             
             if (response.status === 200) {
+                try {
+                    // Get details for notification
+                    const patrolName = patrols.find(p => p._id === selectedPatrolToAssign)?.Name || 'a patrol';
+                    const user = shiftAssignedUsers.find(u => u.userId === selectedUser)?.userName || 'User';
+                    
+                    // Send notification
+                    await sendPushNotification({
+                        userId: selectedUser,
+                        title: "New Patrol Assignment",
+                        body: `${user}, you have been assigned to ${patrolName} from ${startTime} to ${endTime} between ${startDate} and ${endDate}`
+                    });
+                } catch (notificationError) {
+                    console.error("Notification failed to send:", notificationError);
+                    // Continue even if notification fails
+                }
+                
                 alert("Patrol Assigned Successfully!");
                 setShowAssignCanvas(false);
-                fetchAssignedPatrols();
+                await fetchAssignedPatrols();
             }
         } catch (err) {
             console.error(err);
             alert("Failed to assign patrol.");
+        } finally {
+            setIsLoading(false);
         }
     };
     
     const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
         if (!shiftStart || !shiftEnd) return timeOptions;
         
-        // Get current time
         const now = new Date();
         const currentHours = now.getHours();
         const currentMinutes = now.getMinutes();
         const currentTotalMinutes = currentHours * 60 + currentMinutes;
         
-        // Convert shift times to 24-hour format for easier comparison
         const convertToMinutes = (timeStr) => {
             const [time, period] = timeStr.split(' ');
             const [hours, minutes] = time.split(':').map(Number);
@@ -293,7 +343,6 @@ function Patrol() {
             if (period === 'PM' && hours !== 12) total += 12 * 60;
             if (period === 'AM' && hours === 12) total -= 12 * 60;
             
-            // Check if time is within shift hours AND not in the past
             return total >= startMinutes && 
                    total <= endMinutes && 
                    total >= currentTotalMinutes;
@@ -301,7 +350,6 @@ function Patrol() {
     };
 
     const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
-        // Convert time strings to minutes for easier comparison
         const timeToMinutes = (timeStr) => {
             const [time, period] = timeStr.split(' ');
             const [hours, minutes] = time.split(':').map(Number);
@@ -317,21 +365,16 @@ function Patrol() {
         const newEndDateObj = new Date(newEndDate);
 
         return assignedPatrols.some(assignment => {
-            // Skip if assignment or userId is null
             if (!assignment || !assignment.userId || !assignment.userId._id) return false;
-            
-            // Skip if not the same user
             if (assignment.userId._id !== userId) return false;
 
             const assignmentStartDate = new Date(assignment.startDate);
             const assignmentEndDate = new Date(assignment.endDate);
             
-            // Check if date ranges overlap
             if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
                 return false;
             }
 
-            // If dates overlap, check time ranges
             const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
             const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
 
@@ -339,72 +382,85 @@ function Patrol() {
         });
     };
 
-    const handleSubmit = () => {
-        const payload = {
-            Name: patrolName,
-            Location: selectedThird,
-            CheckPoints: checkpoints.map(cp => ({
-                Name: cp.name,
-                Location: { 
-                    lat: cp.location.lat,
-                    lng: cp.location.lng,
-                    latitude: cp.location.lat,
-                    longitude: cp.location.lng
-                },
-                Waypoints: cp.waypoints.map(wp => ({
-                    Name: wp.name,
-                    Coordinates: { 
-                        lat: wp.coordinates.lat,
-                        lng: wp.coordinates.lng,
-                        latitude: wp.coordinates.lat,
-                        longitude: wp.coordinates.lng
+    const handleSubmit = async () => {
+        setIsLoading(true);
+        try {
+            const payload = {
+                Name: patrolName,
+                Location: selectedThird,
+                CheckPoints: checkpoints.map(cp => ({
+                    Name: cp.name,
+                    Location: { 
+                        lat: cp.location.lat,
+                        lng: cp.location.lng,
+                        latitude: cp.location.lat,
+                        longitude: cp.location.lng
                     },
-                    selfieRequired: wp.selfieRequired
+                    Waypoints: cp.waypoints.map(wp => ({
+                        Name: wp.name,
+                        Coordinates: { 
+                            lat: wp.coordinates.lat,
+                            lng: wp.coordinates.lng,
+                            latitude: wp.coordinates.lat,
+                            longitude: wp.coordinates.lng
+                        },
+                        selfieRequired: wp.selfieRequired
+                    }))
                 }))
-            }))
-        };
+            };
 
-        axios.post('https://api.avessecurity.com/api/Patrol/create', payload, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(() => {
+            await axios.post('https://api.avessecurity.com/api/Patrol/create', payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
             alert('Patrol created successfully!');
             setShowFormCanvas(false);
-            fetchPatrols();
-        })
-        .catch(err => console.error('Submit error:', err));
+            await fetchPatrols();
+        } catch (err) {
+            console.error('Submit error:', err);
+            alert('Error creating patrol');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleDeletePatrol = async (patrolId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this patrol?");
         if (!confirmDelete) return;
 
+        setIsLoading(true);
         try {
             await axios.delete(
                 `https://api.avessecurity.com/api/Patrol/deletePatrol/${patrolId}`, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             alert("Patrol deleted successfully");
-            setPatrols(patrols.filter(patrol => patrol._id !== patrolId));
+            await fetchPatrols();
         } catch (error) {
             console.error("Error deleting patrol:", error);
             alert("Error deleting patrol");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleDeleteAssignpatrol = async (assignmentId) => {
-        const confirmDelete = window.confirm("Are you sure you want to delete this patrol?");
+        const confirmDelete = window.confirm("Are you sure you want to delete this patrol assignment?");
         if (!confirmDelete) return;
+        
+        setIsLoading(true);
         try {
             await axios.delete(
                 `https://api.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             alert("Patrol assignment deleted successfully");
-            fetchAssignedPatrols();
+            await fetchAssignedPatrols();
         } catch(err) {
             console.error('Submit error:', err);
             alert("Failed to delete patrol assignment.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -438,6 +494,26 @@ function Patrol() {
 
     return (
         <div className="container mt-4">
+            {/* Loading Overlay */}
+            {isLoading && (
+                <div className="overlay" style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            )}
+
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h4>Patrols</h4>
                 <button className="btn btn-primary" onClick={openFormCanvas}>Add Patrol</button>
@@ -501,8 +577,7 @@ function Patrol() {
                                     <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteAssignpatrol(assignment._id)}>
                                         <i className="bi bi-trash"></i> Delete
                                     </button>
-                                    </td>
-
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -511,146 +586,145 @@ function Patrol() {
 
             {/* Assign Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showAssignCanvas ? 'show' : ''}`} style={{ visibility: showAssignCanvas ? 'visible' : 'hidden' }}>
-    <div className="offcanvas-header">
-        <h5>Assign Patrol</h5>
-        <button className="btn-close" onClick={() => setShowAssignCanvas(false)}></button>
-    </div>
-    <div className="offcanvas-body">
-        <div className="mb-3">
-            <label className="form-label">Select Shift</label>
-            <select 
-                className="form-select"
-                value={selectedShift}
-                onChange={(e) => {
-                    setSelectedShift(e.target.value);
-                    fetchUsersForShift(e.target.value);
-                }}
-            >
-                <option value="">-- Select Shift --</option>
-                {shifts.map(shift => (
-                    <option key={shift._id} value={shift._id}>
-                        {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
-                    </option>
-                ))}
-            </select>
-        </div>
+                <div className="offcanvas-header">
+                    <h5>Assign Patrol</h5>
+                    <button className="btn-close" onClick={() => setShowAssignCanvas(false)}></button>
+                </div>
+                <div className="offcanvas-body">
+                    <div className="mb-3">
+                        <label className="form-label">Select Shift</label>
+                        <select 
+                            className="form-select"
+                            value={selectedShift}
+                            onChange={(e) => {
+                                setSelectedShift(e.target.value);
+                                fetchUsersForShift(e.target.value);
+                            }}
+                        >
+                            <option value="">-- Select Shift --</option>
+                            {shifts.map(shift => (
+                                <option key={shift._id} value={shift._id}>
+                                    {shift.ShiftName} ({shift.ShiftStartTime} - {shift.ShiftEndTime})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-        <div className="mb-3">
-            <label className="form-label">Select User</label>
-            <select
-                className="form-select"
-                value={selectedUser}
-                onChange={(e) => {
-                    const selectedUserId = e.target.value;
-                    setSelectedUser(selectedUserId);
-                    
-                    // Auto-fill dates when user is selected
-                    const selectedUserData = shiftAssignedUsers.find(u => u.userId === selectedUserId);
-                    if (selectedUserData) {
-                        setStartDate(selectedUserData.dateRange.startDate.split('T')[0]);
-                        setEndDate(selectedUserData.dateRange.endDate.split('T')[0]);
-                    }
-                }}
-                disabled={!selectedShift}
-            >
-                <option value="">-- Select User --</option>
-                {shiftAssignedUsers.map((user) => (
-                    <option key={user.userId} value={user.userId}>
-                        {user.userName} ({user.designation}) - {user.shiftName} ({user.shiftTime.start} to {user.shiftTime.end})
-                    </option>
-                ))}
-            </select>
-        </div>
+                    <div className="mb-3">
+                        <label className="form-label">Select User</label>
+                        <select
+                            className="form-select"
+                            value={selectedUser}
+                            onChange={(e) => {
+                                const selectedUserId = e.target.value;
+                                setSelectedUser(selectedUserId);
+                                
+                                const selectedUserData = shiftAssignedUsers.find(u => u.userId === selectedUserId);
+                                if (selectedUserData) {
+                                    setStartDate(selectedUserData.dateRange.startDate.split('T')[0]);
+                                    setEndDate(selectedUserData.dateRange.endDate.split('T')[0]);
+                                }
+                            }}
+                            disabled={!selectedShift}
+                        >
+                            <option value="">-- Select User --</option>
+                            {shiftAssignedUsers.map((user) => (
+                                <option key={user.userId} value={user.userId}>
+                                    {user.userName} ({user.designation}) - {user.shiftName} ({user.shiftTime.start} to {user.shiftTime.end})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-        <div className="mb-3">
-            <label className="form-label">Patrol</label>
-            <input
-                type="text"
-                className="form-control"
-                value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''}
-                readOnly
-            />
-        </div>
+                    <div className="mb-3">
+                        <label className="form-label">Patrol</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={patrols.find(p => p._id === selectedPatrolToAssign)?.Name || ''}
+                            readOnly
+                        />
+                    </div>
 
-        <div className="mb-3">
-            <label className="form-label">Start Date</label>
-            <input
-                type="date"
-                className="form-control"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-            />
-        </div>
+                    <div className="mb-3">
+                        <label className="form-label">Start Date</label>
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            required
+                        />
+                    </div>
 
-        <div className="mb-3">
-            <label className="form-label">End Date</label>
-            <input
-                type="date"
-                className="form-control"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-            />
-        </div>
+                    <div className="mb-3">
+                        <label className="form-label">End Date</label>
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            required
+                        />
+                    </div>
 
-      <div className="mb-3">
-    <label className="form-label">Start Time</label>
-    <select 
-        className="form-select" 
-        value={startTime} 
-        onChange={e => setStartTime(e.target.value)}
-        disabled={!selectedUser}
-    >
-        <option value="">-- Select Start Time --</option>
-        {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
-            getFilteredTimeOptions(
-                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
-                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
-            ).map(time => (
-                <option key={time} value={time}>{time}</option>
-            ))
-        ) : (
-            timeOptions.map(time => (
-                <option key={time} value={time}>{time}</option>
-            ))
-        )}
-    </select>
-</div>
+                    <div className="mb-3">
+                        <label className="form-label">Start Time</label>
+                        <select 
+                            className="form-select" 
+                            value={startTime} 
+                            onChange={e => setStartTime(e.target.value)}
+                            disabled={!selectedUser}
+                        >
+                            <option value="">-- Select Start Time --</option>
+                            {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
+                                getFilteredTimeOptions(
+                                    shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
+                                    shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
+                                ).map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                ))
+                            ) : (
+                                timeOptions.map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                ))
+                            )}
+                        </select>
+                    </div>
 
-<div className="mb-3">
-    <label className="form-label">End Time</label>
-    <select 
-        className="form-select" 
-        value={endTime} 
-        onChange={e => setEndTime(e.target.value)}
-        disabled={!selectedUser}
-    >
-        <option value="">-- Select End Time --</option>
-        {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
-            getFilteredTimeOptions(
-                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
-                shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
-            ).map(time => (
-                <option key={time} value={time}>{time}</option>
-            ))
-        ) : (
-            timeOptions.map(time => (
-                <option key={time} value={time}>{time}</option>
-            ))
-        )}
-    </select>
-</div>
+                    <div className="mb-3">
+                        <label className="form-label">End Time</label>
+                        <select 
+                            className="form-select" 
+                            value={endTime} 
+                            onChange={e => setEndTime(e.target.value)}
+                            disabled={!selectedUser}
+                        >
+                            <option value="">-- Select End Time --</option>
+                            {selectedUser && shiftAssignedUsers.find(u => u.userId === selectedUser) ? (
+                                getFilteredTimeOptions(
+                                    shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.start,
+                                    shiftAssignedUsers.find(u => u.userId === selectedUser).shiftTime.end
+                                ).map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                ))
+                            ) : (
+                                timeOptions.map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                ))
+                            )}
+                        </select>
+                    </div>
 
-        <button
-            className="btn btn-primary"
-            onClick={handleAssignPatrol}
-            disabled={!selectedUser || !startDate || !endDate || !startTime || !endTime}
-        >
-            Assign Patrol
-        </button>
-    </div>
-</div>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleAssignPatrol}
+                        disabled={!selectedUser || !startDate || !endDate || !startTime || !endTime}
+                    >
+                        Assign Patrol
+                    </button>
+                </div>
+            </div>
 
             {/* Add Patrol Off-Canvas */}
             <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} style={{ visibility: showFormCanvas ? 'visible' : 'hidden' }}>

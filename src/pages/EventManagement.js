@@ -3,11 +3,16 @@ import {
   Table, Button, Badge, Offcanvas, 
   Form, Row, Col, Spinner, Alert,
   Card, ListGroup, Container, 
-  InputGroup, Modal
+  InputGroup, Modal, Tabs, Tab
 } from 'react-bootstrap';
 import axios from 'axios';
 import { format } from 'date-fns';
 import debounce from "lodash.debounce";
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const localizer = momentLocalizer(moment);
 
 const API_BASE_URL = 'https://api.avessecurity.com/api/event';
 
@@ -832,6 +837,8 @@ const EventManagement = () => {
   const [filterType, setFilterType] = useState('All');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [activeTab, setActiveTab] = useState('table');
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   useEffect(() => {
     loadEvents();
@@ -902,6 +909,40 @@ const EventManagement = () => {
     return matchesSearch && matchesType;
   });
 
+  // Prepare calendar events
+  const calendarEvents = filteredEvents.map(event => ({
+    id: event._id,
+    title: event.EventName,
+    start: event.Date ? new Date(event.Date) : new Date(),
+    end: event.Date ? new Date(event.Date) : new Date(),
+    allDay: true,
+    type: event.Type || 'Regular',
+    client: event.Client,
+    location: event.Location
+  }));
+
+  const eventStyleGetter = (event) => {
+    let backgroundColor = '#3174ad'; // default blue
+    if (event.type === 'VIP') backgroundColor = '#dc3545'; // red
+    if (event.type === 'Corporate') backgroundColor = '#6f42c1'; // purple
+    if (event.type === 'Private') backgroundColor = '#20c997'; // teal
+
+    return {
+      style: {
+        backgroundColor,
+        borderRadius: '4px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+      }
+    };
+  };
+
+  const handleNavigate = (newDate) => {
+    setCalendarDate(newDate);
+  };
+
   if (loading) {
     return (
       <Container className="mt-5 text-center">
@@ -963,9 +1004,9 @@ const EventManagement = () => {
               </Form.Select>
             </Col>
             <Col md={3} className="d-flex justify-content-end">
-              {/* <Button variant="outline-secondary" onClick={loadEvents}>
+              <Button variant="outline-secondary" onClick={loadEvents}>
                 <i className="bi bi-arrow-clockwise me-1"></i> Refresh
-              </Button> */}
+              </Button>
             </Col>
           </Row>
         </Card.Body>
@@ -977,84 +1018,127 @@ const EventManagement = () => {
         </Alert>
       )}
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm mb-4">
         <Card.Body className="p-0">
-          <div className="table-responsive">
-            <Table  className="mb-0">
-              <thead className="">
-                <tr>
-                  <th>Event Name</th>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Submitted By</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEvents.length > 0 ? (
-                  filteredEvents.map((event) => (
-                    <tr key={event._id}>
-                      <td>
-                        <div className="fw-semibold">{event.EventName}</div>
-                        <small className="text-muted">{event.Location || 'N/A'}</small>
-                      </td>
-                      <td>
-                        {event.Date ? format(new Date(event.Date), 'PP') : 'N/A'}
-                        <div className="text-muted">{event.Time || ''}</div>
-                      </td>
-                      <td>{event.Client || 'N/A'}</td>
-                      <td>
-                        <Badge bg={event.Type === 'VIP' ? 'danger' : 'primary'} pill>
-                          {event.Type || 'Regular'}
-                        </Badge>
-                      </td>
-                      <td>
-                        <div>{event.SubmittedBy}</div>
-                        <small className="text-muted">
-                          {event.SubmittedByDate} at {event.SubmittedByTime}
-                        </small>
-                      </td>
-                      <td className="text-center">
-                        <Button
-                          variant="outline-info"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleView(event)}
-                          title="View"
-                        >
-                          <i className="bi bi-eye"></i>
-                        </Button>
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleEdit(event)}
-                          title="Edit"
-                        >
-                          <i className="bi bi-pencil"></i>
-                        </Button>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleDeleteClick(event)}
-                          title="Delete"
-                        >
-                          <i className="bi bi-trash"></i>
-                        </Button>
+          <Tabs
+            activeKey={activeTab}
+            onSelect={(k) => setActiveTab(k)}
+            className="mb-3 px-3"
+          >
+            <Tab eventKey="table" title="Table View">
+              {/* Table view content will be rendered here */}
+            </Tab>
+            <Tab eventKey="calendar" title="Calendar View">
+              {/* Calendar view content will be rendered here */}
+            </Tab>
+          </Tabs>
+
+          {activeTab === 'table' ? (
+            <div className="table-responsive">
+              <Table striped hover className="mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Event Name</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Submitted By</th>
+                    <th className="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEvents.length > 0 ? (
+                    filteredEvents.map((event) => (
+                      <tr key={event._id}>
+                        <td>
+                          <div className="fw-semibold">{event.EventName}</div>
+                          <small className="text-muted">{event.Location || 'N/A'}</small>
+                        </td>
+                        <td>
+                          {event.Date ? format(new Date(event.Date), 'PP') : 'N/A'}
+                          <div className="text-muted">{event.Time || ''}</div>
+                        </td>
+                        <td>{event.Client || 'N/A'}</td>
+                        <td>
+                          <Badge bg={event.Type === 'VIP' ? 'danger' : 'primary'} pill>
+                            {event.Type || 'Regular'}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div>{event.SubmittedBy}</div>
+                          <small className="text-muted">
+                            {event.SubmittedByDate} at {event.SubmittedByTime}
+                          </small>
+                        </td>
+                        <td className="text-center">
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleView(event)}
+                            title="View"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </Button>
+                          <Button
+                            variant="outline-warning"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleEdit(event)}
+                            title="Edit"
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDeleteClick(event)}
+                            title="Delete"
+                          >
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-4">
+                        {events.length === 0 ? 'No events available.' : 'No events match your search criteria.'}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center py-4">
-                      {events.length === 0 ? 'No events available.' : 'No events match your search criteria.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </div>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+          ) : (
+            <div className="p-3" style={{ height: '700px' }}>
+              <Calendar
+                localizer={localizer}
+                events={calendarEvents}
+                startAccessor="start"
+                endAccessor="end"
+                style={{ height: '100%' }}
+                defaultView="month"
+                views={['month', 'week', 'day', 'agenda']}
+                eventPropGetter={eventStyleGetter}
+                onSelectEvent={(event) => {
+                  const selected = events.find(e => e._id === event.id);
+                  if (selected) handleView(selected);
+                }}
+                onNavigate={handleNavigate}
+                date={calendarDate}
+                components={{
+                  event: ({ event }) => (
+                    <div className="rbc-event-content">
+                      <strong>{event.title}</strong>
+                      {event.client && <div className="small">{event.client}</div>}
+                      {event.location && <div className="small">{event.location}</div>}
+                    </div>
+                  ),
+                }}
+              />
+            </div>
+          )}
         </Card.Body>
       </Card>
 

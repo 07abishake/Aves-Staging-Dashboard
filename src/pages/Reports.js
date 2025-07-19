@@ -2,20 +2,34 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { Modal, Button, Spinner } from "react-bootstrap";
+import debounce from "lodash/debounce";
 
 function Reports() {
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
-  const [status, setStatus] = useState('');
-  const [department, setDepartment] = useState('');
+  const [name, setName] = useState(null);
+  const [location, setLocation] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [department, setDepartment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState('');
+
+  // Dropdown options state
+  const [departments, setDepartments] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [userInput, setUserInput] = useState('');
+  
+  const statusOptions = [
+    { value: '', label: 'All Statuses' },
+    { value: 'Good', label: 'Good' },
+    { value: 'Faulty', label: 'Faulty' },
+    { value: 'Pending', label: 'Pending' }
+  ];
 
   const token = localStorage.getItem("access_token");
   if (!token) {
@@ -23,24 +37,129 @@ function Reports() {
   }
 
   useEffect(() => {
-    axios.get(`https://api.avessecurity.com/api/collection/getModule`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-      .then(response => {
-        if (Array.isArray(response.data.dropdown)) {
+    // Fetch initial data
+    fetchModules();
+    fetchDepartments();
+    fetchLocations();
+    fetchAllUsers();
+  }, [token]);
+
+  const fetchModules = async () => {
+    try {
+      const response = await axios.get(`https://api.avessecurity.com/api/collection/getModule`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (Array.isArray(response.data.dropdown)) {
         const formattedModules = response.data.dropdown.map(item => ({
           value: item.value,
           label: item.label
         }));
         setModules(formattedModules);
+      }
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await axios.get(
+        'https://api.avessecurity.com/api/Department/getAll',
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      })
-      .catch(error => {
-        console.error("Error fetching modules:", error);
+      );
+
+      const departmentOptions = [];
+      response.data.forEach(parent => {
+        departmentOptions.push({ value: parent._id, label: parent.name });
+
+        if (parent.children && parent.children.length > 0) {
+          parent.children.forEach(child => {
+            departmentOptions.push({
+              value: child._id,
+              label: child.name
+            });
+          });
+        }
       });
-  }, [token]);
+
+      setDepartments(departmentOptions);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const response = await axios.get(
+        "https://api.avessecurity.com/api/Location/getLocations",
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      if (response.data && response.data.Location) {
+        const locationOptions = response.data.Location.map(loc => ({
+          value: loc._id,
+          label: loc.name
+        }));
+        setLocations(locationOptions);
+      }
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const response = await axios.get(
+        "https://api.avessecurity.com/api/Designation/getDropdown",
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      if (response.data && response.data.Report) {
+        const userOptions = response.data.Report.map(user => ({
+          value: user._id,
+          label: user.username
+        }));
+        setUsers(userOptions);
+      }
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+    }
+  };
+
+  const fetchUsers = debounce(async (query) => {
+    if (!query) return;
+    try {
+      const response = await axios.get(
+        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      if (response.data && response.data.Report) {
+        const userOptions = response.data.Report.map((user) => ({
+          value: user._id,
+          label: user.username,
+        }));
+        setUsers(userOptions);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  }, 500);
 
   const validateDates = () => {
     if (!startDate || !endDate) {
@@ -71,10 +190,10 @@ function Reports() {
         {
           startDate,
           endDate,
-          name,
-          location,
-          status,
-          department
+          name: name?.value || '',
+          location: location?.value || '',
+          status: status?.value || '',
+          department: department?.value || ''
         },
         {
           headers: {
@@ -110,10 +229,10 @@ function Reports() {
         {
           startDate,
           endDate,
-          name,
-          location,
-          status,
-          department
+          name: name?.value || '',
+          location: location?.value || '',
+          status: status?.value || '',
+          department: department?.value || ''
         },
         {
           responseType: "blob",
@@ -205,48 +324,52 @@ function Reports() {
 
             <div className="col-md-4">
               <label className="form-label fw-bold">Checked By</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Filter by name..."
+              <Select
+                options={users}
+                value={name}
+                onChange={setName}
+                onInputChange={(inputValue) => {
+                  setUserInput(inputValue);
+                  fetchUsers(inputValue);
+                }}
+                placeholder="Search user..."
+                isClearable
+                isSearchable
               />
             </div>
 
             <div className="col-md-4">
               <label className="form-label fw-bold">Location</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={location} 
-                onChange={(e) => setLocation(e.target.value)} 
-                placeholder="Filter by location..."
+              <Select
+                options={locations}
+                value={location}
+                onChange={setLocation}
+                placeholder="Select location..."
+                isClearable
+                isSearchable
               />
             </div>
 
             <div className="col-md-4">
               <label className="form-label fw-bold">Status</label>
-              <select 
-                className="form-select" 
-                value={status} 
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">All Statuses</option>
-                <option value="Good">Good</option>
-                <option value="Faulty">Faulty</option>
-                <option value="Pending">Pending</option>
-              </select>
+              <Select
+                options={statusOptions}
+                value={status}
+                onChange={setStatus}
+                placeholder="Select status..."
+                isClearable
+              />
             </div>
 
             <div className="col-md-12">
               <label className="form-label fw-bold">Department</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={department} 
-                onChange={(e) => setDepartment(e.target.value)} 
-                placeholder="Filter by department..."
+              <Select
+                options={departments}
+                value={department}
+                onChange={setDepartment}
+                placeholder="Select department..."
+                isClearable
+                isSearchable
               />
             </div>
 

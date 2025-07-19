@@ -89,6 +89,7 @@ import PassSetup from './pages/PassSetup';
 import PropertyPolices from './pages/PropertyPolices';
 import SustainabilityManagement from './pages/SustainabilityManagement';
 import OshaInvite from './pages/OshaInvite';
+import Training from './pages/Training';
 
 
 function App() {
@@ -144,6 +145,7 @@ function App() {
               <Route path='/Property' element={<PropertyPolices />} />
               <Route path='/SustainablityManager' element={<SustainabilityManagement />} />
               <Route path='/osha-invite' element={<OshaInvite />} />
+              <Route path='/Training' element={<Training/>}/>
 
 
 

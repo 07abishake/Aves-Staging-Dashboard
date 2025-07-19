@@ -52,30 +52,32 @@ const PropertyPolices = () => {
   };
 
   // Fetch policies
-  const fetchPolicies = async () => {
-    try {
-      const response = await axios.get('https://api.avessecurity.com/api/hotelPolicy/get', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      // Handle different possible response formats
-      let policiesData = [];
-      if (Array.isArray(response.data)) {
-        policiesData = response.data;
-      } else if (response.data && Array.isArray(response.data.policies)) {
-        policiesData = response.data.policies;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        policiesData = response.data.data;
-      }
-      
-      setPolicies(policiesData);
-      console.log('Fetched policies:', policiesData);
-    } catch (error) {
-      console.error('Error fetching policies:', error);
+ const fetchPolicies = async () => {
+  try {
+    const response = await axios.get('https://api.avessecurity.com/api/hotelPolicy/get', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // Correctly access HotelPolicy from the response
+    let policiesData = [];
+    if (Array.isArray(response.data)) {
+      policiesData = response.data;
+    } else if (response.data?.HotelPolicy && Array.isArray(response.data.HotelPolicy)) {
+      policiesData = response.data.HotelPolicy;
+    } else if (response.data?.policies && Array.isArray(response.data.policies)) {
+      policiesData = response.data.policies;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      policiesData = response.data.data;
     }
-  };
+
+    setPolicies(policiesData);
+    console.log('Fetched policies:', policiesData);
+  } catch (error) {
+    console.error('Error fetching policies:', error);
+  }
+};
 
   // Fetch teams
   const fetchTeams = async () => {
@@ -304,10 +306,10 @@ const PropertyPolices = () => {
               No policies found. Create your first policy.
             </div>
           ) : (
-            <Table striped bordered hover responsive>
+            <Table striped  responsive>
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th>S.No</th>
                   <th>Title</th>
                   <th>Date</th>
                   <th>Time</th>
@@ -333,23 +335,23 @@ const PropertyPolices = () => {
                     </td>
                     <td>
                       <Button 
-                        variant="info" 
+                        variant="outline-primary" 
                         size="sm" 
                         onClick={() => handleView(policy)} 
                         className="me-2"
                       >
-                        View
+                         <i className="bi bi-eye"></i>
                       </Button>
                       <Button 
-                        variant="primary" 
+                        variant="outline-secondary" 
                         size="sm" 
                         onClick={() => handleEdit(policy)} 
                         className="me-2"
                       >
-                        Edit
+                        <i className="bi bi-pencil"></i>
                       </Button>
                       <Button 
-                        variant="danger" 
+                        variant="outline-danger" 
                         size="sm" 
                         onClick={() => {
                           setSelectedPolicy(policy);
@@ -357,7 +359,7 @@ const PropertyPolices = () => {
                         }}
                         disabled={isSubmitting}
                       >
-                        Delete
+                        <i className="bi bi-trash"></i>
                       </Button>
                     </td>
                   </tr>
