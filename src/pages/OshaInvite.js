@@ -167,7 +167,7 @@ const OshaInvite = () => {
     const handleCreate = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('https://api.avessecurity.com/oshaminutes/create', form, {
+            await axios.post('https://api.avessecurity.com/api/oshaminutes/create', form, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowCreate(false);
