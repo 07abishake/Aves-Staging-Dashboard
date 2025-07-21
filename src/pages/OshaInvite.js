@@ -122,7 +122,7 @@ const OshaInvite = () => {
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const res = await axios.get('http://localhost:6378/api/oshaminutes/get', {
+            const res = await axios.get('https://api.avessecurity.com/api/oshaminutes/get', {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setData(res.data?.OshaMinutes || []);
@@ -167,7 +167,7 @@ const OshaInvite = () => {
     const handleCreate = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('http://localhost:6378/api/oshaminutes/create', form, {
+            await axios.post('https://api.avessecurity.com/oshaminutes/create', form, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowCreate(false);
