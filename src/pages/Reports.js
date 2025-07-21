@@ -9,10 +9,10 @@ function Reports() {
   const [selectedModule, setSelectedModule] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [name, setName] = useState(null);
-  const [location, setLocation] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [department, setDepartment] = useState(null);
+  const [Name, setName] = useState(null);
+  const [Location, setLocation] = useState(null);
+  const [Status, setStatus] = useState(null);
+  const [Department, setDepartment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -186,14 +186,14 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
         {
           startDate,
           endDate,
-          name: name?.value || '',
-          location: location?.value || '',
-          status: status?.value || '',
-          department: department?.value || ''
+          Name: Name?.value || '',
+          Location: Location?.value || '',
+          Status: Status?.value || '',
+          Department: Department?.value || ''
         },
         {
           headers: {
@@ -229,10 +229,10 @@ function Reports() {
         {
           startDate,
           endDate,
-          name: name?.value || '',
-          location: location?.value || '',
-          status: status?.value || '',
-          department: department?.value || ''
+          Name: Name?.value || '',
+          Location: Location?.value || '',
+          Status: Status?.value || '',
+          Department: Department?.value || ''
         },
         {
           responseType: "blob",
@@ -326,7 +326,7 @@ function Reports() {
               <label className="form-label fw-bold">Checked By</label>
               <Select
                 options={users}
-                value={name}
+                value={Name}
                 onChange={setName}
                 onInputChange={(inputValue) => {
                   setUserInput(inputValue);
@@ -342,7 +342,7 @@ function Reports() {
               <label className="form-label fw-bold">Location</label>
               <Select
                 options={locations}
-                value={location}
+                value={Location}
                 onChange={setLocation}
                 placeholder="Select location..."
                 isClearable
@@ -354,7 +354,7 @@ function Reports() {
               <label className="form-label fw-bold">Status</label>
               <Select
                 options={statusOptions}
-                value={status}
+                value={Status}
                 onChange={setStatus}
                 placeholder="Select status..."
                 isClearable
@@ -365,7 +365,7 @@ function Reports() {
               <label className="form-label fw-bold">Department</label>
               <Select
                 options={departments}
-                value={department}
+                value={Department}
                 onChange={setDepartment}
                 placeholder="Select department..."
                 isClearable

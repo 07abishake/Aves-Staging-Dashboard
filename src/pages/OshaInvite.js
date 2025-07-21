@@ -122,7 +122,7 @@ const OshaInvite = () => {
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const res = await axios.get('https://api.avessecurity.com/api/oshaminutes/get', {
+            const res = await axios.get('http://localhost:6378/api/oshaminutes/get', {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setData(res.data?.OshaMinutes || []);
@@ -167,7 +167,7 @@ const OshaInvite = () => {
     const handleCreate = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('https://api.avessecurity.com/api/oshaminutes/create', form, {
+            await axios.post('http://localhost:6378/api/oshaminutes/create', form, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowCreate(false);
@@ -336,7 +336,12 @@ const OshaInvite = () => {
                                 <td>{i + 1}</td>
                                 <td>{item.MeetingTitle}</td>
                                 <td>{new Date(item?.Date).toLocaleDateString()} - {item.Time}</td>
-                                <td>{item?.Venue}</td>
+                               <td>
+  {item.Venue
+    ? `${item.Venue.PrimaryLocation || ''}, ${item.Venue.SubLocation || ''}, ${item.Venue.SecondaryLocation || ''},${item.Venue.ThirdLocation || ''},${item.Venue.SubLocation || ''}`
+    : 'No Venue'}
+</td>
+
                                 <td>
                                     <Button
                                         size="sm"
@@ -435,7 +440,10 @@ const OshaInvite = () => {
                                 <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
                                 <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
                                 <p><strong>Time:</strong> {viewData.Time}</p>
-                                <p><strong>Venue:</strong> {viewData.Venue}</p>
+                                <p><strong>Venue:</strong>{viewData.Venue
+    ? `${viewData.Venue.PrimaryLocation || ''}, ${viewData.Venue.SubLocation || ''}, ${viewData.Venue.SecondaryLocation || ''},${viewData.Venue.ThirdLocation || ''},${viewData.Venue.SubLocation || ''}`
+    : 'No Venue'}
+</p>
                             </div>
 
                             <div className="mb-4">
@@ -681,7 +689,9 @@ const OshaInvite = () => {
                                 <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
                                 <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
                                 <p><strong>Time:</strong> {viewData.Time}</p>
-                                <p><strong>Venue:</strong> {viewData.Venue}</p>
+                                <p><strong>Venue:</strong> {viewData.Venue
+    ? `${viewData.Venue.PrimaryLocation || ''}, ${viewData.Venue.SubLocation || ''}, ${viewData.Venue.SecondaryLocation || ''},${viewData.Venue.ThirdLocation || ''},${viewData.Venue.SubLocation || ''}`
+    : 'No Venue'}</p>
                             </div>
 
                             <div className="mb-4">
