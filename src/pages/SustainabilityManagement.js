@@ -78,11 +78,19 @@ const SustainabilityBuilder = () => {
     setFormValue('');
   };
 
+  const fieldMap = {
+  country: 'Country',
+  hotel: 'HotelName',
+  module: 'AddModule',
+  subModule: 'AddSubModule',
+  class: 'Addclass',
+  input: 'AddInput'
+};
   // Handle create/update
   const handleSubmit = async () => {
     const { type, parentId, item } = offcanvasData;
     const body = {};
-    const fieldName = `Add${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  const fieldName = fieldMap[type];
     body[fieldName] = formValue;
 
     try {
@@ -333,7 +341,7 @@ const toggleExpand = (type, id) => {
                     onClick={() => handleOpenOffcanvas('country')}
                     className="d-flex align-items-center"
                   >
-               Add Country
+               Country
                   </Button>
                 </div>
                 
@@ -596,8 +604,8 @@ const toggleExpand = (type, id) => {
                   </tbody>
                 </Table>
               </Tab>
-
-              <Tab eventKey="class" title="Classes">
+{/*Class Tab*/}
+              {/* <Tab eventKey="class" title="Classes">
                 <h4 className="mb-3"></h4>
                 <Table striped responsive>
                   <thead>
@@ -681,7 +689,93 @@ const toggleExpand = (type, id) => {
                     )}
                   </tbody>
                 </Table>
-              </Tab>
+              </Tab> */}
+              <Tab eventKey="class" title="Classes">
+  <h4 className="mb-3"></h4>
+  <Table striped responsive>
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Hotel</th>
+        <th>Module</th>
+        <th>SubModule</th>
+        <th>Class Name</th>
+        <th className="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sustainabilityData.flatMap(country =>
+        country.Hotel?.flatMap(hotel =>
+          hotel.Module?.flatMap(module =>
+            module.SubModule?.flatMap(subModule =>
+              (subModule.Class || []).map(cls => (
+                <tr key={cls._id}>
+                  <td>{getItemName(country, 'country')}</td>
+                  <td>{getItemName(hotel, 'hotel')}</td>
+                  <td>{getItemName(module, 'module')}</td>
+                  <td>{getItemName(subModule, 'subModule')}</td>
+                  <td>{cls.Addclass}</td>
+                  <td>
+                    <div
+                      className="d-flex align-items-center cursor-pointer"
+                      onClick={() => toggleExpand('class', cls._id)}
+                    >
+                      {getItemName(cls, 'class')}
+                    </div>
+                  </td>
+                  <td className="text-end">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => {
+                        setIds(prev => ({
+                          ...prev,
+                          countryId: country._id,
+                          hotelId: hotel._id,
+                          moduleId: module._id,
+                          subModuleId: subModule._id
+                        }));
+                        handleOpenOffcanvas('class', subModule._id, cls);
+                      }}
+                      className="me-2"
+                    >
+                      <PencilSquare size={14} className="me-1" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleDelete('class', cls._id)}
+                      className="me-2"
+                    >
+                      <Trash size={14} className="me-1" /> Delete
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setIds(prev => ({
+                          ...prev,
+                          countryId: country._id,
+                          hotelId: hotel._id,
+                          moduleId: module._id,
+                          subModuleId: subModule._id
+                        }));
+                        handleOpenOffcanvas('input', cls._id);
+                      }}
+                    >
+                      Input
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )
+          )
+        )
+      )}
+    </tbody>
+  </Table>
+</Tab>
+
 
               <Tab eventKey="input" title="Inputs">
                 <h4 className="mb-3"></h4>
@@ -709,7 +803,7 @@ const toggleExpand = (type, id) => {
                                   <td>{getItemName(hotel, 'hotel')}</td>
                                   <td>{getItemName(module, 'module')}</td>
                                   <td>{getItemName(subModule, 'subModule')}</td>
-                                  <td>{getItemName(cls, 'class')}</td>
+                                  <td>{cls.Addclass}</td>
                                   <td>
                                     <div>
                                       {getItemName(input, 'input')}
