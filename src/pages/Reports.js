@@ -9,13 +9,16 @@ function Reports() {
   const [selectedModule, setSelectedModule] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [Name, setName] = useState(null);
-  const [Location, setLocation] = useState(null);
+  const [userId, setuserId] = useState(null);
+  const [LocationId, setLocationId] = useState(null);
   const [Status, setStatus] = useState(null);
-  const [Department, setDepartment] = useState(null);
+  const [DepartmentId, setDepartmentId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+    const [reportData, setReportData] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+
   const [error, setError] = useState('');
 
   // Dropdown options state
@@ -56,6 +59,7 @@ function Reports() {
           value: item.value,
           label: item.label
         }));
+            setUsers(formattedModules);
         setModules(formattedModules);
       }
     } catch (error) {
@@ -186,14 +190,14 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
         {
           startDate,
           endDate,
-          Name: Name?.value || '',
-          Location: Location?.value || '',
+          userId: userId?.value || '',
+          LocationId: LocationId?.value || '',
           Status: Status?.value || '',
-          Department: Department?.value || ''
+          DepartmentId: DepartmentId?.value || ''
         },
         {
           headers: {
@@ -204,6 +208,7 @@ function Reports() {
       );
 
       setPreviewHtml(response.data);
+        setReportData(response.data);
       setShowPreview(true);
     } catch (error) {
       console.error("Error previewing report:", error);
@@ -212,6 +217,17 @@ function Reports() {
       setLoading(false);
     }
   };
+    const filteredReports = selectedUser
+  ? reportData.filter(report =>
+      report.userId === selectedUser.value ||
+      report.SubmittedUserId === selectedUser.value ||
+      report.CreatedBy === selectedUser.value ||
+      report.StaffId === selectedUser.value ||
+      report.UserId === selectedUser.value ||
+      report.LocationId === selectedUser.value ||
+      report.DepartmentId === selectedUser.value
+    )
+  : reportData;
 
   const handleGeneratePdf = async () => {
     if (!validateDates()) return;
@@ -229,10 +245,10 @@ function Reports() {
         {
           startDate,
           endDate,
-          Name: Name?.value || '',
-          Location: Location?.value || '',
+          userId: userId?.value || '',
+          LocationId: LocationId?.value || '',
           Status: Status?.value || '',
-          Department: Department?.value || ''
+          DepartmentId: DepartmentId?.value || ''
         },
         {
           responseType: "blob",
@@ -326,8 +342,8 @@ function Reports() {
               <label className="form-label fw-bold">Checked By</label>
               <Select
                 options={users}
-                value={Name}
-                onChange={setName}
+                value={userId}
+                onChange={setuserId}
                 onInputChange={(inputValue) => {
                   setUserInput(inputValue);
                   fetchUsers(inputValue);
@@ -342,8 +358,8 @@ function Reports() {
               <label className="form-label fw-bold">Location</label>
               <Select
                 options={locations}
-                value={Location}
-                onChange={setLocation}
+                value={LocationId}
+                onChange={setLocationId}
                 placeholder="Select location..."
                 isClearable
                 isSearchable
@@ -365,8 +381,8 @@ function Reports() {
               <label className="form-label fw-bold">Department</label>
               <Select
                 options={departments}
-                value={Department}
-                onChange={setDepartment}
+                value={DepartmentId}
+                onChange={setDepartmentId}
                 placeholder="Select department..."
                 isClearable
                 isSearchable

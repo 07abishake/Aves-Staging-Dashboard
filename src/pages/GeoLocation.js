@@ -1,693 +1,677 @@
-import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, FeatureGroup } from "react-leaflet";
-import { EditControl } from "react-leaflet-draw";
-import L from "leaflet";
-import axios from "axios";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
-import { Spinner } from "react-bootstrap";
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
+import debounce from "lodash.debounce";
+import { 
+  MapContainer,
+  TileLayer,
+  FeatureGroup,
+  Marker,
+  Circle,
+  Polygon,
+  Polyline,
+  useMap
+} from 'react-leaflet';
+import { EditControl } from 'react-leaflet-draw';
+import L from 'leaflet';
 
-// Custom Leaflet Marker Icon
-const customIcon = new L.Icon({
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
+// Marker icons
+const blueIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
 });
 
-const AddLocation = () => {
-    const [locations, setLocations] = useState([]);
-    const [userLocation, setUserLocation] = useState(null);
-    const [showCreateCanvas, setShowCreateCanvas] = useState(false);
-    const [showViewCanvas, setShowViewCanvas] = useState(false);
-    const [suggestions, setSuggestions] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [newLocationTitle, setNewLocationTitle] = useState("");
-    const [selectedLocation, setSelectedLocation] = useState(null);
-    const [isEditing, setIsEditing] = useState(false);
+function SetViewToCurrentLocation() {
+  const [position, setPosition] = useState(null);
+  const map = useMap();
 
-    const [newLocation, setNewLocation] = useState({
-        Locationtitle: "",
-        Locationname: "",
-        latitude: null,
-        longitude: null,
-        radius: 100,
-        boundaries: [],
-    });
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setPosition([latitude, longitude]);
+        map.setView([latitude, longitude], 15);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+      }
+    );
+  }, [map]);
+}
 
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-        // window.location.href = "/login";
+function GeoFenceManagement() {
+  // GeoFence Creation State
+  const [geoFenceName, setGeoFenceName] = useState('');
+  const [drawnLayer, setDrawnLayer] = useState(null);
+  const [allGeoFences, setAllGeoFences] = useState([]);
+  const [showFormCanvas, setShowFormCanvas] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('#3388ff');
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedGeoFence, setSelectedGeoFence] = useState(null);
+  const [showViewCanvas, setShowViewCanvas] = useState(false);
+  
+  // User Assignment State
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserName, setSelectedUserName] = useState('');
+  const [selectedGeoFences, setSelectedGeoFences] = useState([]);
+  const [userAssignments, setUserAssignments] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAssignmentCanvas, setShowAssignmentCanvas] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  
+  const featureGroupRef = useRef(null);
+  const token = localStorage.getItem("access_token");
+
+  useEffect(() => {
+    fetchGeoFences();
+    fetchUserAssignments();
+  }, []);
+
+  // Fetch all GeoFences
+  const fetchGeoFences = async () => {
+    setIsLoading(true);
+    try {
+      const res = await axios.get('https://api.avessecurity.com/api/GeoFence/get-All', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setAllGeoFences(res.data.geoFence || []);
+    } catch (error) {
+      console.error('Failed to fetch GeoFences:', error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch users for assignment
+  const searchUsers = debounce(async (query) => {
+    if (!query) {
+      setUsers([]);
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      if (response.data && response.data.Report) {
+        const userOptions = response.data.Report.map((user) => ({
+          value: user._id,
+          label: user.username,
+        }));
+        setUsers(userOptions);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  }, 500);
+
+  // Fetch all user assignments
+  const fetchUserAssignments = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(
+        `https://api.avessecurity.com/api/GeoFence/user-assignments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+      setUserAssignments(response.data || []);
+    } catch (error) {
+      console.error('Error fetching user assignments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle GeoFence drawing
+  const onCreated = (e) => {
+    setDrawnLayer(e.layer);
+  };
+
+  // Extract GeoFence data from drawn layer
+  const extractGeoFenceData = (layer) => {
+    const geojson = layer.toGeoJSON();
+    const shapeType = geojson.geometry.type;
+
+    let payload = {
+      GeoFencename: geoFenceName,
+      type: shapeType,
+      color: selectedColor
+    };
+
+    if (layer instanceof L.Circle) {
+      const center = [layer.getLatLng().lat, layer.getLatLng().lng];
+      payload.center = center;
+      payload.radius = layer.getRadius();
+    } else if (layer instanceof L.Marker) {
+      const point = geojson.geometry.coordinates;
+      payload.center = [point[1], point[0]]; // Convert [lng, lat] to [lat, lng]
+    } else if (
+      layer instanceof L.Polygon ||
+      layer instanceof L.Polyline ||
+      layer instanceof L.Rectangle
+    ) {
+      const coords = geojson.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+      payload.coordinates = coords;
     }
 
-    // Get User's Current Location
-    useEffect(() => {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                setUserLocation({ latitude, longitude });
-                setNewLocation((prev) => ({ ...prev, latitude, longitude }));
-                setLoading(false);
-            },
-            (error) => {
-                console.error("Error getting location:", error);
-                setLoading(false);
-            }
-        );
-    }, []);
+    return payload;
+  };
 
-    // Fetch Saved Locations from API
-    const fetchLocations = () => {
-        setLoading(true);
-        axios
-            .get("https://api.avessecurity.com/api/geoLocation/getGeoLocation", {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            })
-            .then((response) => {
-                setLocations(response.data.Location);
-            })
-            .catch((error) => {
-                console.error("Error fetching locations:", error);
-                setLocations([]);
-            }).finally(() => {
-                setLoading(false);
-            });
-    };
+  // Create new GeoFence
+  const handleSubmit = async () => {
+    if (!drawnLayer || !geoFenceName) {
+      alert("Please draw a shape and enter a GeoFence name.");
+      return;
+    }
 
-    useEffect(() => {
-        fetchLocations();
-    }, []);
+    setIsLoading(true);
+    const geoFenceData = extractGeoFenceData(drawnLayer);
 
-    // Handle Polygon Draw
-    const handlePolygonDraw = (e) => {
-        const layer = e.layer;
-        if (layer instanceof L.Polygon) {
-            const latlngs = layer.getLatLngs();
-            if (latlngs.length > 0 && Array.isArray(latlngs[0])) {
-                const formattedLatLngs = latlngs[0].map((point) => ({
-                    latitude: point.lat,
-                    longitude: point.lng,
-                }));
-                setNewLocation((prev) => ({ ...prev, boundaries: formattedLatLngs }));
-            }
+    try {
+      await axios.post(
+        "https://api.avessecurity.com/api/GeoFence/create",
+        geoFenceData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-    };
+      );
+      alert("GeoFence created successfully!");
+      await fetchGeoFences();
+      setGeoFenceName('');
+      setDrawnLayer(null);
+      setShowFormCanvas(false);
+      if (featureGroupRef.current) {
+        featureGroupRef.current.clearLayers();
+      }
+    } catch (error) {
+      console.error("Error submitting GeoFence:", error.response?.data || error.message);
+      alert("Failed to create GeoFence");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Handle Location Search & Suggestions
-    const handleLocationSearch = async (query) => {
-        setNewLocation({ ...newLocation, Locationtitle: query });
+  // Delete GeoFence
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this GeoFence?");
+    if (!confirmDelete) return;
 
-        if (query.length > 2) {
-            try {
-                const response = await axios.get(
-                    `https://nominatim.openstreetmap.org/search?format=json&q=${query}`
-                );
+    setIsLoading(true);
+    try {
+      await axios.delete(`https://api.avessecurity.com/api/GeoFence/delete/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      alert("GeoFence deleted successfully!");
+      await fetchGeoFences();
+      await fetchUserAssignments();
+    } catch (error) {
+      console.error("Error deleting GeoFence:", error.response?.data || error.message);
+      alert("Failed to delete GeoFence");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-                if (response.data.length > 0) {
-                    setSuggestions(response.data);
-                } else {
-                    setSuggestions([]);
-                }
-            } catch (error) {
-                console.error("Error fetching suggestions:", error);
-            }
-        } else {
-            setSuggestions([]);
+  // Assign GeoFences to user
+  const assignGeoFences = async () => {
+    if (!selectedUserId || selectedGeoFences.length === 0) {
+      alert('Please select a user and at least one GeoFence');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await axios.post(
+        'https://api.avessecurity.com/api/GeoFence/Assign-User',
+        { userId: selectedUserId, GeoFenceId: selectedGeoFences },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-    };
+      );
+      alert("GeoFences assigned successfully!");
+      await fetchUserAssignments();
+      setSelectedGeoFences([]);
+      setSelectedUserId('');
+      setSelectedUserName('');
+      setSearchQuery('');
+    } catch (error) {
+      console.error("Error assigning GeoFences:", error.response?.data || error.message);
+      alert("Failed to assign GeoFences");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Select a Location from Suggestions
-    const selectLocation = (location) => {
-        setNewLocation({
-            ...newLocation,
-            Locationtitle: location.display_name,
-            latitude: parseFloat(location.lat),
-            longitude: parseFloat(location.lon),
-        });
+  
+  // Remove GeoFence assignment
+const removeAssignment = async (assignmentId) => {
+  const confirmRemove = window.confirm("Are you sure you want to remove this assignment?");
+  if (!confirmRemove) return;
 
-        setUserLocation({ latitude: parseFloat(location.lat), longitude: parseFloat(location.lon) });
-        setSuggestions([]);
-    };
+  const assignment = userAssignments.find(a => a._id === assignmentId);
+  if (!assignment) {
+    alert("Assignment not found");
+    return;
+  }
 
-    // Handle Radius Change
-    const handleRadiusChange = (e) => {
-        setNewLocation({ ...newLocation, radius: Number(e.target.value) });
-    };
+  const userId = assignment.userId; // or assignment.user?._id if nested
+  const geoFenceId = assignment.GeoFenceDetails?._id;
 
-    // Handle Input Change
-    const handleInputChange = (e) => {
-        setNewLocation({ ...newLocation, [e.target.name]: e.target.value });
-    };
+  if (!userId || !geoFenceId) {
+    alert("Invalid assignment data");
+    return;
+  }
 
-    // Add New Location to Database
-    const addLocation = () => {
-        if (!newLocation.Locationname || !newLocation.latitude || !newLocation.longitude) {
-            alert("Please enter a valid Location Title and select a valid location.");
-            return;
-        }
-
-        setLoading(true);
-        axios
-            .post("https://api.avessecurity.com/api/geoLocation/createGeoLocation", newLocation, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            })
-            .then((response) => {
-                if (response.data) {
-                    fetchLocations();
-                }
-                setShowCreateCanvas(false);
-                resetForm();
-                alert("Location added successfully!");
-            })
-            .catch((error) => {
-                console.error("Error adding location:", error);
-                alert("Error adding location. Please try again.");
-            })
-            .finally(() => setLoading(false));
-    };
-
-    // Update Location in Database
-    const updateLocation = () => {
-        if (!selectedLocation?._id || !newLocation.Locationname || !newLocation.latitude || !newLocation.longitude) {
-            alert("Please enter valid location details.");
-            return;
-        }
-
-        setLoading(true);
-        axios
-            .put(`https://api.avessecurity.com/api/geoLocation/update/${selectedLocation._id}`, newLocation, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            })
-            .then((response) => {
-                if (response.data) {
-                    fetchLocations();
-                    setShowViewCanvas(false);
-                    resetForm();
-                    alert("Location updated successfully!");
-                }
-            })
-            .catch((error) => {
-                console.error("Error updating location:", error);
-                alert("Error updating location. Please try again.");
-            })
-            .finally(() => setLoading(false));
-    };
-
-    // Delete Location from Database
-    const deleteLocation = (id) => {
-        if (!window.confirm("Are you sure you want to delete this location?")) {
-            return;
-        }
-
-        setLoading(true);
-        axios
-            .delete(`https://api.avessecurity.com/api/geoLocation/delete/${id}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            })
-            .then((response) => {
-                if (response.data) {
-                    fetchLocations();
-                    alert("Location deleted successfully!");
-                }
-            })
-            .catch((error) => {
-                console.error("Error deleting location:", error);
-                alert("Error deleting location. Please try again.");
-            })
-            .finally(() => setLoading(false));
-    };
-
-    // Reset form to initial state
-    const resetForm = () => {
-        setNewLocation({
-            Locationtitle: "",
-            Locationname: "",
-            latitude: userLocation?.latitude || null,
-            longitude: userLocation?.longitude || null,
-            radius: 100,
-            boundaries: [],
-        });
-        setIsEditing(false);
-    };
-
-    // Fill form with current location
-    const fillWithCurrentLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const { latitude, longitude } = position.coords;
-
-                    try {
-                        const response = await axios.get(
-                            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-                        );
-
-                        const locationName = response.data.display_name || "Current Location";
-
-                        setNewLocation((prev) => ({
-                            ...prev,
-                            latitude,
-                            longitude,
-                            Locationtitle: locationName,
-                        }));
-
-                        setUserLocation({ latitude, longitude });
-                    } catch (error) {
-                        console.error("Error getting location name:", error);
-                        alert("Could not fetch location name.");
-                    }
-                },
-                (error) => {
-                    console.error("Error getting current location:", error);
-                    alert("Unable to fetch your current location.");
-                }
-            );
-        } else {
-            alert("Geolocation is not supported by your browser.");
-        }
-    };
-
-    // Handle click on location to view/edit
-    const handleClickLocation = (location) => {
-        setSelectedLocation(location);
-        setNewLocation({
-            Locationtitle: location.Locationtitle,
-            Locationname: location.Locationname,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            radius: location.radius,
-            boundaries: location.boundaries || [],
-        });
-        setShowViewCanvas(true);
-        setIsEditing(true);
-    };
-
-    return (
-        <>
-            {loading && (
-                <div className="d-flex justify-content-center align-items-center flex-column" 
-                    style={{ 
-                        position: "fixed", 
-                        top: 0, 
-                        left: 0, 
-                        width: "100%", 
-                        height: "100vh", 
-                        backgroundColor: "rgba(0,0,0,0.5)", 
-                        zIndex: 1050 
-                    }}>
-                    <Spinner animation="border" role="status" variant="light" />
-                </div>
-            )}
-
-            <div className="container d-flex flex-column justify-content-center mt-4">
-                <div className="d-flex justify-content-between align-items-center mb-3 w-100">
-                    <div className="d-flex">
-                        <input
-                            type="text"
-                            className="form-control me-2"
-                            placeholder="Search..."
-                        />
-                    </div>
-
-                    <button className="btn btn-primary" onClick={() => {
-                        setShowCreateCanvas(true);
-                        setIsEditing(false);
-                        resetForm();
-                    }}>
-                        Add Location
-                    </button>
-                </div>
-                <div className="row">
-                    <div className="">
-                        <div className="card">
-                            <div className="card-body">
-                                <div className="table-responsive">
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Locations</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {locations.length > 0 ? (
-                                                locations.map((location) => (
-                                                    <tr key={location._id} style={{ cursor: "pointer" }}>
-                                                        <td style={{ width: "70%" }}>
-                                                            <p className="m-0">{location.Locationname || "N/A"}</p>
-                                                            <p className="m-0 text-secondary" style={{ fontSize: "12px" }}>
-                                                                {location.Locationtitle}
-                                                            </p>
-                                                        </td>
-                                                        <td>
-                                                            <button 
-                                                                className="btn btn-sm btn-outline-primary me-2" 
-                                                                onClick={() => handleClickLocation(location)}
-                                                            >
-                                                                View/Edit
-                                                            </button>
-                                                            <button 
-                                                                className="btn btn-sm btn-outline-danger"
-                                                                onClick={() => deleteLocation(location._id)}
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="2" className="text-center">
-                                                        No Location found
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Create Location Canvas */}
-                <div className={`p-4 offcanvas-custom ${showCreateCanvas ? 'show' : ""}`}>
-                    <div className="offcanvas-header mb-3">
-                        <h5 className="offcanvas-title">Add new location</h5>
-                        <button 
-                            className="btn border border-1 mt-2" 
-                            style={{ position: "absolute", right: "60px", fontSize: "13px" }} 
-                            onClick={fillWithCurrentLocation}
-                        >
-                            Use Current Location
-                        </button>
-                        <button 
-                            type="button" 
-                            className="btn-close" 
-                            onClick={() => {
-                                setShowCreateCanvas(false);
-                                resetForm();
-                            }} 
-                            style={{ position: "absolute", right: "30px" }}
-                        ></button>
-                    </div>
-                    <div className="offcanvas-body p-2">
-                        <div>
-                            {/* Location Name Input */}
-                            <input
-                                type="text"
-                                className="form-control mb-2"
-                                placeholder="Enter Location Name"
-                                name="Locationname"
-                                value={newLocation.Locationname}
-                                onChange={(e) =>
-                                    setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
-                                }
-                                required
-                            />
-
-                            {/* Location Search Input */}
-                            <input
-                                type="text"
-                                className="form-control mb-2"
-                                placeholder="Search Location (e.g. Chennai)"
-                                value={newLocation.Locationtitle}
-                                onChange={(e) => handleLocationSearch(e.target.value)}
-                                required
-                            />
-
-                            {/* Show Suggestions */}
-                            {suggestions.length > 0 && (
-                                <ul className="list-group">
-                                    {suggestions.map((suggestion, index) => (
-                                        <li
-                                            key={index}
-                                            className="list-group-item"
-                                            onClick={() => selectLocation(suggestion)}
-                                            style={{ cursor: "pointer" }}
-                                        >
-                                            {suggestion.display_name}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            <input
-                                type="number"
-                                className="form-control mb-2"
-                                placeholder="Latitude"
-                                name="latitude"
-                                value={newLocation.latitude || ""}
-                                onChange={(e) => {
-                                    const lat = e.target.value ? parseFloat(e.target.value) : null;
-                                    setNewLocation((prev) => ({ ...prev, latitude: lat }));
-                                }}
-                            />
-                            <input
-                                type="number"
-                                className="form-control mb-2"
-                                placeholder="Longitude"
-                                name="longitude"
-                                value={newLocation.longitude || ""}
-                                onChange={(e) => {
-                                    const lng = e.target.value ? parseFloat(e.target.value) : null;
-                                    setNewLocation((prev) => ({ ...prev, longitude: lng }));
-                                }}
-                            />
-
-                            {/* Radius Selection */}
-                            <label>Radius: {newLocation.radius} meters</label>
-                            <input
-                                type="range"
-                                className="form-range"
-                                min="10"
-                                max="100"
-                                step="1"
-                                value={newLocation.radius}
-                                onChange={handleRadiusChange}
-                            />
-
-                            {/* Map Container */}
-                            {userLocation && (
-                                <MapContainer
-                                    center={[userLocation.latitude, userLocation.longitude]}
-                                    zoom={12}
-                                    style={{ width: "100%", height: "400px" }}
-                                >
-                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                                    {/* Polygon Draw Feature */}
-                                    <FeatureGroup>
-                                        <EditControl
-                                            position="topright"
-                                            draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
-                                            onCreated={handlePolygonDraw}
-                                        />
-                                    </FeatureGroup>
-
-                                    {newLocation.latitude && newLocation.longitude && !isNaN(newLocation.latitude) && !isNaN(newLocation.longitude) && (
-                                        <>
-                                            <Marker position={[newLocation.latitude, newLocation.longitude]} icon={customIcon}>
-                                                <Popup>{newLocation.Locationtitle}</Popup>
-                                            </Marker>
-                                            <Circle
-                                                center={[newLocation.latitude, newLocation.longitude]}
-                                                radius={newLocation.radius}
-                                                color="blue"
-                                            />
-                                        </>
-                                    )}
-                                </MapContainer>
-                            )}
-
-                            {/* Add Location Button */}
-                            <button className="btn btn-primary mt-3" onClick={addLocation}>
-                                Add Location
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* View/Edit Location Canvas */}
-                <div className={`p-4 offcanvas-custom ${showViewCanvas ? 'show' : ""}`}>
-                    <div className="offcanvas-header mb-3">
-                        <h5 className="offcanvas-title">{isEditing ? "Edit Location" : "View Location"}</h5>
-                        <button 
-                            className="btn border border-1 mt-2" 
-                            style={{ position: "absolute", right: "60px", fontSize: "13px" }} 
-                            onClick={fillWithCurrentLocation}
-                        >
-                            Use Current Location
-                        </button>
-                        <button 
-                            type="button" 
-                            className="btn-close" 
-                            onClick={() => {
-                                setShowViewCanvas(false);
-                                resetForm();
-                            }} 
-                            style={{ position: "absolute", right: "30px" }}
-                        ></button>
-                    </div>
-                    <div className="offcanvas-body p-2">
-                        <div>
-                            {/* Location Name Input */}
-                            <input
-                                type="text"
-                                className="form-control mb-2"
-                                placeholder="Enter Location Name"
-                                name="Locationname"
-                                value={newLocation.Locationname}
-                                onChange={(e) =>
-                                    setNewLocation((prev) => ({ ...prev, Locationname: e.target.value }))
-                                }
-                                required
-                                disabled={!isEditing}
-                            />
-
-                            {/* Location Search Input */}
-                            <input
-                                type="text"
-                                className="form-control mb-2"
-                                placeholder="Search Location (e.g. Chennai)"
-                                value={newLocation.Locationtitle}
-                                onChange={(e) => handleLocationSearch(e.target.value)}
-                                required
-                                disabled={!isEditing}
-                            />
-
-                            {/* Show Suggestions */}
-                            {suggestions.length > 0 && isEditing && (
-                                <ul className="list-group">
-                                    {suggestions.map((suggestion, index) => (
-                                        <li
-                                            key={index}
-                                            className="list-group-item"
-                                            onClick={() => selectLocation(suggestion)}
-                                            style={{ cursor: "pointer" }}
-                                        >
-                                            {suggestion.display_name}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            <input
-                                type="number"
-                                className="form-control mb-2"
-                                placeholder="Latitude"
-                                name="latitude"
-                                value={newLocation.latitude || ""}
-                                onChange={(e) => {
-                                    const lat = e.target.value ? parseFloat(e.target.value) : null;
-                                    setNewLocation((prev) => ({ ...prev, latitude: lat }));
-                                }}
-                                disabled={!isEditing}
-                            />
-                            <input
-                                type="number"
-                                className="form-control mb-2"
-                                placeholder="Longitude"
-                                name="longitude"
-                                value={newLocation.longitude || ""}
-                                onChange={(e) => {
-                                    const lng = e.target.value ? parseFloat(e.target.value) : null;
-                                    setNewLocation((prev) => ({ ...prev, longitude: lng }));
-                                }}
-                                disabled={!isEditing}
-                            />
-
-                            {/* Radius Selection */}
-                            <label>Radius: {newLocation.radius} meters</label>
-                            <input
-                                type="range"
-                                className="form-range"
-                                min="10"
-                                max="100"
-                                step="1"
-                                value={newLocation.radius}
-                                onChange={handleRadiusChange}
-                                disabled={!isEditing}
-                            />
-
-                            {/* Map Container */}
-                            {newLocation.latitude && newLocation.longitude && (
-                                <MapContainer
-                                    center={[newLocation.latitude, newLocation.longitude]}
-                                    zoom={12}
-                                    style={{ width: "100%", height: "400px" }}
-                                >
-                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                                    {/* Polygon Draw Feature - Only show when editing */}
-                                    {isEditing && (
-                                        <FeatureGroup>
-                                            <EditControl
-                                                position="topright"
-                                                draw={{ rectangle: false, circle: false, marker: false, polyline: false, polygon: true }}
-                                                onCreated={handlePolygonDraw}
-                                            />
-                                        </FeatureGroup>
-                                    )}
-
-                                    <Marker position={[newLocation.latitude, newLocation.longitude]} icon={customIcon}>
-                                        <Popup>{newLocation.Locationtitle}</Popup>
-                                    </Marker>
-                                    <Circle
-                                        center={[newLocation.latitude, newLocation.longitude]}
-                                        radius={newLocation.radius}
-                                        color="blue"
-                                    />
-                                </MapContainer>
-                            )}
-
-                            {/* Action Buttons */}
-                            <div className="d-flex justify-content-between mt-3">
-                                {isEditing ? (
-                                    <>
-                                        <button className="btn btn-primary me-2" onClick={updateLocation}>
-                                            Update Location
-                                        </button>
-                                        <button 
-                                            className="btn btn-outline-secondary" 
-                                            onClick={() => setIsEditing(false)}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button 
-                                            className="btn btn-primary me-2" 
-                                            onClick={() => setIsEditing(true)}
-                                        >
-                                            Edit Location
-                                        </button>
-                                        <button 
-                                            className="btn btn-outline-secondary" 
-                                            onClick={() => {
-                                                setShowViewCanvas(false);
-                                                resetForm();
-                                            }}
-                                        >
-                                            Back
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
+  setIsLoading(true);
+  try {
+    await axios.put(
+      `https://api.avessecurity.com/api/GeoFence/UnAssign-User/${userId}`,
+      { GeoFenceId: geoFenceId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
+    alert("Assignment removed successfully!");
+    await fetchUserAssignments();
+  } catch (error) {
+    console.error("Error removing assignment:", error.response?.data || error.message);
+    alert("Failed to remove assignment");
+  } finally {
+    setIsLoading(false);
+  }
 };
 
-export default AddLocation;
+  // Handle user selection from dropdown
+  const handleUserSelect = (user) => {
+    setSelectedUserId(user.value);
+    setSelectedUserName(user.label);
+    setSearchQuery(user.label);
+    setShowUserDropdown(false);
+  };
+
+  // Handle GeoFence selection for assignment
+  const handleGeoFenceSelect = (geoFenceId) => {
+    setSelectedGeoFences(prev => {
+      if (prev.includes(geoFenceId)) {
+        return prev.filter(id => id !== geoFenceId);
+      } else {
+        return [...prev, geoFenceId];
+      }
+    });
+  };
+
+  // Render GeoFence details
+  const renderGeoFenceDetails = (geoFence) => {
+    if (!geoFence) return null;
+    
+    switch (geoFence.type.toLowerCase()) {
+      case 'point':
+        return (
+          <div>
+            <p><strong>Type:</strong> Point</p>
+            <p><strong>Coordinates:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
+          </div>
+        );
+      case 'circle':
+        return (
+          <div>
+            <p><strong>Type:</strong> Circle</p>
+            <p><strong>Center:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
+            <p><strong>Radius:</strong> {geoFence.radius} meters</p>
+          </div>
+        );
+      case 'polygon':
+      case 'polyline':
+        return (
+          <div>
+            <p><strong>Type:</strong> {geoFence.type}</p>
+            <p><strong>Coordinates:</strong></p>
+            <ul>
+              {geoFence.coordinates?.map((coord, idx) => (
+                <li key={idx}>Lat: {coord[0]}, Lng: {coord[1]}</li>
+              ))}
+            </ul>
+          </div>
+        );
+      default:
+        return <p>Unknown GeoFence type</p>;
+    }
+  };
+
+  return (
+    <div className="container mt-4">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h4>GeoFence Management</h4>
+        <div>
+          <button className="btn btn-primary me-2" onClick={() => setShowFormCanvas(true)}>
+            Add GeoFence
+          </button>
+          <button className="btn btn-success" onClick={() => setShowAssignmentCanvas(true)}>
+            Assign Users
+          </button>
+        </div>
+      </div>
+
+      {/* GeoFences Table */}
+      <div className="table-responsive mb-5">
+        <table className="table custom-table">
+          <thead>
+            <tr>
+              <th>GeoFence Name</th>
+              <th>Type</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allGeoFences.map(geoFence => (
+              <tr key={geoFence._id}>
+                <td>{geoFence.GeoFencename}</td>
+                <td>{geoFence.type}</td>
+                <td>
+                  <button 
+                    className="btn btn-sm btn-outline-primary me-2" 
+                    onClick={() => {
+                      setSelectedGeoFence(geoFence);
+                      setShowViewCanvas(true);
+                    }}
+                  >
+                    View
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-outline-danger" 
+                    onClick={() => handleDelete(geoFence._id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Assigned GeoFences Table */}
+      <div className="table-responsive mb-5">
+        <h5>Assigned GeoFences</h5>
+        <table className="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>GeoFence Name</th>
+              <th>Type</th>
+              <th>User Name</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {userAssignments.map(assignment => (
+              <tr key={assignment._id}>
+                <td>{assignment.GeoFenceDetails?.GeoFencename}</td>
+                <td>{assignment.GeoFenceDetails?.type}</td>
+                <td>{assignment.userName}</td>
+                <td>
+                  <button 
+                    className="btn btn-sm btn-outline-primary me-2"
+                    onClick={() => {
+                      setSelectedGeoFence(assignment.GeoFenceDetails);
+                      setShowViewCanvas(true);
+                    }}
+                  >
+                  <i className='bi bi-eye-fill'></i>
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => removeAssignment(assignment._id)}
+                  >
+                    <i className='bi bi-trash-fill'></i>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add GeoFence Off-Canvas */}
+      <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} style={{ visibility: showFormCanvas ? 'visible' : 'hidden' }}>
+        <div className="offcanvas-header">
+          <h5>Add GeoFence</h5>
+          <button className="btn-close" onClick={() => setShowFormCanvas(false)}></button>
+        </div>
+        <div className="offcanvas-body">
+          <div className="mb-3">
+            <label className="form-label">GeoFence Name</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={geoFenceName} 
+              onChange={e => setGeoFenceName(e.target.value)} 
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Color</label>
+            <input
+              type="color"
+              className="form-control form-control-color"
+              value={selectedColor}
+              onChange={e => setSelectedColor(e.target.value)}
+              style={{ width: "100%", height: "40px" }}
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Draw GeoFence</label>
+            <MapContainer zoom={13} style={{ height: '400px' }}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <SetViewToCurrentLocation />
+              <FeatureGroup ref={featureGroupRef}>
+                <EditControl
+                  position="topright"
+                  onCreated={onCreated}
+                  draw={{
+                    rectangle: true,
+                    polygon: true,
+                    circle: true,
+                    polyline: true,
+                    marker: true,
+                    circlemarker: false
+                  }}
+                />
+              </FeatureGroup>
+            </MapContainer>
+          </div>
+
+          <div className="d-flex justify-content-between">
+            <button className="btn btn-primary" onClick={handleSubmit}>Submit GeoFence</button>
+            <button 
+              type="button" 
+              className="btn btn-outline-secondary" 
+              onClick={() => setShowFormCanvas(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* View GeoFence Off-Canvas */}
+      <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} style={{ visibility: showViewCanvas ? 'visible' : 'hidden' }}>
+        <div className="offcanvas-header">
+          <h5>View GeoFence</h5>
+          <button className="btn-close" onClick={() => setShowViewCanvas(false)}></button>
+        </div>
+        <div className="offcanvas-body">
+          {selectedGeoFence && (
+            <>
+              <h6><strong>GeoFence Name:</strong> {selectedGeoFence.GeoFencename}</h6>
+              <div className="mt-4">
+                {renderGeoFenceDetails(selectedGeoFence)}
+              </div>
+              
+              <div className="mt-4" style={{ height: '400px' }}>
+                <MapContainer 
+                  center={selectedGeoFence.center || [0, 0]} 
+                  zoom={15} 
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <SetViewToCurrentLocation />
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'point' && (
+                    <Marker 
+                      position={selectedGeoFence.center} 
+                      icon={blueIcon}
+                    />
+                  )}
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'circle' && (
+                    <Circle 
+                      center={selectedGeoFence.center} 
+                      radius={selectedGeoFence.radius} 
+                      color={selectedGeoFence.color}
+                      fillColor={selectedGeoFence.color}
+                      fillOpacity={0.2}
+                    />
+                  )}
+                  
+                  {(selectedGeoFence.type.toLowerCase() === 'polygon' || 
+                    selectedGeoFence.type.toLowerCase() === 'rectangle') && (
+                    <Polygon 
+                      positions={selectedGeoFence.coordinates} 
+                      color={selectedGeoFence.color}
+                      fillColor={selectedGeoFence.color}
+                      fillOpacity={0.2}
+                    />
+                  )}
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'polyline' && (
+                    <Polyline 
+                      positions={selectedGeoFence.coordinates} 
+                      color={selectedGeoFence.color}
+                    />
+                  )}
+                </MapContainer>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Assign Users Off-Canvas */}
+      <div className={`offcanvas offcanvas-end ${showAssignmentCanvas ? 'show' : ''}`} style={{ visibility: showAssignmentCanvas ? 'visible' : 'hidden' }}>
+        <div className="offcanvas-header">
+          <h5>Assign GeoFences to Users</h5>
+          <button className="btn-close" onClick={() => setShowAssignmentCanvas(false)}></button>
+        </div>
+        <div className="offcanvas-body">
+          <div className="mb-3">
+            <label className="form-label">Search User</label>
+            <div className="position-relative">
+              <input
+                type="text"
+                className="form-control"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  searchUsers(e.target.value);
+                  setShowUserDropdown(true);
+                }}
+                placeholder="Type to search users..."
+              />
+              {showUserDropdown && users.length > 0 && (
+                <div className="dropdown-menu show w-100" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {users.map((user) => (
+                    <button
+                      key={user.value}
+                      className="dropdown-item"
+                      type="button"
+                      onClick={() => handleUserSelect(user)}
+                    >
+                      {user.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {selectedUserId && (
+            <>
+              <div className="mb-3">
+                <p><strong>Selected User:</strong> {selectedUserName}</p>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label">Select GeoFences to Assign</label>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px' }}>
+                  {allGeoFences.map(geoFence => (
+                    <div key={geoFence._id} className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`geoFence-${geoFence._id}`}
+                        checked={selectedGeoFences.includes(geoFence._id)}
+                        onChange={() => handleGeoFenceSelect(geoFence._id)}
+                      />
+                      <label className="form-check-label" htmlFor={`geoFence-${geoFence._id}`}>
+                        {geoFence.GeoFencename} ({geoFence.type})
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button className="btn btn-primary mb-4" onClick={assignGeoFences}>
+                Assign Selected GeoFences
+              </button> 
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default GeoFenceManagement;
