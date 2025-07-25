@@ -8,7 +8,7 @@ import {
   MapContainer,
   TileLayer,
   FeatureGroup,
-  Marker,
+  LayersControl,
   Circle,
   Polygon,
   Polyline,
@@ -17,30 +17,123 @@ import {
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
 
-// Marker icons
-const blueIcon = new L.Icon({
-  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
+// Location Permission Popup Component
+function LocationPermissionPopup({ onAllow, onDeny }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      zIndex: 10000,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '8px',
+        maxWidth: '400px'
+      }}>
+        <h5>Know your location</h5>
+        <p className="mb-3">Allow while visiting the site?</p>
+        <div className="d-flex flex-column gap-2">
+          <button 
+            className="btn btn-primary"
+            onClick={() => onAllow('allow')}
+          >
+            Allow while visiting the site
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => onAllow('once')}
+          >
+            Allow this time
+          </button>
+          <button 
+            className="btn btn-outline-danger"
+            onClick={onDeny}
+          >
+            Never allow
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function SetViewToCurrentLocation() {
-  const [position, setPosition] = useState(null);
+// SetViewToCurrentLocation Component
+function SetViewToCurrentLocation({ onPositionUpdate }) {
+  const [showPermissionPopup, setShowPermissionPopup] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
   const map = useMap();
 
-  useEffect(() => {
+  const getCurrentLocation = (persistent = false) => {
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: persistent ? Infinity : 0
+    };
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        setPosition([latitude, longitude]);
         map.setView([latitude, longitude], 15);
+        if (onPositionUpdate) {
+          onPositionUpdate([latitude, longitude]);
+        }
       },
       (error) => {
         console.error("Geolocation error:", error);
-      }
+        alert("Could not get your location. Please ensure location services are enabled.");
+      },
+      options
     );
+  };
+
+  useEffect(() => {
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(permissionStatus => {
+          if (permissionStatus.state === 'granted') {
+            setPermissionGranted(true);
+            getCurrentLocation(true);
+          } else if (permissionStatus.state === 'prompt') {
+            setShowPermissionPopup(true);
+          }
+        })
+        .catch(() => {
+          setShowPermissionPopup(true);
+        });
+    } else {
+      setShowPermissionPopup(true);
+    }
   }, [map]);
+
+  const handleAllow = (type) => {
+    setShowPermissionPopup(false);
+    setPermissionGranted(true);
+    getCurrentLocation(type === 'allow');
+  };
+
+  const handleDeny = () => {
+    setShowPermissionPopup(false);
+    alert('Location access is required to create accurate geofences.');
+  };
+
+  return (
+    <>
+      {showPermissionPopup && (
+        <LocationPermissionPopup 
+          onAllow={handleAllow} 
+          onDeny={handleDeny} 
+        />
+      )}
+    </>
+  );
 }
 
 function GeoFenceManagement() {
@@ -53,6 +146,9 @@ function GeoFenceManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGeoFence, setSelectedGeoFence] = useState(null);
   const [showViewCanvas, setShowViewCanvas] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(null);
+  const [manualLatitude, setManualLatitude] = useState('');
+  const [manualLongitude, setManualLongitude] = useState('');
   
   // User Assignment State
   const [users, setUsers] = useState([]);
@@ -65,6 +161,7 @@ function GeoFenceManagement() {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   
   const featureGroupRef = useRef(null);
+  const mapRef = useRef(null);
   const token = localStorage.getItem("access_token");
 
   useEffect(() => {
@@ -72,7 +169,6 @@ function GeoFenceManagement() {
     fetchUserAssignments();
   }, []);
 
-  // Fetch all GeoFences
   const fetchGeoFences = async () => {
     setIsLoading(true);
     try {
@@ -89,7 +185,6 @@ function GeoFenceManagement() {
     }
   };
 
-  // Fetch users for assignment
   const searchUsers = debounce(async (query) => {
     if (!query) {
       setUsers([]);
@@ -116,7 +211,6 @@ function GeoFenceManagement() {
     }
   }, 500);
 
-  // Fetch all user assignments
   const fetchUserAssignments = async () => {
     setIsLoading(true);
     try {
@@ -136,12 +230,10 @@ function GeoFenceManagement() {
     }
   };
 
-  // Handle GeoFence drawing
   const onCreated = (e) => {
     setDrawnLayer(e.layer);
   };
 
-  // Extract GeoFence data from drawn layer
   const extractGeoFenceData = (layer) => {
     const geojson = layer.toGeoJSON();
     const shapeType = geojson.geometry.type;
@@ -158,7 +250,7 @@ function GeoFenceManagement() {
       payload.radius = layer.getRadius();
     } else if (layer instanceof L.Marker) {
       const point = geojson.geometry.coordinates;
-      payload.center = [point[1], point[0]]; // Convert [lng, lat] to [lat, lng]
+      payload.center = [point[1], point[0]];
     } else if (
       layer instanceof L.Polygon ||
       layer instanceof L.Polyline ||
@@ -171,7 +263,6 @@ function GeoFenceManagement() {
     return payload;
   };
 
-  // Create new GeoFence
   const handleSubmit = async () => {
     if (!drawnLayer || !geoFenceName) {
       alert("Please draw a shape and enter a GeoFence name.");
@@ -195,6 +286,8 @@ function GeoFenceManagement() {
       await fetchGeoFences();
       setGeoFenceName('');
       setDrawnLayer(null);
+      setManualLatitude('');
+      setManualLongitude('');
       setShowFormCanvas(false);
       if (featureGroupRef.current) {
         featureGroupRef.current.clearLayers();
@@ -207,7 +300,6 @@ function GeoFenceManagement() {
     }
   };
 
-  // Delete GeoFence
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this GeoFence?");
     if (!confirmDelete) return;
@@ -230,7 +322,6 @@ function GeoFenceManagement() {
     }
   };
 
-  // Assign GeoFences to user
   const assignGeoFences = async () => {
     if (!selectedUserId || selectedGeoFences.length === 0) {
       alert('Please select a user and at least one GeoFence');
@@ -262,48 +353,45 @@ function GeoFenceManagement() {
     }
   };
 
-  
-  // Remove GeoFence assignment
-const removeAssignment = async (assignmentId) => {
-  const confirmRemove = window.confirm("Are you sure you want to remove this assignment?");
-  if (!confirmRemove) return;
+  const removeAssignment = async (assignmentId) => {
+    const confirmRemove = window.confirm("Are you sure you want to remove this assignment?");
+    if (!confirmRemove) return;
 
-  const assignment = userAssignments.find(a => a._id === assignmentId);
-  if (!assignment) {
-    alert("Assignment not found");
-    return;
-  }
+    const assignment = userAssignments.find(a => a._id === assignmentId);
+    if (!assignment) {
+      alert("Assignment not found");
+      return;
+    }
 
-  const userId = assignment.userId; // or assignment.user?._id if nested
-  const geoFenceId = assignment.GeoFenceDetails?._id;
+    const userId = assignment.userId;
+    const geoFenceId = assignment.GeoFenceDetails?._id;
 
-  if (!userId || !geoFenceId) {
-    alert("Invalid assignment data");
-    return;
-  }
+    if (!userId || !geoFenceId) {
+      alert("Invalid assignment data");
+      return;
+    }
 
-  setIsLoading(true);
-  try {
-    await axios.put(
-      `https://api.avessecurity.com/api/GeoFence/UnAssign-User/${userId}`,
-      { GeoFenceId: geoFenceId },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    alert("Assignment removed successfully!");
-    await fetchUserAssignments();
-  } catch (error) {
-    console.error("Error removing assignment:", error.response?.data || error.message);
-    alert("Failed to remove assignment");
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    try {
+      await axios.put(
+        `https://api.avessecurity.com/api/GeoFence/UnAssign-User/${userId}`,
+        { GeoFenceId: geoFenceId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      alert("Assignment removed successfully!");
+      await fetchUserAssignments();
+    } catch (error) {
+      console.error("Error removing assignment:", error.response?.data || error.message);
+      alert("Failed to remove assignment");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Handle user selection from dropdown
   const handleUserSelect = (user) => {
     setSelectedUserId(user.value);
     setSelectedUserName(user.label);
@@ -311,7 +399,6 @@ const removeAssignment = async (assignmentId) => {
     setShowUserDropdown(false);
   };
 
-  // Handle GeoFence selection for assignment
   const handleGeoFenceSelect = (geoFenceId) => {
     setSelectedGeoFences(prev => {
       if (prev.includes(geoFenceId)) {
@@ -322,7 +409,6 @@ const removeAssignment = async (assignmentId) => {
     });
   };
 
-  // Render GeoFence details
   const renderGeoFenceDetails = (geoFence) => {
     if (!geoFence) return null;
     
@@ -360,9 +446,32 @@ const removeAssignment = async (assignmentId) => {
     }
   };
 
+  const zoomToManualLocation = () => {
+    if (manualLatitude && manualLongitude) {
+      const lat = parseFloat(manualLatitude);
+      const lng = parseFloat(manualLongitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const map = mapRef.current;
+        if (map) {
+          map.setView([lat, lng], 15);
+          
+          // Add a marker at this location
+          if (featureGroupRef.current) {
+            featureGroupRef.current.clearLayers();
+            const marker = L.marker([lat, lng]).addTo(featureGroupRef.current);
+            setDrawnLayer(marker);
+          }
+        }
+      } else {
+        alert("Please enter valid latitude and longitude values");
+      }
+    } else {
+      alert("Please enter both latitude and longitude");
+    }
+  };
+
   return (
     <div className="container mt-4">
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="overlay" style={{
           position: 'fixed',
@@ -394,7 +503,6 @@ const removeAssignment = async (assignmentId) => {
         </div>
       </div>
 
-      {/* GeoFences Table */}
       <div className="table-responsive mb-5">
         <table className="table custom-table">
           <thead>
@@ -432,7 +540,6 @@ const removeAssignment = async (assignmentId) => {
         </table>
       </div>
 
-      {/* Assigned GeoFences Table */}
       <div className="table-responsive mb-5">
         <h5>Assigned GeoFences</h5>
         <table className="table table-striped table-hover">
@@ -458,7 +565,7 @@ const removeAssignment = async (assignmentId) => {
                       setShowViewCanvas(true);
                     }}
                   >
-                  <i className='bi bi-eye-fill'></i>
+                    <i className='bi bi-eye-fill'></i>
                   </button>
                   <button 
                     className="btn btn-sm btn-outline-danger"
@@ -473,7 +580,7 @@ const removeAssignment = async (assignmentId) => {
         </table>
       </div>
 
-      {/* Add GeoFence Off-Canvas */}
+      {/* Add GeoFence Form */}
       <div className={`offcanvas offcanvas-end ${showFormCanvas ? 'show' : ''}`} style={{ visibility: showFormCanvas ? 'visible' : 'hidden' }}>
         <div className="offcanvas-header">
           <h5>Add GeoFence</h5>
@@ -502,24 +609,70 @@ const removeAssignment = async (assignmentId) => {
           </div>
 
           <div className="mb-3">
+            <label className="form-label">Latitude</label>
+            <input
+              type="number"
+              className="form-control"
+              value={manualLatitude}
+              onChange={(e) => setManualLatitude(e.target.value)}
+              placeholder="Enter latitude"
+              step="any"
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Longitude</label>
+            <input
+              type="number"
+              className="form-control"
+              value={manualLongitude}
+              onChange={(e) => setManualLongitude(e.target.value)}
+              placeholder="Enter longitude"
+              step="any"
+            />
+          </div>
+          <button 
+            className="btn btn-outline-primary mb-3 w-100" 
+            onClick={zoomToManualLocation}
+          >
+          Get The Location
+          </button>
+
+          <div className="mb-3">
             <label className="form-label">Draw GeoFence</label>
-            <MapContainer zoom={13} style={{ height: '400px' }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <SetViewToCurrentLocation />
-              <FeatureGroup ref={featureGroupRef}>
-                <EditControl
-                  position="topright"
-                  onCreated={onCreated}
-                  draw={{
-                    rectangle: true,
-                    polygon: true,
-                    circle: true,
-                    polyline: true,
-                    marker: true,
-                    circlemarker: false
-                  }}
-                />
-              </FeatureGroup>
+            <MapContainer 
+              ref={mapRef}
+              zoom={13} 
+              style={{ height: '400px' }}
+            >
+              <LayersControl position="topright">
+                <LayersControl.BaseLayer checked name="OpenStreetMap">
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer name="Google Satellite">
+                  <TileLayer
+                    url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                    attribution='&copy; Google'
+                  />
+                </LayersControl.BaseLayer>
+                <SetViewToCurrentLocation onPositionUpdate={setCurrentPosition} />
+                <FeatureGroup ref={featureGroupRef}>
+                  <EditControl
+                    position="topright"
+                    onCreated={onCreated}
+                    draw={{
+                      rectangle: true,
+                      polygon: true,
+                      circle: true,
+                      polyline: true,
+                      marker: true,
+                      circlemarker: false
+                    }}
+                  />
+                </FeatureGroup>
+              </LayersControl>
             </MapContainer>
           </div>
 
@@ -536,7 +689,7 @@ const removeAssignment = async (assignmentId) => {
         </div>
       </div>
 
-      {/* View GeoFence Off-Canvas */}
+      {/* View GeoFence Canvas */}
       <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} style={{ visibility: showViewCanvas ? 'visible' : 'hidden' }}>
         <div className="offcanvas-header">
           <h5>View GeoFence</h5>
@@ -556,15 +709,21 @@ const removeAssignment = async (assignmentId) => {
                   zoom={15} 
                   style={{ height: '100%', width: '100%' }}
                 >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <SetViewToCurrentLocation />
-                  
-                  {selectedGeoFence.type.toLowerCase() === 'point' && (
-                    <Marker 
-                      position={selectedGeoFence.center} 
-                      icon={blueIcon}
-                    />
-                  )}
+                  <LayersControl position="topright">
+                    <LayersControl.BaseLayer checked name="OpenStreetMap">
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="Google Satellite">
+                      <TileLayer
+                        url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                        attribution='&copy; Google'
+                      />
+                    </LayersControl.BaseLayer>
+                    <SetViewToCurrentLocation /> 
+                  </LayersControl>
                   
                   {selectedGeoFence.type.toLowerCase() === 'circle' && (
                     <Circle 
@@ -599,7 +758,7 @@ const removeAssignment = async (assignmentId) => {
         </div>
       </div>
 
-      {/* Assign Users Off-Canvas */}
+      {/* Assign Users Canvas */}
       <div className={`offcanvas offcanvas-end ${showAssignmentCanvas ? 'show' : ''}`} style={{ visibility: showAssignmentCanvas ? 'visible' : 'hidden' }}>
         <div className="offcanvas-header">
           <h5>Assign GeoFences to Users</h5>

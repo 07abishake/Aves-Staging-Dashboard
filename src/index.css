@@ -139,3 +139,10 @@ body {
 .module-legend::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  min-height: 400px;
+}
