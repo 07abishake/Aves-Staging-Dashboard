@@ -17,24 +17,22 @@ function LocationManager() {
         { SecondaryLocation: '', SubLocation: '', ThirdLocation: [{ ThirdLocation: '', SubLocation: '' }] }
     ]);
 
-    // Autocomplete suggestions
-    const [primarySuggestions, setPrimarySuggestions] = useState([]);
-    const [secondarySuggestions, setSecondarySuggestions] = useState([]);
-    const [thirdSuggestions, setThirdSuggestions] = useState([]);
-    const [showPrimarySuggestions, setShowPrimarySuggestions] = useState(false);
-    const [showSecondarySuggestions, setShowSecondarySuggestions] = useState([]);
-    const [showThirdSuggestions, setShowThirdSuggestions] = useState([]);
+    // Suggestions state
+    const [suggestions, setSuggestions] = useState({
+        primary: [],
+        secondary: {},
+        third: {}
+    });
+    const [showSuggestions, setShowSuggestions] = useState({
+        primary: false,
+        secondary: {},
+        third: {}
+    });
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         fetchLocations();
     }, []);
-
-    useEffect(() => {
-        // Initialize showSecondarySuggestions array based on secondaryLocations length
-        setShowSecondarySuggestions(secondaryLocations.map(() => false));
-        setShowThirdSuggestions(secondaryLocations.map(sec => sec.ThirdLocation.map(() => false)));
-    }, [secondaryLocations]);
 
     const closeViewCanvas = () => {
         setShowViewCanvas(false);
@@ -64,7 +62,6 @@ function LocationManager() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             
-            // Find the location that matches the primary location name
             const matchedLocation = data.Location.find(
                 loc => loc.PrimaryLocation.toLowerCase() === primaryLocName.toLowerCase()
             );
@@ -215,41 +212,38 @@ function LocationManager() {
         setSecondaryLocations(updated);
     };
 
-    const generateSuggestions = (type, value, parentLocation = '') => {
+    const generateSuggestions = (type, value, parentLocations = {}) => {
         if (!value) return [];
         
-        const allSuggestions = [];
+        const allSuggestions = new Set();
         
         locations.forEach(location => {
             // Primary location suggestions
             if (type === 'primary' && 
                 location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
-                if (!allSuggestions.includes(location.PrimaryLocation)) {
-                    allSuggestions.push(location.PrimaryLocation);
-                }
+                allSuggestions.add(location.PrimaryLocation);
             }
             
-            // Secondary location suggestions
+            // Secondary location suggestions - match primary location first
             if (type === 'secondary' && 
-                location.PrimaryLocation === parentLocation && 
+                location.PrimaryLocation.toLowerCase() === parentLocations.primary?.toLowerCase() && 
                 location.SecondaryLocation) {
                 location.SecondaryLocation.forEach(sec => {
-                    if (sec.SecondaryLocation.toLowerCase().includes(value.toLowerCase()) && 
-                        !allSuggestions.includes(sec.SecondaryLocation)) {
-                        allSuggestions.push(sec.SecondaryLocation);
+                    if (sec.SecondaryLocation.toLowerCase().includes(value.toLowerCase())) {
+                        allSuggestions.add(sec.SecondaryLocation);
                     }
                 });
             }
             
-            // Third location suggestions
+            // Third location suggestions - match both primary and secondary
             if (type === 'third' && 
                 location.SecondaryLocation) {
                 location.SecondaryLocation.forEach(sec => {
-                    if (sec.SecondaryLocation === parentLocation && sec.ThirdLocation) {
+                    if (sec.SecondaryLocation.toLowerCase() === parentLocations.secondary?.toLowerCase() && 
+                        sec.ThirdLocation) {
                         sec.ThirdLocation.forEach(third => {
-                            if (third.ThirdLocation.toLowerCase().includes(value.toLowerCase()) && 
-                                !allSuggestions.includes(third.ThirdLocation)) {
-                                allSuggestions.push(third.ThirdLocation);
+                            if (third.ThirdLocation.toLowerCase().includes(value.toLowerCase())) {
+                                allSuggestions.add(third.ThirdLocation);
                             }
                         });
                     }
@@ -257,28 +251,26 @@ function LocationManager() {
             }
         });
         
-        return allSuggestions;
+        return Array.from(allSuggestions);
     };
 
     const handlePrimaryLocationChange = (value) => {
         setPrimaryLocation(value);
-        setPrimarySuggestions(generateSuggestions('primary', value));
-        setShowPrimarySuggestions(value.length > 0);
+        const newSuggestions = generateSuggestions('primary', value);
+        setSuggestions(prev => ({ ...prev, primary: newSuggestions }));
+        setShowSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
     };
 
     const handlePrimaryLocationSelect = async (selectedPrimaryLoc) => {
         setPrimaryLocation(selectedPrimaryLoc);
-        setShowPrimarySuggestions(false);
+        setShowSuggestions(prev => ({ ...prev, primary: false }));
         
-        // Fetch the complete location data when a primary location is selected
         const matchedLocation = await fetchMatchingLocation(selectedPrimaryLoc);
         
         if (matchedLocation) {
-            // Autofill all fields from the matched location
             setPrimarySubLocation(matchedLocation.SubLocation || '');
             
-            // Set secondary locations if they exist
-            if (matchedLocation.SecondaryLocation && matchedLocation.SecondaryLocation.length > 0) {
+            if (matchedLocation.SecondaryLocation?.length > 0) {
                 setSecondaryLocations(
                     matchedLocation.SecondaryLocation.map(sec => ({
                         SecondaryLocation: sec.SecondaryLocation || '',
@@ -290,7 +282,6 @@ function LocationManager() {
                     }))
                 );
             } else {
-                // Reset to default if no secondary locations
                 setSecondaryLocations([{ 
                     SecondaryLocation: '', 
                     SubLocation: '', 
@@ -298,7 +289,6 @@ function LocationManager() {
                 }]);
             }
         } else {
-            // Reset secondary fields if no match found
             setPrimarySubLocation('');
             setSecondaryLocations([{ 
                 SecondaryLocation: '', 
@@ -313,15 +303,26 @@ function LocationManager() {
         updated[index].SecondaryLocation = value;
         setSecondaryLocations(updated);
         
-        // Update suggestions for this field
-        const newSecondarySuggestions = [...secondarySuggestions];
-        newSecondarySuggestions[index] = generateSuggestions('secondary', value, primaryLocation);
-        setSecondarySuggestions(newSecondarySuggestions);
+        // Generate suggestions based on current primary location
+        const newSuggestions = generateSuggestions('secondary', value, { 
+            primary: primaryLocation 
+        });
         
-        // Show suggestions for this field
-        const newShowSecondary = [...showSecondarySuggestions];
-        newShowSecondary[index] = value.length > 0;
-        setShowSecondarySuggestions(newShowSecondary);
+        setSuggestions(prev => ({
+            ...prev,
+            secondary: {
+                ...prev.secondary,
+                [index]: newSuggestions
+            }
+        }));
+        
+        setShowSuggestions(prev => ({
+            ...prev,
+            secondary: {
+                ...prev.secondary,
+                [index]: value.length > 0
+            }
+        }));
     };
 
     const handleThirdLocationChange = (secondaryIndex, thirdIndex, value) => {
@@ -329,18 +330,33 @@ function LocationManager() {
         updated[secondaryIndex].ThirdLocation[thirdIndex].ThirdLocation = value;
         setSecondaryLocations(updated);
         
-        // Update suggestions for this field
         const parentSecondary = secondaryLocations[secondaryIndex].SecondaryLocation;
-        const newThirdSuggestions = [...thirdSuggestions];
-        if (!newThirdSuggestions[secondaryIndex]) newThirdSuggestions[secondaryIndex] = [];
-        newThirdSuggestions[secondaryIndex][thirdIndex] = generateSuggestions('third', value, parentSecondary);
-        setThirdSuggestions(newThirdSuggestions);
+        const newSuggestions = generateSuggestions('third', value, { 
+            primary: primaryLocation, 
+            secondary: parentSecondary 
+        });
         
-        // Show suggestions for this field
-        const newShowThird = [...showThirdSuggestions];
-        if (!newShowThird[secondaryIndex]) newShowThird[secondaryIndex] = [];
-        newShowThird[secondaryIndex][thirdIndex] = value.length > 0;
-        setShowThirdSuggestions(newShowThird);
+        setSuggestions(prev => ({
+            ...prev,
+            third: {
+                ...prev.third,
+                [secondaryIndex]: {
+                    ...(prev.third[secondaryIndex] || {}),
+                    [thirdIndex]: newSuggestions
+                }
+            }
+        }));
+        
+        setShowSuggestions(prev => ({
+            ...prev,
+            third: {
+                ...prev.third,
+                [secondaryIndex]: {
+                    ...(prev.third[secondaryIndex] || {}),
+                    [thirdIndex]: value.length > 0
+                }
+            }
+        }));
     };
 
     const selectSuggestion = (type, value, index = null, thirdIndex = null) => {
@@ -349,21 +365,37 @@ function LocationManager() {
                 handlePrimaryLocationSelect(value);
                 break;
             case 'secondary':
-                handleSecondaryLocationChange(index, value);
-                setShowSecondarySuggestions(prev => {
-                    const newState = [...prev];
-                    newState[index] = false;
-                    return newState;
-                });
+                // Update the secondary location field
+                const updatedSecondary = [...secondaryLocations];
+                updatedSecondary[index].SecondaryLocation = value;
+                setSecondaryLocations(updatedSecondary);
+                
+                // Hide suggestions
+                setShowSuggestions(prev => ({
+                    ...prev,
+                    secondary: {
+                        ...prev.secondary,
+                        [index]: false
+                    }
+                }));
                 break;
             case 'third':
-                handleThirdLocationChange(index, thirdIndex, value);
-                setShowThirdSuggestions(prev => {
-                    const newState = [...prev];
-                    if (!newState[index]) newState[index] = [];
-                    newState[index][thirdIndex] = false;
-                    return newState;
-                });
+                // Update the third location field
+                const updatedThird = [...secondaryLocations];
+                updatedThird[index].ThirdLocation[thirdIndex].ThirdLocation = value;
+                setSecondaryLocations(updatedThird);
+                
+                // Hide suggestions
+                setShowSuggestions(prev => ({
+                    ...prev,
+                    third: {
+                        ...prev.third,
+                        [index]: {
+                            ...(prev.third[index] || {}),
+                            [thirdIndex]: false
+                        }
+                    }
+                }));
                 break;
         }
     };
@@ -454,9 +486,9 @@ function LocationManager() {
                                     onChange={(e) => handlePrimaryLocationChange(e.target.value)} 
                                     required 
                                 />
-                                {showPrimarySuggestions && primarySuggestions.length > 0 && (
+                                {showSuggestions.primary && suggestions.primary.length > 0 && (
                                     <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                        {primarySuggestions.map((suggestion, idx) => (
+                                        {suggestions.primary.map((suggestion, idx) => (
                                             <button
                                                 key={idx}
                                                 type="button"
@@ -497,9 +529,9 @@ function LocationManager() {
                                                 onChange={(e) => handleSecondaryLocationChange(secIndex, e.target.value)}
                                                 required
                                             />
-                                            {showSecondarySuggestions[secIndex] && secondarySuggestions[secIndex]?.length > 0 && (
+                                            {showSuggestions.secondary[secIndex] && suggestions.secondary[secIndex]?.length > 0 && (
                                                 <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                                    {secondarySuggestions[secIndex].map((suggestion, idx) => (
+                                                    {suggestions.secondary[secIndex].map((suggestion, idx) => (
                                                         <button
                                                             key={idx}
                                                             type="button"
@@ -539,10 +571,10 @@ function LocationManager() {
                                                             value={third.ThirdLocation}
                                                             onChange={(e) => handleThirdLocationChange(secIndex, thirdIndex, e.target.value)}
                                                         />
-                                                        {showThirdSuggestions[secIndex]?.[thirdIndex] && 
-                                                         thirdSuggestions[secIndex]?.[thirdIndex]?.length > 0 && (
+                                                        {showSuggestions.third[secIndex]?.[thirdIndex] && 
+                                                         suggestions.third[secIndex]?.[thirdIndex]?.length > 0 && (
                                                             <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                                                {thirdSuggestions[secIndex][thirdIndex].map((suggestion, idx) => (
+                                                                {suggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
                                                                     <button
                                                                         key={idx}
                                                                         type="button"
