@@ -494,10 +494,10 @@ function GeoFenceManagement() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4>GeoFence Management</h4>
         <div>
-          <button className="btn btn-primary me-2" onClick={() => setShowFormCanvas(true)}>
+          <button className="btn btn-outline-primary me-2" onClick={() => setShowFormCanvas(true)}>
             Add GeoFence
           </button>
-          <button className="btn btn-success" onClick={() => setShowAssignmentCanvas(true)}>
+          <button className="btn btn-outline-primary" onClick={() => setShowAssignmentCanvas(true)}>
             Assign Users
           </button>
         </div>

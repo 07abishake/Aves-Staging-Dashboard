@@ -117,15 +117,15 @@ function AppNavbar() {
                 </div>
               </Dropdown.Toggle>
               <Dropdown.Menu align="end" className="mt-2 border-0 shadow-sm">
-                <Dropdown.Header>User Settings</Dropdown.Header>
-                <Dropdown.Item className="d-flex align-items-center">
+                <Dropdown.Header>Signed out securely</Dropdown.Header>
+                {/* <Dropdown.Item className="d-flex align-items-center">
                   <PersonCircle className="me-2 text-muted" />
                   Profile
-                </Dropdown.Item>
-                <Dropdown.Item className="d-flex align-items-center">
+                </Dropdown.Item> */}
+                {/* <Dropdown.Item className="d-flex align-items-center">
                   <Gear className="me-2 text-muted" />
                   Settings
-                </Dropdown.Item>
+                </Dropdown.Item> */}
                 <Dropdown.Divider />
                 <Dropdown.Item 
                   onClick={handleLogout}
