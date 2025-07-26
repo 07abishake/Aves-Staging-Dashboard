@@ -59,25 +59,33 @@ function PassSetup() {
     }
   };
 
-  const flattenLocations = (data) => {
-    const result = [];
-    data.forEach((primary) => {
-      result.push({ label: primary.PrimaryLocation, id: primary._id });
-      primary.SecondaryLocation?.forEach((secondary) => {
+ const flattenLocations = (data) => {
+  const result = [];
+
+  data.forEach((primary) => {
+    // Add Primary
+    result.push({ label: primary.PrimaryLocation, id: primary._id });
+
+    // Add Secondary
+    primary.SecondaryLocation?.forEach((secondary) => {
+      result.push({
+        label: `🌐1Loc${primary.PrimaryLocation}      2Loc📍${secondary.SecondaryLocation}`, // Assume 'SecondaryLocationName' holds the correct name
+        id: secondary._id,
+      });
+
+      // Add Third
+      secondary.ThirdLocation?.forEach((third) => {
         result.push({
-          label: `${primary.PrimaryLocation} > ${secondary.SubLocation}`,
-          id: secondary._id,
-        });
-        secondary.ThirdLocation?.forEach((third) => {
-          result.push({
-            label: `${primary.PrimaryLocation} > ${secondary.SubLocation} > ${third.ThirdLocation}`,
-            id: third._id,
-          });
+          label: `🌐1Loc${primary.PrimaryLocation}    2Loc📍${secondary.SecondaryLocation}      3Loc🏢 ${third.ThirdLocation}`,
+          id: third._id,
         });
       });
     });
-    return result;
-  };
+  });
+
+  return result;
+};
+
 
   const fetchPasses = async () => {
     setLoading(true);
@@ -106,11 +114,12 @@ function PassSetup() {
       const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
       
       await axios.post(
-        'https://api.avessecurity.com/api/Color/create',
+        'http://localhost:6378/api/Color/create',
         {
           title: selectedLabel,
           CustomColor: color,
           Hexa: color.replace('#', ''),
+          LocationId: selectedLocation,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -122,11 +131,17 @@ function PassSetup() {
       setColor('#ff0000');
       fetchPasses();
     } catch (error) {
-      console.error('Failed to create color pass:', error);
+    console.error('Failed to create color pass:', error);
+    
+    // ✅ Catch and show specific backend message
+    if (error.response?.status === 400 && error.response.data?.message) {
+      setError(error.response.data.message);
+    } else {
       setError('Failed to create pass. Please try again.');
-    } finally {
-      setLoading(false);
     }
+  } finally {
+    setLoading(false);
+  }
   };
 
   const confirmDelete = (pass) => {
@@ -177,6 +192,7 @@ function PassSetup() {
           title: selectedLabel,
           CustomColor: color,
           Hexa: color.replace('#', ''),
+          LocationId: selectedLocation,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
