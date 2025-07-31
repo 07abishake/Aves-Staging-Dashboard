@@ -266,7 +266,7 @@ function Patrol() {
         }
 
         if (hasOverlappingAssignments(selectedUser, startDate, endDate, startTime, endTime)) {
-            alert("This user already has a patrol assignment during the selected time period.");
+            alert("Patrol assignment during the selected time period Not Available");
             return;
         }
 
@@ -316,71 +316,116 @@ function Patrol() {
         }
     };
     
-    const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
-        if (!shiftStart || !shiftEnd) return timeOptions;
+    // const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+    //     if (!shiftStart || !shiftEnd) return timeOptions;
         
-        const now = new Date();
-        const currentHours = now.getHours();
-        const currentMinutes = now.getMinutes();
-        const currentTotalMinutes = currentHours * 60 + currentMinutes;
+    //     const now = new Date();
+    //     const currentHours = now.getHours();
+    //     const currentMinutes = now.getMinutes();
+    //     const currentTotalMinutes = currentHours * 60 + currentMinutes;
         
-        const convertToMinutes = (timeStr) => {
-            const [time, period] = timeStr.split(' ');
-            const [hours, minutes] = time.split(':').map(Number);
-            let total = hours * 60 + minutes;
-            if (period === 'PM' && hours !== 12) total += 12 * 60;
-            if (period === 'AM' && hours === 12) total -= 12 * 60;
-            return total;
-        };
+    //     const convertToMinutes = (timeStr) => {
+    //         const [time, period] = timeStr.split(' ');
+    //         const [hours, minutes] = time.split(':').map(Number);
+    //         let total = hours * 60 + minutes;
+    //         if (period === 'PM' && hours !== 12) total += 12 * 60;
+    //         if (period === 'AM' && hours === 12) total -= 12 * 60;
+    //         return total;
+    //     };
 
-        const startMinutes = convertToMinutes(shiftStart);
-        const endMinutes = convertToMinutes(shiftEnd);
+    //     const startMinutes = convertToMinutes(shiftStart);
+    //     const endMinutes = convertToMinutes(shiftEnd);
         
-        return timeOptions.filter(time => {
-            const [timeStr, period] = time.split(' ');
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            let total = hours * 60 + minutes;
-            if (period === 'PM' && hours !== 12) total += 12 * 60;
-            if (period === 'AM' && hours === 12) total -= 12 * 60;
+    //     return timeOptions.filter(time => {
+    //         const [timeStr, period] = time.split(' ');
+    //         const [hours, minutes] = timeStr.split(':').map(Number);
+    //         let total = hours * 60 + minutes;
+    //         if (period === 'PM' && hours !== 12) total += 12 * 60;
+    //         if (period === 'AM' && hours === 12) total -= 12 * 60;
             
-            return total >= startMinutes && 
-                   total <= endMinutes && 
-                   total >= currentTotalMinutes;
-        });
+    //         return total >= startMinutes && 
+    //                total <= endMinutes && 
+    //                total >= currentTotalMinutes;
+    //     });
+    // };
+const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+    if (!shiftStart || !shiftEnd) return timeOptions;
+
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+
+    const convertToMinutes = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let total = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) total += 12 * 60;
+        if (period === 'AM' && hours === 12) total -= 12 * 60;
+        return total;
     };
+
+    const startMinutes = convertToMinutes(shiftStart);
+    const endMinutes = convertToMinutes(shiftEnd);
+
+    return timeOptions.filter(time => {
+        const timeMinutes = convertToMinutes(time);
+
+        const isWithinShift = startMinutes <= endMinutes
+            ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
+            : timeMinutes >= startMinutes || timeMinutes <= endMinutes; // for overnight
+
+        const isFuture = timeMinutes >= currentTotalMinutes;
+
+        return isWithinShift && isFuture;
+    });
+};
 
     const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
-        const timeToMinutes = (timeStr) => {
-            const [time, period] = timeStr.split(' ');
-            const [hours, minutes] = time.split(':').map(Number);
-            let total = hours * 60 + minutes;
-            if (period === 'PM' && hours !== 12) total += 12 * 60;
-            if (period === 'AM' && hours === 12) total -= 12 * 60;
-            return total;
-        };
-
-        const newStartMinutes = timeToMinutes(newStartTime);
-        const newEndMinutes = timeToMinutes(newEndTime);
-        const newStartDateObj = new Date(newStartDate);
-        const newEndDateObj = new Date(newEndDate);
-
-        return assignedPatrols.some(assignment => {
-            if (!assignment || !assignment.userId || !assignment.userId._id) return false;
-            if (assignment.userId._id !== userId) return false;
-
-            const assignmentStartDate = new Date(assignment.startDate);
-            const assignmentEndDate = new Date(assignment.endDate);
-            
-            if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
-                return false;
-            }
-
-            const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
-            const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
-
-            return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
-        });
+    const timeToMinutes = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let total = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) total += 12 * 60;
+        if (period === 'AM' && hours === 12) total -= 12 * 60;
+        return total;
     };
+
+    // 1. Check for same time
+    if (newStartTime === newEndTime) {
+        console.error("Start Time and End Time cannot be the same.");
+        return true;
+    }
+
+    // 2. Check for invalid time order
+    if (timeToMinutes(newStartTime) >= timeToMinutes(newEndTime)) {
+        console.error("Start Time must be earlier than End Time.");
+        return true;
+    }
+
+    const newStartMinutes = timeToMinutes(newStartTime);
+    const newEndMinutes = timeToMinutes(newEndTime);
+    const newStartDateObj = new Date(newStartDate);
+    const newEndDateObj = new Date(newEndDate);
+
+    return assignedPatrols.some(assignment => {
+        if (!assignment || !assignment.userId || !assignment.userId._id) return false;
+        if (assignment.userId._id !== userId) return false;
+
+        const assignmentStartDate = new Date(assignment.startDate);
+        const assignmentEndDate = new Date(assignment.endDate);
+
+        if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
+            return false;
+        }
+
+        const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
+        const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
+
+        return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
+    });
+};
+
 
     const handleSubmit = async () => {
         setIsLoading(true);
