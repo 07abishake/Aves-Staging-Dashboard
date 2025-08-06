@@ -6,7 +6,7 @@ import logo from '../components/Images/Logo.png';
 
 const Login = () => {
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [invalidInput, setInvalidInput] = useState(false);
@@ -14,7 +14,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!email.trim() || !password.trim()) {
+        if (!name.trim() || !password.trim()) {
             setInvalidInput(true);
             setError('Both fields are required.');
             return;
@@ -23,26 +23,35 @@ const Login = () => {
         try {
             const response = await axios.post(
                 'https://api.avessecurity.com/api/auth/login',
-                { email, password },
+                { name, password },
                 { headers: { 'Content-Type': 'application/json' } }
             );
 
             const { token } = response.data;
+
             if (token) {
                 const decoded = jwtDecode(token);
                 const { email, name, OrganizationId, planId } = decoded;
 
-                // Store user data and plan features in localStorage
+                // Save required values
                 localStorage.setItem('access_token', token);
-                localStorage.setItem('email', email);
-                localStorage.setItem('name', name);
-                localStorage.setItem('OrganizationId', OrganizationId);
-                localStorage.setItem('planFeatures', JSON.stringify(planId.features));
-                localStorage.setItem('userPlan', JSON.stringify(planId));
+                localStorage.setItem('email', email || '');
+                localStorage.setItem('name', name || '');
+                localStorage.setItem('OrganizationId', OrganizationId || '');
+
+                // Safely store plan features
+                if (planId?.features) {
+                    localStorage.setItem('planFeatures', JSON.stringify(planId.features));
+                }
+
+                if (planId) {
+                    localStorage.setItem('userPlan', JSON.stringify(planId));
+                }
 
                 navigate('/dashboard');
             }
         } catch (err) {
+            console.error('Login error:', err); // Dev debug
             setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
         }
     };
@@ -57,15 +66,15 @@ const Login = () => {
                     <div className="card-body">
                         <form onSubmit={handleSubmit}>
                             <div className="form-group text-start mb-2">
-                                <label className="label text-black mb-1 fw-bold" htmlFor="email">Email</label>
+                                <label className="label text-black mb-1 fw-bold" htmlFor="name">Email or Username</label>
                                 <input
                                     className={`py-2 form-control mb-2 ${invalidInput ? 'is-invalid' : ''}`}
-                                    type="email"
-                                    id="email"
-                                    placeholder="Enter Email..."
-                                    value={email}
+                                    type="text"
+                                    id="name"
+                                    placeholder="Enter email or username..."
+                                    value={name}
                                     onChange={(e) => {
-                                        setEmail(e.target.value);
+                                        setName(e.target.value);
                                         setInvalidInput(false);
                                         setError('');
                                     }}
