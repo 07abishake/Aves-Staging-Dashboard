@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import logo from '../components/Images/Logo.png';
+import { Form, Button, InputGroup } from 'react-bootstrap'; // Import React-Bootstrap components
 
 const Login = () => {
     const navigate = useNavigate();
@@ -10,6 +11,7 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [invalidInput, setInvalidInput] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -33,13 +35,11 @@ const Login = () => {
                 const decoded = jwtDecode(token);
                 const { email, name, OrganizationId, planId } = decoded;
 
-                // Save required values
                 localStorage.setItem('access_token', token);
                 localStorage.setItem('email', email || '');
                 localStorage.setItem('name', name || '');
                 localStorage.setItem('OrganizationId', OrganizationId || '');
 
-                // Safely store plan features
                 if (planId?.features) {
                     localStorage.setItem('planFeatures', JSON.stringify(planId.features));
                 }
@@ -51,7 +51,7 @@ const Login = () => {
                 navigate('/dashboard');
             }
         } catch (err) {
-            console.error('Login error:', err); // Dev debug
+            console.error('Login error:', err);
             setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
         }
     };
@@ -64,13 +64,11 @@ const Login = () => {
                 <p className="text-muted">Sign in to your account</p>
                 <div className="card p-2 mt-4 b-shad">
                     <div className="card-body">
-                        <form onSubmit={handleSubmit}>
-                            <div className="form-group text-start mb-2">
-                                <label className="label text-black mb-1 fw-bold" htmlFor="name">Email or Username</label>
-                                <input
-                                    className={`py-2 form-control mb-2 ${invalidInput ? 'is-invalid' : ''}`}
+                        <Form onSubmit={handleSubmit}>
+                            <Form.Group className="mb-3 text-start" controlId="formBasicEmail">
+                                <Form.Label className="fw-bold">Email or Username</Form.Label>
+                                <Form.Control
                                     type="text"
-                                    id="name"
                                     placeholder="Enter email or username..."
                                     value={name}
                                     onChange={(e) => {
@@ -78,30 +76,39 @@ const Login = () => {
                                         setInvalidInput(false);
                                         setError('');
                                     }}
-                                    required
+                                    isInvalid={invalidInput}
                                 />
-                            </div>
-                            <div className="form-group text-start mb-2">
-                                <label className="label text-black mb-1 fw-bold" htmlFor="password">Password</label>
-                                <input
-                                    type="password"
-                                    className={`form-control mb-2 py-2 ${invalidInput ? 'is-invalid' : ''}`}
-                                    id="password"
-                                    placeholder="Enter password"
-                                    value={password}
-                                    onChange={(e) => {
-                                        setPassword(e.target.value);
-                                        setInvalidInput(false);
-                                        setError('');
-                                    }}
-                                    required
-                                />
-                            </div>
-                            {error && <p className="text-danger mt-2">{error}</p>}
-                            <button type="submit" className="loginBtn px-3 py-2 mt-3 w-100 border-0 rounded">
+                            </Form.Group>
+
+                            <Form.Group className="mb-3 text-start" controlId="formBasicPassword">
+                                <Form.Label className="fw-bold">Password</Form.Label>
+                                <InputGroup>
+                                    <Form.Control
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Enter password"
+                                        value={password}
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            setInvalidInput(false);
+                                            setError('');
+                                        }}
+                                        isInvalid={invalidInput}
+                                    />
+                                    <Button
+                                        variant="outline-secondary"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </Button>
+                                </InputGroup>
+                            </Form.Group>
+
+                            {error && <div className="text-danger mb-3">{error}</div>}
+
+                            <Button variant="dark" type="submit" className="w-100">
                                 Sign in
-                            </button>
-                        </form>
+                            </Button>
+                        </Form>
                     </div>
                 </div>
             </div>
