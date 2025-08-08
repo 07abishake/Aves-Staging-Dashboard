@@ -95,7 +95,7 @@ const Login = () => {
                                         isInvalid={invalidInput}
                                     />
                                     <Button
-                                        variant="outline-secondary"
+                                        variant=""
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
                                         {showPassword ? 'Hide' : 'Show'}

@@ -105,6 +105,16 @@ function Patrol() {
     const [selectedPatrol, setSelectedPatrol] = useState(null);
     const [patrols, setPatrols] = useState([]);
     const [assignedPatrols, setAssignedPatrols] = useState([]);
+    const [locationSuggestions, setLocationSuggestions] = useState({
+  primary: [],
+  secondary: [],
+  third: []
+});
+const [showLocationSuggestions, setShowLocationSuggestions] = useState({
+  primary: false,
+  secondary: false,
+  third: false
+});
     
     // State for assignment
     const [selectedUser, setSelectedUser] = useState("");
@@ -537,6 +547,114 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
     const getSelectedSecondary = () => getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
     const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
 
+    const generateLocationSuggestions = (type, value, parentLocations = {}) => {
+  if (!value) return [];
+
+  const allSuggestions = new Set();
+  
+  locations.forEach(location => {
+    // Primary location suggestions
+    if (type === 'primary') {
+      if (location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
+        allSuggestions.add(location.PrimaryLocation);
+      }
+      return;
+    }
+    
+    // Only proceed if Primary matches
+    if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
+      return;
+    }
+    
+    // Secondary location suggestions
+    if (type === 'secondary' && location.SecondaryLocation) {
+      location.SecondaryLocation.forEach(sec => {
+        if (sec.SecondaryLocation?.toLowerCase().includes(value.toLowerCase())) {
+          allSuggestions.add(sec.SecondaryLocation);
+        }
+      });
+      return;
+    }
+    
+    // Only proceed if Secondary matches
+    const matchedSecondary = location.SecondaryLocation?.find(
+      sec => sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()
+    );
+    if (!matchedSecondary) return;
+    
+    // Third location suggestions
+    if (type === 'third' && matchedSecondary.ThirdLocation) {
+      matchedSecondary.ThirdLocation.forEach(third => {
+        if (third.ThirdLocation?.toLowerCase().includes(value.toLowerCase())) {
+          allSuggestions.add(third.ThirdLocation);
+        }
+      });
+    }
+  });
+  
+  return Array.from(allSuggestions);
+};
+
+const handlePrimaryLocationChange = (value) => {
+  setSelectedPrimary(value);
+  const newSuggestions = generateLocationSuggestions('primary', value);
+  setLocationSuggestions(prev => ({ ...prev, primary: newSuggestions }));
+  setShowLocationSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
+  
+  // Reset child selections when primary changes
+  setSelectedSecondary('');
+  setSelectedThird('');
+};
+
+const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
+  setSelectedPrimary(selectedPrimaryLoc);
+  setShowLocationSuggestions(prev => ({ ...prev, primary: false }));
+  
+  // Find matching location to get its sublocations
+  const matchedLocation = locations.find(
+    loc => loc.PrimaryLocation.toLowerCase() === selectedPrimaryLoc.toLowerCase()
+  );
+  
+  // Reset child selections
+  setSelectedSecondary('');
+  setSelectedThird('');
+};
+
+const handleSecondaryLocationChange = (value) => {
+  setSelectedSecondary(value);
+  const newSuggestions = generateLocationSuggestions('secondary', value, { 
+    primary: selectedPrimary 
+  });
+  setLocationSuggestions(prev => ({ ...prev, secondary: newSuggestions }));
+  setShowLocationSuggestions(prev => ({ ...prev, secondary: value.length > 0 }));
+  
+  // Reset child selection when secondary changes
+  setSelectedThird('');
+};
+
+const handleSecondaryLocationSelect = (selectedSecondaryLoc) => {
+  setSelectedSecondary(selectedSecondaryLoc);
+  setShowLocationSuggestions(prev => ({ ...prev, secondary: false }));
+  
+  // Reset child selection
+  setSelectedThird('');
+};
+
+const handleThirdLocationChange = (value) => {
+  setSelectedThird(value);
+  const newSuggestions = generateLocationSuggestions('third', value, { 
+    primary: selectedPrimary,
+    secondary: selectedSecondary 
+  });
+  setLocationSuggestions(prev => ({ ...prev, third: newSuggestions }));
+  setShowLocationSuggestions(prev => ({ ...prev, third: value.length > 0 }));
+};
+
+const handleThirdLocationSelect = (selectedThirdLoc) => {
+  setSelectedThird(selectedThirdLoc);
+  setShowLocationSuggestions(prev => ({ ...prev, third: false }));
+};
+
     return (
         <div className="container mt-4">
             {/* Loading Overlay */}
@@ -788,62 +906,90 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
                         />
                     </div>
 
-                    <div className="mb-3">
-                        <label className="form-label">Primary Location</label>
-                        <select 
-                            className="form-select" 
-                            value={selectedPrimary} 
-                            onChange={e => {
-                                setSelectedPrimary(e.target.value);
-                                setSelectedSecondary('');
-                                setSelectedThird('');
-                            }}
-                        >
-                            <option value="">-- Select Primary --</option>
-                            {locations.map(loc => (
-                                <option key={loc._id} value={loc._id}>{loc.PrimaryLocation}</option>
-                            ))}
-                        </select>
-                    </div>
+                   <div className="mb-3">
+  <label className="form-label">Primary Location</label>
+  <div className="position-relative">
+    <input
+      type="text"
+      className="form-control"
+      value={selectedPrimary}
+      onChange={(e) => handlePrimaryLocationChange(e.target.value)}
+      placeholder="Type to search primary locations"
+    />
+    {showLocationSuggestions.primary && locationSuggestions.primary.length > 0 && (
+      <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        {locationSuggestions.primary.map((suggestion, idx) => (
+          <button
+            key={idx}
+            type="button"
+            className="list-group-item list-group-item-action"
+            onClick={() => handlePrimaryLocationSelect(suggestion)}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
 
-                    {selectedPrimary && (
-                        <div className="mb-3">
-                            <label className="form-label">Secondary Location</label>
-                            <select 
-                                className="form-select" 
-                                value={selectedSecondary} 
-                                onChange={e => {
-                                    setSelectedSecondary(e.target.value);
-                                    setSelectedThird('');
-                                }}
-                            >
-                                <option value="">-- Select Secondary --</option>
-                                {getSelectedPrimary()?.SecondaryLocation.map(sec => (
-                                    <option key={sec._id} value={sec._id}>
-                                        {sec.SecondaryLocation} - {sec.SubLocation}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+{selectedPrimary && (
+  <div className="mb-3">
+    <label className="form-label">Secondary Location</label>
+    <div className="position-relative">
+      <input
+        type="text"
+        className="form-control"
+        value={selectedSecondary}
+        onChange={(e) => handleSecondaryLocationChange(e.target.value)}
+        placeholder="Type to search secondary locations"
+      />
+      {showLocationSuggestions.secondary && locationSuggestions.secondary.length > 0 && (
+        <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+          {locationSuggestions.secondary.map((suggestion, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className="list-group-item list-group-item-action"
+              onClick={() => handleSecondaryLocationSelect(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
-                    {selectedSecondary && (
-                        <div className="mb-3">
-                            <label className="form-label">Third Location</label>
-                            <select 
-                                className="form-select" 
-                                value={selectedThird} 
-                                onChange={e => setSelectedThird(e.target.value)}
-                            >
-                                <option value="">-- Select Third --</option>
-                                {thirdLocations.map(third => (
-                                    <option key={third._id} value={third._id}>
-                                        {third.ThirdLocation} - {third.SubLocation}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+{selectedSecondary && (
+  <div className="mb-3">
+    <label className="form-label">Third Location</label>
+    <div className="position-relative">
+      <input
+        type="text"
+        className="form-control"
+        value={selectedThird}
+        onChange={(e) => handleThirdLocationChange(e.target.value)}
+        placeholder="Type to search third locations"
+      />
+      {showLocationSuggestions.third && locationSuggestions.third.length > 0 && (
+        <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+          {locationSuggestions.third.map((suggestion, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className="list-group-item list-group-item-action"
+              onClick={() => handleThirdLocationSelect(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
                     <div className="mb-3">
                         <label className="form-label">Checkpoints</label>
