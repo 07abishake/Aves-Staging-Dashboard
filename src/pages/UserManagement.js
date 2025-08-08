@@ -132,7 +132,6 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     setSelectedUserForEdit(user);
   };
 
-
 const getLocationOptions = () => {
   if (!locations || locations.length === 0) return [];
 
@@ -143,7 +142,7 @@ const getLocationOptions = () => {
 
     // Add primary location
     options.push({
-      value: location._id, // Store the primary location ID
+      value: location.PrimaryLocation, // Store as string
       label: location.PrimaryLocation
     });
 
@@ -152,10 +151,10 @@ const getLocationOptions = () => {
       location.SecondaryLocation.forEach(secondary => {
         if (!secondary.SecondaryLocation) return;
 
-        // Store the secondary location's ID (from the array element)
+        const fullPath = `${location.PrimaryLocation},${secondary.SecondaryLocation}`;
         options.push({
-          value: secondary._id,
-          label: `${location.PrimaryLocation},${secondary.SecondaryLocation}`
+          value: fullPath, // Store full path as string
+          label: fullPath
         });
 
         // Add third locations
@@ -163,10 +162,10 @@ const getLocationOptions = () => {
           secondary.ThirdLocation.forEach(third => {
             if (!third.ThirdLocation) return;
 
-            // Store the third location's ID (from the array element)
+            const fullPath = `${location.PrimaryLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
             options.push({
-              value: third._id,
-              label: `${location.PrimaryLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`
+              value: fullPath, // Store full path as string
+              label: fullPath
             });
           });
         }
@@ -922,7 +921,7 @@ const fetchLocations = async () => {
   <label className="form-label"></label>
 <Select
   options={getLocationOptions()}
-  value={getLocationOptions().find(opt => opt.value === location?._id || opt.value === location)}
+  value={getLocationOptions().find(opt => opt.value === location)}
   onChange={(selected) => setLocation(selected?.value || '')}
   placeholder="Select location"
   isClearable
@@ -1430,23 +1429,10 @@ const fetchLocations = async () => {
                         )}
                       </p>
                     </div>
-                    <div className="mb-3">
+     <div className="mb-3">
   <label className="text-muted small mb-1">Location</label>
   <p className="fw-semibold">
-    {selectedSpecUser.Location ? (
-      // If location is a string (from the Select dropdown)
-      typeof selectedSpecUser.Location === 'string' ? (
-        selectedSpecUser.Location
-      ) : (
-        // If location is an object (from the API)
-        selectedSpecUser.Location.PrimaryLocation || 
-        selectedSpecUser.Location.SecondaryLocation ||
-        selectedSpecUser.Location.ThirdLocation ||
-        <span className="text-muted">Not specified</span>
-      )
-    ) : (
-      <span className="text-muted">Not specified</span>
-    )}
+    {selectedSpecUser.Location || <span className="text-muted">Not specified</span>}
   </p>
 </div>
                   </div>
