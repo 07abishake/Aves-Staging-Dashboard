@@ -28,6 +28,18 @@ function LocationManager() {
         secondary: {},
         third: {}
     });
+
+
+    const [sublocationSuggestions, setSublocationSuggestions] = useState({
+    primary: [],
+    secondary: {},
+    third: {}
+});
+const [showSublocationSuggestions, setShowSublocationSuggestions] = useState({
+    primary: false,
+    secondary: {},
+    third: {}
+});
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -155,125 +167,326 @@ function LocationManager() {
         }
     };
 
-    // Location selection handlers
-    const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
-        setPrimaryLocation(selectedPrimaryLoc);
-        setShowSuggestions(prev => ({ ...prev, primary: false }));
-        
-        const matchedLocation = locations.find(
-            loc => loc.PrimaryLocation.toLowerCase() === selectedPrimaryLoc.toLowerCase()
-        );
-        
-        setPrimarySubLocation(matchedLocation?.SubLocation || '');
-        setSecondaryLocations([{ SecondaryLocation: '', SubLocation: '', ThirdLocation: [] }]);
-    };
-
-    const handleSecondaryLocationSelect = (selectedSecondaryLoc, secIndex) => {
-        const updated = [...secondaryLocations];
-        updated[secIndex].SecondaryLocation = selectedSecondaryLoc;
-        
-        const matchedPrimary = locations.find(
-            loc => loc.PrimaryLocation.toLowerCase() === primaryLocation.toLowerCase()
-        );
-        
-        if (matchedPrimary?.SecondaryLocation) {
-            const matchedSecondary = matchedPrimary.SecondaryLocation.find(
-                sec => sec.SecondaryLocation?.toLowerCase() === selectedSecondaryLoc.toLowerCase()
-            );
-            
-            updated[secIndex].SubLocation = matchedSecondary?.SubLocation || '';
-            updated[secIndex].ThirdLocation = [];
+    //SubLocation DropDown
+    const generateSublocationSuggestions = (type, value, parentLocations = {}) => {
+    if (!value) return [];
+    
+    const allSuggestions = new Set();
+    
+    locations.forEach(location => {
+        // Primary sublocation suggestions
+        if (type === 'primary') {
+            if (location.PrimaryLocation.toLowerCase() === parentLocations.primary?.toLowerCase() && 
+                location.SubLocation?.toLowerCase().includes(value.toLowerCase())) {
+                allSuggestions.add(location.SubLocation);
+            }
+            return;
         }
         
-        setSecondaryLocations(updated);
-        setShowSuggestions(prev => ({
-            ...prev,
-            secondary: { ...prev.secondary, [secIndex]: false }
-        }));
-    };
+        // Only proceed if Primary matches
+        if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
+            return;
+        }
+        
+        // Secondary sublocation suggestions
+        if (type === 'secondary') {
+            location.SecondaryLocation?.forEach(sec => {
+                if (sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase() &&
+                    sec.SubLocation?.toLowerCase().includes(value.toLowerCase())) {
+                    allSuggestions.add(sec.SubLocation);
+                }
+            });
+            return;
+        }
+        
+        // Third sublocation suggestions
+        if (type === 'third') {
+            location.SecondaryLocation?.forEach(sec => {
+                if (sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()) {
+                    sec.ThirdLocation?.forEach(third => {
+                        if (third.ThirdLocation?.toLowerCase() === parentLocations.third?.toLowerCase() &&
+                            third.SubLocation?.toLowerCase().includes(value.toLowerCase())) {
+                            allSuggestions.add(third.SubLocation);
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    return Array.from(allSuggestions);
+};
 
-    const handleThirdLocationSelect = (selectedThirdLoc, secIndex, thirdIndex) => {
-        const updated = [...secondaryLocations];
-        updated[secIndex].ThirdLocation[thirdIndex].ThirdLocation = selectedThirdLoc;
+//Sublocation Chnages
+
+const handlePrimarySublocationChange = (value) => {
+    setPrimarySubLocation(value);
+    const newSuggestions = generateSublocationSuggestions('primary', value, { 
+        primary: primaryLocation 
+    });
+    setSublocationSuggestions(prev => ({ ...prev, primary: newSuggestions }));
+    setShowSublocationSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
+};
+
+const handleSecondarySublocationChange = (secIndex, value) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].SubLocation = value;
+    setSecondaryLocations(updated);
+    
+    const newSuggestions = generateSublocationSuggestions('secondary', value, { 
+        primary: primaryLocation,
+        secondary: updated[secIndex].SecondaryLocation
+    });
+    
+    setSublocationSuggestions(prev => ({
+        ...prev,
+        secondary: {
+            ...prev.secondary,
+            [secIndex]: newSuggestions
+        }
+    }));
+    
+    setShowSublocationSuggestions(prev => ({
+        ...prev,
+        secondary: {
+            ...prev.secondary,
+            [secIndex]: value.length > 0
+        }
+    }));
+};
+
+const handleThirdSublocationChange = (secIndex, thirdIndex, value) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].ThirdLocation[thirdIndex].SubLocation = value;
+    setSecondaryLocations(updated);
+    
+    const newSuggestions = generateSublocationSuggestions('third', value, { 
+        primary: primaryLocation,
+        secondary: updated[secIndex].SecondaryLocation,
+        third: updated[secIndex].ThirdLocation[thirdIndex].ThirdLocation
+    });
+    
+    setSublocationSuggestions(prev => ({
+        ...prev,
+        third: {
+            ...prev.third,
+            [secIndex]: {
+                ...(prev.third[secIndex] || {}),
+                [thirdIndex]: newSuggestions
+            }
+        }
+    }));
+    
+    setShowSublocationSuggestions(prev => ({
+        ...prev,
+        third: {
+            ...prev.third,
+            [secIndex]: {
+                ...(prev.third[secIndex] || {}),
+                [thirdIndex]: value.length > 0
+            }
+        }
+    }));
+};
+
+    // // Location selection handlers
+    // const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
+    //     setPrimaryLocation(selectedPrimaryLoc);
+    //     setShowSuggestions(prev => ({ ...prev, primary: false }));
         
-        const matchedPrimary = locations.find(
-            loc => loc.PrimaryLocation.toLowerCase() === primaryLocation.toLowerCase()
-        );
+    //     const matchedLocation = locations.find(
+    //         loc => loc.PrimaryLocation.toLowerCase() === selectedPrimaryLoc.toLowerCase()
+    //     );
         
-        if (matchedPrimary?.SecondaryLocation) {
-            const matchedSecondary = matchedPrimary.SecondaryLocation.find(
-                sec => sec.SecondaryLocation?.toLowerCase() === 
-                      updated[secIndex].SecondaryLocation.toLowerCase()
-            );
+    //     setPrimarySubLocation(matchedLocation?.SubLocation || '');
+    //     setSecondaryLocations([{ SecondaryLocation: '', SubLocation: '', ThirdLocation: [] }]);
+    // };
+
+    // const handleSecondaryLocationSelect = (selectedSecondaryLoc, secIndex) => {
+    //     const updated = [...secondaryLocations];
+    //     updated[secIndex].SecondaryLocation = selectedSecondaryLoc;
+        
+    //     const matchedPrimary = locations.find(
+    //         loc => loc.PrimaryLocation.toLowerCase() === primaryLocation.toLowerCase()
+    //     );
+        
+    //     if (matchedPrimary?.SecondaryLocation) {
+    //         const matchedSecondary = matchedPrimary.SecondaryLocation.find(
+    //             sec => sec.SecondaryLocation?.toLowerCase() === selectedSecondaryLoc.toLowerCase()
+    //         );
             
-            if (matchedSecondary?.ThirdLocation) {
-                const matchedThird = matchedSecondary.ThirdLocation.find(
-                    third => third.ThirdLocation?.toLowerCase() === selectedThirdLoc.toLowerCase()
-                );
+    //         updated[secIndex].SubLocation = matchedSecondary?.SubLocation || '';
+    //         updated[secIndex].ThirdLocation = [];
+    //     }
+        
+    //     setSecondaryLocations(updated);
+    //     setShowSuggestions(prev => ({
+    //         ...prev,
+    //         secondary: { ...prev.secondary, [secIndex]: false }
+    //     }));
+    // };
+
+    // const handleThirdLocationSelect = (selectedThirdLoc, secIndex, thirdIndex) => {
+    //     const updated = [...secondaryLocations];
+    //     updated[secIndex].ThirdLocation[thirdIndex].ThirdLocation = selectedThirdLoc;
+        
+    //     const matchedPrimary = locations.find(
+    //         loc => loc.PrimaryLocation.toLowerCase() === primaryLocation.toLowerCase()
+    //     );
+        
+    //     if (matchedPrimary?.SecondaryLocation) {
+    //         const matchedSecondary = matchedPrimary.SecondaryLocation.find(
+    //             sec => sec.SecondaryLocation?.toLowerCase() === 
+    //                   updated[secIndex].SecondaryLocation.toLowerCase()
+    //         );
+            
+    //         if (matchedSecondary?.ThirdLocation) {
+    //             const matchedThird = matchedSecondary.ThirdLocation.find(
+    //                 third => third.ThirdLocation?.toLowerCase() === selectedThirdLoc.toLowerCase()
+    //             );
                 
-                updated[secIndex].ThirdLocation[thirdIndex].SubLocation = matchedThird?.SubLocation || '';
-            }
-        }
+    //             updated[secIndex].ThirdLocation[thirdIndex].SubLocation = matchedThird?.SubLocation || '';
+    //         }
+    //     }
         
-        setSecondaryLocations(updated);
-        setShowSuggestions(prev => ({
-            ...prev,
-            third: {
-                ...prev.third,
-                [secIndex]: { ...(prev.third[secIndex] || {}), [thirdIndex]: false }
-            }
-        }));
-    };
+    //     setSecondaryLocations(updated);
+    //     setShowSuggestions(prev => ({
+    //         ...prev,
+    //         third: {
+    //             ...prev.third,
+    //             [secIndex]: { ...(prev.third[secIndex] || {}), [thirdIndex]: false }
+    //         }
+    //     }));
+    // };
 
     // Suggestion generation
-    const generateSuggestions = (type, value, parentLocations = {}) => {
-        if (!value) return [];
+    // const generateSuggestions = (type, value, parentLocations = {}) => {
+    //     if (!value) return [];
         
-        const allSuggestions = new Set();
+    //     const allSuggestions = new Set();
         
-        locations.forEach(location => {
-            // Primary suggestions
-            if (type === 'primary') {
-                if (location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
-                    allSuggestions.add(location.PrimaryLocation);
-                }
-                return;
-            }
+    //     locations.forEach(location => {
+    //         // Primary suggestions
+    //         if (type === 'primary') {
+    //             if (location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
+    //                 allSuggestions.add(location.PrimaryLocation);
+    //             }
+    //             return;
+    //         }
             
-            // Only proceed if Primary matches
-            if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
-                return;
-            }
+    //         // Only proceed if Primary matches
+    //         if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
+    //             return;
+    //         }
             
-            // Secondary suggestions
-            if (type === 'secondary') {
-                location.SecondaryLocation?.forEach(sec => {
-                    if (sec.SecondaryLocation?.toLowerCase().includes(value.toLowerCase())) {
-                        allSuggestions.add(sec.SecondaryLocation);
-                    }
-                });
-                return;
-            }
+    //         // Secondary suggestions
+    //         if (type === 'secondary') {
+    //             location.SecondaryLocation?.forEach(sec => {
+    //                 if (sec.SecondaryLocation?.toLowerCase().includes(value.toLowerCase())) {
+    //                     allSuggestions.add(sec.SecondaryLocation);
+    //                 }
+    //             });
+    //             return;
+    //         }
             
-            // Only proceed if Secondary matches
-            const matchedSecondary = location.SecondaryLocation?.find(
-                sec => sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()
-            );
-            if (!matchedSecondary) return;
+    //         // Only proceed if Secondary matches
+    //         const matchedSecondary = location.SecondaryLocation?.find(
+    //             sec => sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()
+    //         );
+    //         if (!matchedSecondary) return;
             
-            // Third suggestions
-            if (type === 'third') {
-                matchedSecondary.ThirdLocation?.forEach(third => {
-                    if (third.ThirdLocation?.toLowerCase().includes(value.toLowerCase())) {
-                        allSuggestions.add(third.ThirdLocation);
-                    }
-                });
-            }
-        });
+    //         // Third suggestions
+    //         if (type === 'third') {
+    //             matchedSecondary.ThirdLocation?.forEach(third => {
+    //                 if (third.ThirdLocation?.toLowerCase().includes(value.toLowerCase())) {
+    //                     allSuggestions.add(third.ThirdLocation);
+    //                 }
+    //             });
+    //         }
+    //     });
         
-        return Array.from(allSuggestions);
-    };
+    //     return Array.from(allSuggestions);
+    // };
 
+
+    // Replace the existing location selection handlers with these:
+
+const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
+    setPrimaryLocation(selectedPrimaryLoc);
+    setShowSuggestions(prev => ({ ...prev, primary: false }));
+    // Removed the sublocation auto-population
+    setSecondaryLocations([{ SecondaryLocation: '', SubLocation: '', ThirdLocation: [] }]);
+};
+
+const handleSecondaryLocationSelect = (selectedSecondaryLoc, secIndex) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].SecondaryLocation = selectedSecondaryLoc;
+    setSecondaryLocations(updated);
+    setShowSuggestions(prev => ({
+        ...prev,
+        secondary: { ...prev.secondary, [secIndex]: false }
+    }));
+};
+
+const handleThirdLocationSelect = (selectedThirdLoc, secIndex, thirdIndex) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].ThirdLocation[thirdIndex].ThirdLocation = selectedThirdLoc;
+    setSecondaryLocations(updated);
+    setShowSuggestions(prev => ({
+        ...prev,
+        third: {
+            ...prev.third,
+            [secIndex]: { ...(prev.third[secIndex] || {}), [thirdIndex]: false }
+        }
+    }));
+}; 
+const generateSuggestions = (type, value, parentLocations = {}) => {
+    if (!value) return [];
+    
+    const allSuggestions = new Set();
+    
+    locations.forEach(location => {
+        // Primary suggestions
+        if (type === 'primary') {
+            if (location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
+                allSuggestions.add(location.PrimaryLocation);
+            }
+            return;
+        }
+        
+        // Only proceed if Primary matches
+        if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
+            return;
+        }
+        
+        // Secondary suggestions
+        if (type === 'secondary') {
+            location.SecondaryLocation?.forEach(sec => {
+                if (sec.SecondaryLocation?.toLowerCase().includes(value.toLowerCase())) {
+                    allSuggestions.add(sec.SecondaryLocation);
+                }
+            });
+            return;
+        }
+        
+        // Only proceed if Secondary matches
+        const matchedSecondary = location.SecondaryLocation?.find(
+            sec => sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()
+        );
+        if (!matchedSecondary) return;
+        
+        // Third suggestions
+        if (type === 'third') {
+            matchedSecondary.ThirdLocation?.forEach(third => {
+                if (third.ThirdLocation?.toLowerCase().includes(value.toLowerCase())) {
+                    allSuggestions.add(third.ThirdLocation);
+                }
+            });
+        }
+    });
+    
+    return Array.from(allSuggestions);
+};
     // Input change handlers
     const handlePrimaryLocationChange = (value) => {
         setPrimaryLocation(value);
@@ -384,6 +597,36 @@ function LocationManager() {
         setSecondaryLocations(updated);
     };
 
+
+    //handle Sublocation 
+    const handlePrimarySublocationSelect = (selectedSubloc) => {
+    setPrimarySubLocation(selectedSubloc);
+    setShowSublocationSuggestions(prev => ({ ...prev, primary: false }));
+};
+
+const handleSecondarySublocationSelect = (selectedSubloc, secIndex) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].SubLocation = selectedSubloc;
+    setSecondaryLocations(updated);
+    setShowSublocationSuggestions(prev => ({
+        ...prev,
+        secondary: { ...prev.secondary, [secIndex]: false }
+    }));
+};
+
+const handleThirdSublocationSelect = (selectedSubloc, secIndex, thirdIndex) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].ThirdLocation[thirdIndex].SubLocation = selectedSubloc;
+    setSecondaryLocations(updated);
+    setShowSublocationSuggestions(prev => ({
+        ...prev,
+        third: {
+            ...prev.third,
+            [secIndex]: { ...(prev.third[secIndex] || {}), [thirdIndex]: false }
+        }
+    }));
+};
+
     return (
         <div className="container mt-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -486,14 +729,30 @@ function LocationManager() {
                                 )}
                             </div>
                         </div>
-                        <div className="mb-3">
-                            <label className="form-label">Primary SubLocation</label>
-                            <input 
-                                className="form-control" 
-                                value={primarySubLocation} 
-                                onChange={(e) => setPrimarySubLocation(e.target.value)} 
-                            />
-                        </div>
+                  <div className="mb-3">
+    <label className="form-label">Primary SubLocation</label>
+    <div className="position-relative">
+        <input 
+            className="form-control" 
+            value={primarySubLocation} 
+            onChange={(e) => handlePrimarySublocationChange(e.target.value)} 
+        />
+        {showSublocationSuggestions.primary && sublocationSuggestions.primary.length > 0 && (
+            <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {sublocationSuggestions.primary.map((suggestion, idx) => (
+                    <button
+                        key={idx}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => handlePrimarySublocationSelect(suggestion)}
+                    >
+                        {suggestion}
+                    </button>
+                ))}
+            </div>
+        )}
+    </div>
+</div>
 
                         <div className="mb-4">
                             <h6>Secondary Locations</h6>
@@ -528,14 +787,31 @@ function LocationManager() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="mb-3">
-                                        <label className="form-label">SubLocation</label>
-                                        <input
-                                            className="form-control"
-                                            value={sec.SubLocation}
-                                            onChange={(e) => handleSecondaryChange(secIndex, 'SubLocation', e.target.value)}
-                                        />
-                                    </div>
+                            <div className="mb-3">
+    <label className="form-label">SubLocation</label>
+    <div className="position-relative">
+        <input
+            className="form-control"
+            value={sec.SubLocation}
+            onChange={(e) => handleSecondarySublocationChange(secIndex, e.target.value)}
+        />
+        {showSublocationSuggestions.secondary[secIndex] && 
+         sublocationSuggestions.secondary[secIndex]?.length > 0 && (
+            <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {sublocationSuggestions.secondary[secIndex].map((suggestion, idx) => (
+                    <button
+                        key={idx}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => handleSecondarySublocationSelect(suggestion, secIndex)}
+                    >
+                        {suggestion}
+                    </button>
+                ))}
+            </div>
+        )}
+    </div>
+</div>
 
                                     <div className="mb-3">
                                         <h6>Third Locations</h6>
@@ -571,14 +847,31 @@ function LocationManager() {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <label className="form-label">SubLocation</label>
-                                                    <input
-                                                        className="form-control"
-                                                        value={third.SubLocation}
-                                                        onChange={(e) => handleThirdChange(secIndex, thirdIndex, 'SubLocation', e.target.value)}
-                                                    />
-                                                </div>
+                                               <div>
+    <label className="form-label">SubLocation</label>
+    <div className="position-relative">
+        <input
+            className="form-control"
+            value={third.SubLocation}
+            onChange={(e) => handleThirdSublocationChange(secIndex, thirdIndex, e.target.value)}
+        />
+        {showSublocationSuggestions.third[secIndex]?.[thirdIndex] && 
+         sublocationSuggestions.third[secIndex]?.[thirdIndex]?.length > 0 && (
+            <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {sublocationSuggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
+                    <button
+                        key={idx}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => handleThirdSublocationSelect(suggestion, secIndex, thirdIndex)}
+                    >
+                        {suggestion}
+                    </button>
+                ))}
+            </div>
+        )}
+    </div>
+</div>
                                             </div>
                                         ))}
                                         <button type="button" 
