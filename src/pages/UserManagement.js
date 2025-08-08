@@ -1191,9 +1191,10 @@ const fetchLocations = async () => {
                     />
                                
   <label className="form-label"></label>
+
 <Select
   options={getLocationOptions()}
-  value={getLocationOptions().find(opt => opt.value === location?._id || opt.value === location)}
+  value={getLocationOptions().find(opt => opt.value === location)}
   onChange={(selected) => setLocation(selected?.value || '')}
   placeholder="Select location"
   isClearable
