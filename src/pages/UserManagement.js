@@ -940,41 +940,45 @@ const fetchLocations = async () => {
                     className='w-100'
                   />
                 </div>
-
-                <h6>Password</h6>
-              <div className="mb-3 d-flex position-relative">
-  <input
-    type={showPassword ? "text" : "password"}
-    className="form-control me-2"
-    placeholder="Password"
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    required
-  />
-  <button
-    type="button"
-    className="btn btn-outline-secondary position-absolute end-0 top-0"
-    style={{ right: "15px", border: "none" }}
-    onClick={() => setShowPassword(!showPassword)}
-  >
-    <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
-  </button>
-  <input
-    type={showConfirmPassword ? "text" : "password"}
-    className="form-control"
-    placeholder="Confirm Password"
-    value={confirmPassword}
-    onChange={(e) => setConfirmPassword(e.target.value)}
-    required
-  />
-  <button
-    type="button"
-    className="btn btn-outline-secondary position-absolute end-0 top-0"
-    style={{ right: "-15px", border: "none" }}
-    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-  >
-    <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
-  </button>
+{/* Password Section */}
+<h6>Password</h6>
+<div className="mb-3">
+  <div className="position-relative mb-3">
+    <input
+      type={showPassword ? "text" : "password"}
+      className="form-control pe-5"
+      placeholder="Password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      required
+    />
+    <button
+      type="button"
+      className="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
+      style={{ border: "none", background: "transparent" }}
+      onClick={() => setShowPassword(!showPassword)}
+    >
+      <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+    </button>
+  </div>
+  <div className="position-relative">
+    <input
+      type={showConfirmPassword ? "text" : "password"}
+      className="form-control pe-5"
+      placeholder="Confirm Password"
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+      required
+    />
+    <button
+      type="button"
+      className="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
+      style={{ border: "none", background: "transparent" }}
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    >
+      <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+    </button>
+  </div>
 </div>
                 <button type="submit" className="btn btn-primary">Register</button>
                 <button
@@ -1208,39 +1212,43 @@ const fetchLocations = async () => {
                       className='w-100'
                     />
                   </div>
-
-                  <h6>Change Password (Optional)</h6>
-                 <div className="mb-3 d-flex position-relative">
-  <input
-    type={showPassword ? "text" : "password"}
-    className="form-control me-2"
-    placeholder="New Password"
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-  />
-  <button
-    type="button"
-    className="btn btn-outline-secondary position-absolute end-0 top-0"
-    style={{ right: "15px", border: "none" }}
-    onClick={() => setShowPassword(!showPassword)}
-  >
-    <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
-  </button>
-  <input
-    type={showConfirmPassword ? "text" : "password"}
-    className="form-control"
-    placeholder="Confirm New Password"
-    value={confirmPassword}
-    onChange={(e) => setConfirmPassword(e.target.value)}
-  />
-  <button
-    type="button"
-    className="btn btn-outline-secondary position-absolute end-0 top-0"
-    style={{ right: "-15px", border: "none" }}
-    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-  >
-    <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
-  </button>
+{/* Change Password Section */}
+<h6>Change Password (Optional)</h6>
+<div className="mb-3">
+  <div className="position-relative mb-3">
+    <input
+      type={showPassword ? "text" : "password"}
+      className="form-control pe-5"
+      placeholder="New Password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+    />
+    <button
+      type="button"
+      className="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
+      style={{ border: "none", background: "transparent" }}
+      onClick={() => setShowPassword(!showPassword)}
+    >
+      <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+    </button>
+  </div>
+  <div className="position-relative">
+    <input
+      type={showConfirmPassword ? "text" : "password"}
+      className="form-control pe-5"
+      placeholder="Confirm New Password"
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+    />
+    <button
+      type="button"
+      className="btn btn-outline-secondary position-absolute end-0 top-0 h-100"
+      style={{ border: "none", background: "transparent" }}
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    >
+      <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+    </button>
+  </div>
 </div>
 
                   <button type="submit" className="btn btn-primary">Update</button>
