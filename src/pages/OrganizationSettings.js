@@ -38,52 +38,66 @@ function OrganizationSettings() {
   }
 
   return (
-    <div>
+    <div className="container mt-4">
       <h2 className="mb-4">Organization Settings</h2>
 
       <div className="row">
+        {/* Left column: Company Info */}
         <div className="col-md-6">
-          <div className="card">
+          <div className="card mb-4">
             <div className="card-body">
               <h5 className="card-title">Company Information</h5>
               <form>
                 <div className="mb-3">
                   <label className="form-label">Company Name</label>
-                  <input type="text" className="form-control" defaultValue={organization.name} readOnly />
+                 <input
+  type="text"
+  className="form-control"
+  value={organization.domain}
+  readOnly
+/>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Domain</label>
-                  <input type="text" className="form-control" defaultValue={organization.domain} readOnly />
+                  <input type="text" className="form-control" value={organization.domain} readOnly />
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Owner</label>
-                  <input type="text" className="form-control" defaultValue={organization.owner} readOnly />
+                  <input type="text" className="form-control" value={`${organization.name}@${organization.domain}`}/>
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Valid Until</label>
-                  <input type="text" className="form-control" defaultValue={new Date(organization.validUntil).toLocaleDateString()} readOnly />
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={new Date(organization.validUntil).toLocaleDateString()}
+                    readOnly
+                  />
                 </div>
               </form>
             </div>
           </div>
         </div>
 
+        {/* Right column: Subscription & Members */}
         <div className="col-md-6">
-          <div className="card">
+          <div className="card mb-4">
             <div className="card-body">
               <h5 className="card-title">Subscription Details</h5>
               <p><strong>Valid Until:</strong> {new Date(organization.validUntil).toLocaleDateString()}</p>
-              <p><strong>Status:</strong> <span className="badge bg-success">Active</span></p>
+              <p><strong>Status:</strong> <span className={`badge ${organization.status ? 'bg-success' : 'bg-danger'}`}>
+                {organization.status ? 'Active' : 'Inactive'}
+              </span></p>
             </div>
           </div>
 
-          <div className="card mt-4">
+          <div className="card">
             <div className="card-body">
               <h5 className="card-title">Members</h5>
-              {organization.members.length > 0 ? (
-                <ul>
+              {organization.members && organization.members.length > 0 ? (
+                <ul className="list-group">
                   {organization.members.map((member, idx) => (
-                    <li key={idx}>{member}</li>
+                    <li key={idx} className="list-group-item">{member}</li>
                   ))}
                 </ul>
               ) : (
