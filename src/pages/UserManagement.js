@@ -25,6 +25,8 @@ function UserManagement() {
   const [userImage, setUserImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [locations,setLocations] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // DATA
   const [departments, setDepartments] = useState([]);
@@ -39,7 +41,6 @@ function UserManagement() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [workNumber, setWorkNumber] = useState("");
   const [selectedTimezone, setSelectedTimezone] = useState(null);
-  const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
@@ -86,7 +87,6 @@ function UserManagement() {
 
   // Populate edit form with user data
   const populateEditForm = (user) => {
-    setFirstName(user.FirstName || '');
     setLastName(user.LastName || '');
     setUserName(user.username || '');
     setSelectedGender(user.Gender || '');
@@ -155,7 +155,7 @@ const getLocationOptions = () => {
         // Store the secondary location's ID (from the array element)
         options.push({
           value: secondary._id,
-          label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation}`
+          label: `${location.PrimaryLocation},${secondary.SecondaryLocation}`
         });
 
         // Add third locations
@@ -166,7 +166,7 @@ const getLocationOptions = () => {
             // Store the third location's ID (from the array element)
             options.push({
               value: third._id,
-              label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation} > ${third.ThirdLocation}`
+              label: `${location.PrimaryLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`
             });
           });
         }
@@ -341,7 +341,6 @@ const fetchLocations = async () => {
     const formData = new FormData();
     
     // Append all the existing fields to formData
-    formData.append('FirstName', firstName);
     formData.append('LastName', lastName);
     formData.append('username', userName);
     formData.append('Gender', selectedGender);
@@ -403,7 +402,6 @@ const fetchLocations = async () => {
 
     const formData = new FormData();
     
-    formData.append('FirstName', firstName);
     formData.append('LastName', lastName);
     formData.append('username', userName);
     formData.append('Gender', selectedGender);
@@ -457,7 +455,6 @@ const fetchLocations = async () => {
 
   // Reset form fields
   const resetForm = () => {
-    setFirstName("");
     setLastName("");
     setUserName("");
     setSelectedGender("");
@@ -774,8 +771,8 @@ const fetchLocations = async () => {
                     type="text"
                     className="form-control me-2"
                     placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
                     required
                   />
                   <input
@@ -783,20 +780,11 @@ const fetchLocations = async () => {
                     className="form-control"
                     placeholder="Last Name"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                   onChange={(e) => setLastName(e.target.value)}
                     required
                   />
                 </div>
-                <div className="mb-3 d-flex">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="User Name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    required
-                  />
-                </div>
+             
                 <div className="d-flex mb-3">
                   <input
                     type="text"
@@ -955,24 +943,40 @@ const fetchLocations = async () => {
                 </div>
 
                 <h6>Password</h6>
-                <div className="mb-3 d-flex">
-                  <input
-                    type="password"
-                    className="form-control me-2"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <input
-                    type="password"
-                    className="form-control"
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="mb-3 d-flex position-relative">
+  <input
+    type={showPassword ? "text" : "password"}
+    className="form-control me-2"
+    placeholder="Password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    required
+  />
+  <button
+    type="button"
+    className="btn btn-outline-secondary position-absolute end-0 top-0"
+    style={{ right: "15px", border: "none" }}
+    onClick={() => setShowPassword(!showPassword)}
+  >
+    <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+  </button>
+  <input
+    type={showConfirmPassword ? "text" : "password"}
+    className="form-control"
+    placeholder="Confirm Password"
+    value={confirmPassword}
+    onChange={(e) => setConfirmPassword(e.target.value)}
+    required
+  />
+  <button
+    type="button"
+    className="btn btn-outline-secondary position-absolute end-0 top-0"
+    style={{ right: "-15px", border: "none" }}
+    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+  >
+    <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+  </button>
+</div>
                 <button type="submit" className="btn btn-primary">Register</button>
                 <button
                   type="button"
@@ -1038,8 +1042,8 @@ const fetchLocations = async () => {
                       type="text"
                       className="form-control me-2"
                       placeholder="First Name"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
                       required
                     />
                     <input
@@ -1058,14 +1062,6 @@ const fetchLocations = async () => {
                       placeholder="Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value.trim().split('@')[0])}
-                      required
-                    />
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="User Name"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
                       required
                     />
                   </div>
@@ -1215,22 +1211,39 @@ const fetchLocations = async () => {
                   </div>
 
                   <h6>Change Password (Optional)</h6>
-                  <div className="mb-3 d-flex">
-                    <input
-                      type="password"
-                      className="form-control me-2"
-                      placeholder="New Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <input
-                      type="password"
-                      className="form-control"
-                      placeholder="Confirm New Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </div>
+                 <div className="mb-3 d-flex position-relative">
+  <input
+    type={showPassword ? "text" : "password"}
+    className="form-control me-2"
+    placeholder="New Password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+  />
+  <button
+    type="button"
+    className="btn btn-outline-secondary position-absolute end-0 top-0"
+    style={{ right: "15px", border: "none" }}
+    onClick={() => setShowPassword(!showPassword)}
+  >
+    <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+  </button>
+  <input
+    type={showConfirmPassword ? "text" : "password"}
+    className="form-control"
+    placeholder="Confirm New Password"
+    value={confirmPassword}
+    onChange={(e) => setConfirmPassword(e.target.value)}
+  />
+  <button
+    type="button"
+    className="btn btn-outline-secondary position-absolute end-0 top-0"
+    style={{ right: "-15px", border: "none" }}
+    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+  >
+    <i className={`bi ${showConfirmPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
+  </button>
+</div>
+
                   <button type="submit" className="btn btn-primary">Update</button>
                   <button
                     type="button"
