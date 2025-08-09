@@ -142,31 +142,65 @@ const getLocationOptions = () => {
 
     // Add primary location
     options.push({
-      value: location.PrimaryLocation, // Store as string
+      value: location.PrimaryLocation,
       label: location.PrimaryLocation
     });
 
-    // Add secondary locations
-    if (location.SecondaryLocation?.length > 0) {
-      location.SecondaryLocation.forEach(secondary => {
-        if (!secondary.SecondaryLocation) return;
+    // Process SubLocations
+    if (location.SubLocation?.length > 0) {
+      location.SubLocation.forEach(subLoc => {
+        if (!subLoc.SubLocation) return;
 
-        const fullPath = `${location.PrimaryLocation},${secondary.SecondaryLocation}`;
+        // Add SubLocation (level 1)
+        const subLocPath = `${location.PrimaryLocation},${subLoc.SubLocation}`;
         options.push({
-          value: fullPath, // Store full path as string
-          label: fullPath
+          value: subLocPath,
+          label: subLocPath
         });
 
-        // Add third locations
-        if (secondary.ThirdLocation?.length > 0) {
-          secondary.ThirdLocation.forEach(third => {
-            if (!third.ThirdLocation) return;
+        // Process Secondary Locations
+        if (subLoc.SecondaryLocation?.length > 0) {
+          subLoc.SecondaryLocation.forEach(secondary => {
+            if (!secondary.SecondaryLocation) return;
 
-            const fullPath = `${location.PrimaryLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
+            // Add Secondary Location (level 2)
+            const secondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation}`;
             options.push({
-              value: fullPath, // Store full path as string
-              label: fullPath
+              value: secondaryPath,
+              label: secondaryPath
             });
+
+            // Process Third Locations
+            if (secondary.ThirdLocation?.length > 0) {
+              secondary.ThirdLocation.forEach(third => {
+                if (!third.ThirdLocation) return;
+
+                // Add Third Location (level 3)
+                const thirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
+                options.push({
+                  value: thirdPath,
+                  label: thirdPath
+                });
+
+                // Add SubLocation of Third Location if exists (level 4)
+                if (third.SubLocation) {
+                  const subThirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation},${third.SubLocation}`;
+                  options.push({
+                    value: subThirdPath,
+                    label: subThirdPath
+                  });
+                }
+              });
+            }
+
+            // Add SubLocation of Secondary Location if exists
+            if (secondary.SubLocation) {
+              const subSecondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${secondary.SubLocation}`;
+              options.push({
+                value: subSecondaryPath,
+                label: subSecondaryPath
+              });
+            }
           });
         }
       });

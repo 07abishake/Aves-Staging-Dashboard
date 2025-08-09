@@ -497,27 +497,58 @@ const fetchLocationSuggestions = debounce(async (query) => {
     );
     
     if (response.data && response.data.Location) {
-      // Flatten the location hierarchy into a simple array of strings
       const suggestions = [];
       
       response.data.Location.forEach(location => {
+        if (!location.PrimaryLocation) return;
+        
         // Add primary location
         suggestions.push(location.PrimaryLocation);
         
-        // Add sub-location combinations
-        if (location.SubLocation) {
-          suggestions.push(`${location.PrimaryLocation}`);
-        }
-        
-        // Add secondary locations
-        location.SecondaryLocation?.forEach(secondary => {
-          suggestions.push(`${location.PrimaryLocation},${secondary.SecondaryLocation}`);
-          
-          // Add third level locations
-          secondary.ThirdLocation?.forEach(third => {
-            suggestions.push(`${location.PrimaryLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`);
+        // Process SubLocations
+        if (location.SubLocation?.length > 0) {
+          location.SubLocation.forEach(subLoc => {
+            if (!subLoc.SubLocation) return;
+            
+            // Add SubLocation (level 1)
+            const subLocPath = `${location.PrimaryLocation},${subLoc.SubLocation}`;
+            suggestions.push(subLocPath);
+            
+            // Process Secondary Locations
+            if (subLoc.SecondaryLocation?.length > 0) {
+              subLoc.SecondaryLocation.forEach(secondary => {
+                if (!secondary.SecondaryLocation) return;
+                
+                // Add Secondary Location (level 2)
+                const secondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation}`;
+                suggestions.push(secondaryPath);
+                
+                // Process Third Locations
+                if (secondary.ThirdLocation?.length > 0) {
+                  secondary.ThirdLocation.forEach(third => {
+                    if (!third.ThirdLocation) return;
+                    
+                    // Add Third Location (level 3)
+                    const thirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
+                    suggestions.push(thirdPath);
+                    
+                    // Add SubLocation of Third Location if exists (level 4)
+                    if (third.SubLocation) {
+                      const subThirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation},${third.SubLocation}`;
+                      suggestions.push(subThirdPath);
+                    }
+                  });
+                }
+                
+                // Add SubLocation of Secondary Location if exists
+                if (secondary.SubLocation) {
+                  const subSecondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${secondary.SubLocation}`;
+                  suggestions.push(subSecondaryPath);
+                }
+              });
+            }
           });
-        });
+        }
       });
       
       // Filter suggestions based on query and remove duplicates
@@ -535,7 +566,6 @@ const fetchLocationSuggestions = debounce(async (query) => {
     setLocationSuggestions([]);
   }
 }, 300);
-
 
   return (
     <div className="container mt-4">
