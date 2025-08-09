@@ -1141,7 +1141,7 @@ const handleThirdLocationSelect = (selectedThirdLoc) => {
                                                                                 Lng: ${waypoint.Coordinates.lng || waypoint.Coordinates.longitude}` : 
                                                                                 'Coordinates not available'}
                                                                         </p>
-                                                                        <p>Selfie Required: {waypoint.selfieRequired ? 'Yes' : 'No'}</p>
+                                                                        {/* <p>Selfie Required: {waypoint.selfieRequired ? 'Yes' : 'No'}</p> */}
                                                                         {waypoint.qrCode && (
                                                                             <img 
                                                                                 src={waypoint.qrCode} 
