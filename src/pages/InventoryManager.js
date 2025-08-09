@@ -197,9 +197,9 @@ const InventoryManager = () => {
     } else if (selectedSecondary) {
       locationId = selectedSecondary;
     } else if (selectedPrimary) {
-      const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
-      locationId = primaryLoc?._id || '';
-    }
+  const primaryLoc = locations.find(loc => loc._id === selectedPrimary);
+  locationId = primaryLoc?._id || '';
+}
 
     if (!addStockForm.productId || !locationId || addStockForm.quantity <= 0) {
       setError('Please fill all required fields with valid values');
@@ -303,21 +303,22 @@ const InventoryManager = () => {
     }
   };
 
-  // Flatten all locations for easier access
-  const getAllLocations = () => {
-    const allLocations = [];
+const getAllLocations = () => {
+  const allLocations = [];
+  
+  locations.forEach(primary => {
+    // Add primary location
+    allLocations.push({
+      _id: primary._id,
+      name: primary.PrimaryLocation,
+      subLocation: primary.SubLocation?.[0]?.SubLocation || '',
+      level: 'primary'
+    });
     
-    locations.forEach(primary => {
-      // Add primary location
-      allLocations.push({
-        _id: primary._id,
-        name: primary.PrimaryLocation,
-        subLocation: primary.SubLocation,
-        level: 'primary'
-      });
-      
-      // Add secondary locations
-      primary.SecondaryLocation?.forEach(secondary => {
+    // Add secondary and tertiary locations
+    primary.SubLocation?.forEach(sub => {
+      sub.SecondaryLocation?.forEach(secondary => {
+        // Add secondary location
         allLocations.push({
           _id: secondary._id,
           name: secondary.SecondaryLocation,
@@ -342,82 +343,62 @@ const InventoryManager = () => {
         });
       });
     });
-    
-    return allLocations;
-  };
+  });
+  
+  return allLocations;
+};
 
-  // Render location hierarchy in table
-  const renderLocationRows = () => {
-    const rows = [];
-    
-    locations.forEach(primary => {
-      // Primary location row
-      rows.push(
-        <tr key={`primary-${primary._id}`}>
-          <td>{primary.PrimaryLocation}</td>
-          <td>{primary.SubLocation}</td>
-          <td>{primary.SecondaryLocation?.length || 0}</td>
-          <td>
-            {primary.SecondaryLocation?.reduce((acc, sec) => 
-              acc + (sec.ThirdLocation?.length || 0), 0)}
-          </td>
-          <td>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => fetchInventoryByLocation(primary._id, 'primary')}
-            >
-              View Inventory
-            </Button>
-          </td>
-        </tr>
-      );
-      
-      // Secondary locations
-      primary.SecondaryLocation?.forEach(secondary => {
-        rows.push(
-          <tr key={`secondary-${secondary._id}`}>
-            <td>{primary.PrimaryLocation}</td>
-            <td>{secondary.SubLocation}</td>
-            <td>{secondary.SecondaryLocation}</td>
-            <td>{secondary.ThirdLocation?.length || 0}</td>
-            <td>
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => fetchInventoryByLocation(secondary._id, 'secondary')}
-              >
-                View Inventory
-              </Button>
-            </td>
-          </tr>
-        );
-        
-        // Tertiary locations
-        secondary.ThirdLocation?.forEach(tertiary => {
-          rows.push(
-            <tr key={`tertiary-${tertiary._id}`}>
-              <td>{primary.PrimaryLocation}</td>
-              <td>{tertiary.SubLocation}</td>
-              <td>{secondary.SecondaryLocation}</td>
-              <td>{tertiary.ThirdLocation}</td>
-              <td>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => fetchInventoryByLocation(tertiary._id, 'tertiary')}
-                >
-                  View Inventory
-                </Button>
-              </td>
-            </tr>
-          );
-        });
-      });
-    });
-    
-    return rows;
-  };
+const renderLocationRows = () => {
+  return locations.map(primary => (
+    <tr key={`primary-${primary._id}`}>
+      {/* Primary Location */}
+      <td>{primary.PrimaryLocation}</td>
+
+      {/* Sub Locations */}
+      <td>
+        {primary.SubLocation?.map((sub, i) => (
+          <div key={`sub-${i}`}>{sub.SubLocation}</div>
+        ))}
+      </td>
+
+      {/* Secondary Location count */}
+      <td>
+        {primary.SubLocation?.reduce(
+          (acc, sub) => acc + (sub.SecondaryLocation?.length || 0),
+          0
+        )}
+      </td>
+
+      {/* Third Location count */}
+      <td>
+        {primary.SubLocation?.reduce(
+          (acc, sub) =>
+            acc +
+            (sub.SecondaryLocation?.reduce(
+              (secAcc, sec) => secAcc + (sec.ThirdLocation?.length || 0),
+              0
+            ) || 0),
+          0
+        )}
+      </td>
+
+      {/* View Inventory button */}
+      <td>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={() => fetchInventoryByLocation(primary._id)}
+        >
+          View Inventory
+        </Button>
+      </td>
+    </tr>
+  ));
+};
+
+
+
+
 
   return (
     <div className="container-fluid py-4">
@@ -559,51 +540,57 @@ const InventoryManager = () => {
               >
                 <option value="">Select Primary Location</option>
                 {locations.map(loc => (
-                  <option key={loc._id} value={loc.PrimaryLocation}>
-                    {loc.PrimaryLocation} - {loc.SubLocation}
-                  </option>
+                 <option key={loc._id} value={loc._id}>
+  {loc.PrimaryLocation} - {loc.SubLocation}
+</option>
                 ))}
               </Form.Select>
             </Form.Group>
             
-            {selectedPrimary && (
-              <Form.Group className="mb-3">
-                <Form.Label>Secondary Location (Optional)</Form.Label>
-                <Form.Select
-                  value={selectedSecondary}
-                  onChange={(e) => setSelectedSecondary(e.target.value)}
-                >
-                  <option value="">Select Secondary Location (Optional)</option>
-                  {locations
-                    .find(loc => loc.PrimaryLocation === selectedPrimary)
-                    ?.SecondaryLocation?.map(sec => (
-                      <option key={sec._id} value={sec._id}>
-                        {sec.SecondaryLocation} - {sec.SubLocation}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            )}
-            
-            {selectedSecondary && (
-              <Form.Group className="mb-3">
-                <Form.Label>Tertiary Location (Optional)</Form.Label>
-                <Form.Select
-                  value={selectedTertiary}
-                  onChange={(e) => setSelectedTertiary(e.target.value)}
-                >
-                  <option value="">Select Tertiary Location (Optional)</option>
-                  {locations
-                    .find(loc => loc.PrimaryLocation === selectedPrimary)
-                    ?.SecondaryLocation?.find(sec => sec._id === selectedSecondary)
-                    ?.ThirdLocation?.map(ter => (
-                      <option key={ter._id} value={ter._id}>
-                        {ter.ThirdLocation} - {ter.SubLocation}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            )}
+           {selectedPrimary && (
+  <Form.Group className="mb-3">
+    <Form.Label>Secondary Location (Optional)</Form.Label>
+    <Form.Select
+      value={selectedSecondary}
+      onChange={(e) => setSelectedSecondary(e.target.value)}
+    >
+      <option value="">Select Secondary Location (Optional)</option>
+      {locations
+        .find(loc => loc._id === selectedPrimary)
+        ?.SubLocation?.flatMap(sub => 
+          sub.SecondaryLocation?.map(sec => (
+            <option key={sec._id} value={sec._id}>
+              {sec.SecondaryLocation} - {sec.SubLocation}
+            </option>
+          ))
+        )}
+    </Form.Select>
+  </Form.Group>
+)}
+
+{selectedSecondary && (
+  <Form.Group className="mb-3">
+    <Form.Label>Tertiary Location (Optional)</Form.Label>
+    <Form.Select
+      value={selectedTertiary}
+      onChange={(e) => setSelectedTertiary(e.target.value)}
+    >
+      <option value="">Select Tertiary Location (Optional)</option>
+      {locations
+        .find(loc => loc._id === selectedPrimary)
+        ?.SubLocation?.flatMap(sub =>
+          sub.SecondaryLocation
+            ?.find(sec => sec._id === selectedSecondary)
+            ?.ThirdLocation?.map(ter => (
+              <option key={ter._id} value={ter._id}>
+                {ter.ThirdLocation} - {ter.SubLocation}
+              </option>
+            ))
+        )}
+    </Form.Select>
+  </Form.Group>
+)}
+
             
             <Form.Group className="mb-3">
               <Form.Label>Quantity</Form.Label>
@@ -831,66 +818,20 @@ const InventoryManager = () => {
               <h5 className="mb-3">Stock Details</h5>
               {inventory.length > 0 ? (
                 <div className="table-responsive">
-                  <Table striped hover>
-                    <thead>
-                      <tr>
-                        {currentItem && <th>Location</th>}
-                        {selectedLocation && <th>Product</th>}
-                        <th>Total Stock</th>
-                        <th>In Use</th>
-                        <th>Reserved</th>
-                        <th>Available</th>
-                        <th>Last Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {inventory.map((item, index) => (
-                        <tr key={index}>
-                          {currentItem && (
-                            <td>
-                              {item.status?.map((statusItem, statusIndex) => {
-                                const loc = locations.find(l => l._id === statusItem.location) || 
-                                          locations.flatMap(l => l.SecondaryLocation).find(s => s?._id === statusItem.location) ||
-                                          locations.flatMap(l => l.SecondaryLocation?.flatMap(s => s.ThirdLocation)).find(t => t?._id === statusItem.location);
-                                return (
-                                  <div key={statusIndex}>
-                                    {loc?.PrimaryLocation || loc?.SecondaryLocation || loc?.ThirdLocation || 'Unknown Location'}
-                                  </div>
-                                );
-                              })}
-                            </td>
-                          )}
-                          {selectedLocation && (
-                            <td>
-                              {item.product?.ItemName || 'Unknown Product'}
-                            </td>
-                          )}
-                          <td>
-                            {item.status?.reduce((sum, statusItem) => sum + statusItem.totalStock, 0)}
-                          </td>
-                          <td>
-                            {item.status?.reduce((sum, statusItem) => sum + statusItem.inUse, 0)}
-                          </td>
-                          <td>
-                            {item.status?.reduce((sum, statusItem) => sum + statusItem.reserved, 0)}
-                          </td>
-                          <td>
-                            <Badge bg={
-                              item.status?.reduce((sum, statusItem) => sum + statusItem.available, 0) > 0 ? 
-                              'success' : 'danger'
-                            }>
-                              {item.status?.reduce((sum, statusItem) => sum + statusItem.available, 0)}
-                            </Badge>
-                          </td>
-                          <td>
-                            {item.status?.[0]?.lastUpdated ? 
-                              new Date(item.status[0].lastUpdated).toLocaleString() : 
-                              'N/A'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
+                <Table striped hover className="mb-0">
+  <thead>
+    <tr>
+      <th>Primary Location</th>
+      <th>Sub Location</th>
+      <th>Secondary Location</th>
+      <th>Tertiary Location</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {renderLocationRows()}
+  </tbody>
+</Table>
                 </div>
               ) : (
                 <div className="alert alert-info">No inventory records found</div>

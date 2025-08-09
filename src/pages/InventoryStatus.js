@@ -104,30 +104,30 @@ const InventoryStatus = () => {
     }
   }, 500);
 
-  const handleItemSelect = (selectedOption) => {
-    if (selectedOption) {
-      setFormData({
-        ...formData,
-        ItemName: selectedOption.label,
-        ItemId: selectedOption.value,
-        QuantityAvailable: selectedOption.AddQuntity || 0,
-        QuantityIssued: 0,
-        Instock: selectedOption.AddQuntity || 0,
-        ConditionStatus: 'Good'
-      });
-      setError(null);
-    } else {
-      setFormData({
-        ...formData,
-        ItemName: '',
-        ItemId: '',
-        QuantityAvailable: 0,
-        QuantityIssued: 0,
-        Instock: 0,
-        ConditionStatus: 'Good'
-      });
-    }
-  };
+const handleItemSelect = (selectedOption) => {
+  if (selectedOption) {
+    setFormData({
+      ...formData,
+      ItemName: selectedOption.label,
+      ItemId: selectedOption.value,
+      QuantityAvailable: selectedOption.AddQuntity || 0,
+      QuantityIssued: 0,
+      Instock: selectedOption.AddQuntity || 0,
+      ConditionStatus: 'Good'
+    });
+    setError(null);
+  } else {
+    setFormData({
+      ...formData,
+      ItemName: '',
+      ItemId: '',
+      QuantityAvailable: 0,
+      QuantityIssued: 0,
+      Instock: 0,
+      ConditionStatus: 'Good'
+    });
+  }
+};
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -281,7 +281,7 @@ const InventoryStatus = () => {
             {Array.isArray(inventoryList) && inventoryList.length > 0 ? (
               inventoryList.map((item) => (
                 <tr key={item._id}>
-                  <td>{item.ItemName?.ItemName || item.ItemName || 'N/A'}</td>
+              <td>{typeof item.ItemName === 'string' ? item.ItemName : item.ItemName?.ItemName || 'N/A'}</td>
                   <td>{item.QuantityAvailable}</td>
                   <td>{item.QuantityIssued}</td>
                   <td>{item.Instock}</td>
@@ -507,10 +507,10 @@ const InventoryStatus = () => {
         <div className="offcanvas-body">
           {viewItem && (
             <div>
-              <div className="mb-3">
-                <h6>Item Name:</h6>
-                <p>{viewItem.ItemName?.ItemName || viewItem.ItemName || 'N/A'}</p>
-              </div>
+   <div className="mb-3">
+  <h6>Item Name:</h6>
+  <p>{typeof viewItem.ItemName === 'string' ? viewItem.ItemName : viewItem.ItemName?.ItemName || 'N/A'}</p>
+</div>
               <div className="mb-3">
                 <h6>Quantity Available:</h6>
                 <p>{viewItem.QuantityAvailable}</p>
