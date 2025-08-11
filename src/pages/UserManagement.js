@@ -231,39 +231,59 @@ const getLocationOptions = () => {
   };
 
   // Fetch departments
+  // const fetchDepartments = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const response = await axios.get(
+  //       'https://api.avessecurity.com/api/Department/getAll',
+  //       {
+  //         headers: {
+  //           'Authorization': `Bearer ${token}`
+  //         }
+  //       }
+  //     );
+
+  //     const departmentOptions = [];
+  //     response.data.forEach(parent => {
+  //       departmentOptions.push({ value: parent._id, label: parent.name });
+
+  //       if (parent.children && parent.children.length > 0) {
+  //         parent.children.forEach(child => {
+  //           departmentOptions.push({
+  //             value: child._id,
+  //             label: child.name
+  //           });
+  //         });
+  //       }
+  //     });
+
+  //     setDepartments(departmentOptions);
+  //   } catch (error) {
+  //     console.error('Error fetching departments:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const fetchDepartments = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        'https://api.avessecurity.com/api/Department/getAll',
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
+  try {
+    const response = await axios.get(
+      'https://api.avessecurity.com/api/Department/getAll',
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
 
-      const departmentOptions = [];
-      response.data.forEach(parent => {
-        departmentOptions.push({ value: parent._id, label: parent.name });
+    console.log("Raw departments response:", response.data); // Debug log
 
-        if (parent.children && parent.children.length > 0) {
-          parent.children.forEach(child => {
-            departmentOptions.push({
-              value: child._id,
-              label: child.name
-            });
-          });
-        }
-      });
+    const departmentOptions = response.data.map(dept => ({
+      value: dept._id,
+      label: dept.name
+    }));
 
-      setDepartments(departmentOptions);
-    } catch (error) {
-      console.error('Error fetching departments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setDepartments(departmentOptions);
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+  }
+};
 
   // Fetch designations
   const fetchDesignations = async () => {
@@ -396,6 +416,13 @@ const fetchLocations = async () => {
     if (userImage) {
       formData.append('UserImage', userImage);
     }
+  if (selectedDepartment) {
+    formData.append('department', selectedDepartment); // Try lowercase if not working
+    // Or if API needs object:
+    // formData.append('department', JSON.stringify({ _id: selectedDepartment }));
+  }
+
+    if (selectedDesignation) formData.append('Designation', selectedDesignation);
 
     try {
       setLoading(true);
@@ -923,7 +950,7 @@ const fetchLocations = async () => {
                       </option>
                     ))}
                   </select>
-                  <select
+                  {/* <select
                     className="form-select"
                     value={selectedDepartment}
                     onChange={(e) => setSelectedDepartment(e.target.value)}
@@ -934,7 +961,19 @@ const fetchLocations = async () => {
                         {dept.label}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
+                  <select
+  className="form-select"
+  value={selectedDepartment}
+  onChange={(e) => setSelectedDepartment(e.target.value)}
+>
+  <option value="">Select Department</option>
+  {departments.map((dept) => (
+    <option key={dept.value} value={dept.value}>
+      {dept.label}
+    </option>
+  ))}
+</select>
                 </div>
                 <div className='mb-3 d-flex geo-select'>
                   <Select
