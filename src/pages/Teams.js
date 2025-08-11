@@ -178,7 +178,7 @@ const handleEditSubmit = async (e) => {
   setLoading(true);
   try {
     await axios.put(
-      `https://api.avessecurity.com/api/firebase/update-team/${editTeamId}`, 
+      `https://api.avessecurity.com/api/firebase/update/${editTeamId}`, 
       { TeamName: editTeamName },
       { headers: { Authorization: `Bearer ${token}` } }
     );
