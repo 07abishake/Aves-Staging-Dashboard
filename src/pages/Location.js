@@ -160,7 +160,7 @@ function LocationManager() {
     const token = localStorage.getItem('access_token');
     const url = isEditing 
       ? `https://api.avessecurity.com/api/Location/updateLocation/${editId}`
-      : 'http://localhost:6378/api/Location/createLocation';
+      : 'https://api.avessecurity.com/api/Location/createLocation';
     
     await axios[isEditing ? 'put' : 'post'](url, payload, {
       headers: { Authorization: `Bearer ${token}` },
