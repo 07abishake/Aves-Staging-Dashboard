@@ -1075,8 +1075,11 @@ const fetchLocations = async () => {
               <button
                 type="button"
                 className="btn-close"
-                onClick={() => setShowEditCanvas(false)}
-                style={{ position: "absolute", right: "30px" }}
+            onClick={() => {
+                      setShowEditCanvas(false);
+                      resetForm();
+                    }}
+                        style={{ position: "absolute", right: "30px" }}
               ></button>
             </div>
             <div className="offcanvas-body p-2">
