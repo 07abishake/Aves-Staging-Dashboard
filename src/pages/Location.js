@@ -148,7 +148,7 @@ function LocationManager() {
         }
     };
 
-    const handleSubmit = async (e) => {
+     const handleSubmit = async (e) => {
         e.preventDefault();
         
         if (!primaryLocation) {
@@ -159,20 +159,27 @@ function LocationManager() {
         // Prepare the payload in the correct format
         const payload = {
             PrimaryLocation: primaryLocation.trim(),
-            SubLocation: [{
-                PrimarySubLocation: primarySubLocation.trim(),
-                SecondaryLocation: secondaryLocations.map(sec => ({
-                    SecondaryLocation: sec.SecondaryLocation.trim(),
-                    SecondarySubLocation: sec.SecondarySubLocation ? [{
-                        SecondarySubLocation: sec.SecondarySubLocation.trim()
-                    }] : [],
-                    ThirdLocation: sec.ThirdLocations.map(third => ({
-                        ThirdLocation: third.ThirdLocation.trim(),
-                        ThirdSubLocation: third.ThirdSubLocation.trim()
-                    }))
-                }))
-            }]
+            PrimarySubLocation: primarySubLocation.trim(),
+            SecondaryLocation: secondaryLocations.length > 0 && secondaryLocations[0].SecondaryLocation 
+                ? secondaryLocations[0].SecondaryLocation.trim() 
+                : undefined,
+            SecondarySubLocation: secondaryLocations.length > 0 && secondaryLocations[0].SecondarySubLocation 
+                ? secondaryLocations[0].SecondarySubLocation.trim() 
+                : undefined,
+            ThirdLocation: secondaryLocations.length > 0 && 
+                         secondaryLocations[0].ThirdLocations.length > 0 && 
+                         secondaryLocations[0].ThirdLocations[0].ThirdLocation
+                ? secondaryLocations[0].ThirdLocations[0].ThirdLocation.trim()
+                : undefined,
+            ThirdSubLocation: secondaryLocations.length > 0 && 
+                             secondaryLocations[0].ThirdLocations.length > 0 && 
+                             secondaryLocations[0].ThirdLocations[0].ThirdSubLocation
+                ? secondaryLocations[0].ThirdLocations[0].ThirdSubLocation.trim()
+                : undefined
         };
+
+        // Remove undefined fields
+        Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
         try {
             setIsLoading(true);
