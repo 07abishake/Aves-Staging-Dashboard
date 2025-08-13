@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'leaflet/dist/leaflet.css';
-import debounce from "lodash.debounce";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -39,11 +38,54 @@ const timeOptions = [
   "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
 ];
 
+// Autocomplete Input Component
+const AutocompleteInput = ({ 
+  value, 
+  onChange, 
+  onSelect, 
+  suggestions, 
+  showSuggestions,
+  setShowSuggestions,
+  placeholder = "Type to search..."
+}) => {
+  return (
+    <div className="position-relative">
+      <input
+        type="text"
+        className="form-control"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setShowSuggestions(true);
+        }}
+        placeholder={placeholder}
+      />
+      {showSuggestions && suggestions.length > 0 && (
+        <ul className="autocomplete-suggestions list-group position-absolute w-100 z-3">
+          {suggestions.map((suggestion, index) => (
+            <li
+              key={index}
+              className="list-group-item list-group-item-action"
+              onClick={() => {
+                onSelect(suggestion);
+                setShowSuggestions(false);
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              {suggestion.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 // Notification service function
 const sendPushNotification = async ({ userId, title, body }) => {
   const token = localStorage.getItem("access_token");
   try {
-    await axios.post('http://api.avessecurity.com:6378/api/firebase/send-notification', {
+    await axios.post('https://api.avessecurity.com/api/firebase/send-notification', {
       userIds: userId,
       title,
       body,
@@ -102,16 +144,37 @@ function Patrol() {
     const [selectedPatrol, setSelectedPatrol] = useState(null);
     const [patrols, setPatrols] = useState([]);
     const [assignedPatrols, setAssignedPatrols] = useState([]);
+    
+    // Location states
+    const [selectedPrimary, setSelectedPrimary] = useState(null);
+    const [selectedPrimarySub, setSelectedPrimarySub] = useState(null);
+    const [selectedSecondary, setSelectedSecondary] = useState(null);
+    const [selectedSecondarySub, setSelectedSecondarySub] = useState(null);
+    const [selectedThird, setSelectedThird] = useState(null);
+    
+    // Location name states for display
+    const [primaryName, setPrimaryName] = useState('');
+    const [primarySubName, setPrimarySubName] = useState('');
+    const [secondaryName, setSecondaryName] = useState('');
+    const [secondarySubName, setSecondarySubName] = useState('');
+    const [thirdName, setThirdName] = useState('');
+
+    // Suggestions states
     const [locationSuggestions, setLocationSuggestions] = useState({
-  primary: [],
-  secondary: [],
-  third: []
-});
-const [showLocationSuggestions, setShowLocationSuggestions] = useState({
-  primary: false,
-  secondary: false,
-  third: false
-});
+        primary: [],
+        primarySub: [],
+        secondary: [],
+        secondarySub: [],
+        third: []
+    });
+
+    const [showLocationSuggestions, setShowLocationSuggestions] = useState({
+        primary: false,
+        primarySub: false,
+        secondary: false,
+        secondarySub: false,
+        third: false
+    });
     
     // State for assignment
     const [selectedUser, setSelectedUser] = useState("");
@@ -136,22 +199,6 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState({
     // Loading state
     const [isLoading, setIsLoading] = useState(false);
 
-
-    //Location 
-const [primaryLocations, setPrimaryLocations] = useState([]);
-const [primarySubLocations, setPrimarySubLocations] = useState([]);
-const [secondaryLocations, setSecondaryLocations] = useState([]);
-const [secondarySubLocations, setSecondarySubLocations] = useState([]);
-const [thirdLocations, setThirdLocations] = useState([]);
-const [thirdSubLocations, setThirdSubLocations] = useState([]);
-
-const [selectedPrimary, setSelectedPrimary] = useState('');
-const [selectedPrimarySub, setSelectedPrimarySub] = useState('');
-const [selectedSecondary, setSelectedSecondary] = useState('');
-const [selectedSecondarySub, setSelectedSecondarySub] = useState('');
-const [selectedThird, setSelectedThird] = useState('');
-const [selectedThirdSub, setSelectedThirdSub] = useState('');
-    
     const token = localStorage.getItem("access_token");
 
     useEffect(() => {
@@ -198,95 +245,16 @@ const [selectedThirdSub, setSelectedThirdSub] = useState('');
         }
     };
 
-   const fetchLocations = async () => {
-    try {
-        const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        setLocations(res.data.Location || []);
-        
-        // Extract unique primary locations
-        const primaries = res.data.Location.map(loc => ({
-            _id: loc._id,
-            name: loc.PrimaryLocation
-        }));
-        setPrimaryLocations(primaries);
-    } catch (err) {
-        console.error('Error fetching locations:', err);
-    }
-};
-
-// Add these useEffect hooks to handle the hierarchical selections
-useEffect(() => {
-    if (selectedPrimary) {
-        const primary = locations.find(loc => loc._id === selectedPrimary);
-        if (primary && primary.SubLocation) {
-            const primarySubs = primary.SubLocation.map(sub => ({
-                _id: sub._id,
-                name: sub.PrimarySubLocation
-            }));
-            setPrimarySubLocations(primarySubs);
-        } else {
-            setPrimarySubLocations([]);
+    const fetchLocations = async () => {
+        try {
+            const res = await axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setLocations(res.data.Location || []);
+        } catch (err) {
+            console.error('Error fetching locations:', err);
         }
-        // Reset child selections when primary changes
-        setSelectedPrimarySub('');
-        setSelectedSecondary('');
-        setSelectedSecondarySub('');
-        setSelectedThird('');
-        setSelectedThirdSub('');
-    }
-}, [selectedPrimary, locations]);
-
-useEffect(() => {
-    if (selectedPrimarySub && selectedPrimary) {
-        const primary = locations.find(loc => loc._id === selectedPrimary);
-        if (primary) {
-            const subLocation = primary.SubLocation.find(sub => sub._id === selectedPrimarySub);
-            if (subLocation && subLocation.SecondaryLocation) {
-                const secondaries = subLocation.SecondaryLocation.map(sec => ({
-                    _id: sec._id,
-                    name: sec.SecondaryLocation,
-                    subName: sec.SecondarySubLocation
-                }));
-                setSecondaryLocations(secondaries);
-            } else {
-                setSecondaryLocations([]);
-            }
-        }
-        // Reset child selections when primary sub changes
-        setSelectedSecondary('');
-        setSelectedSecondarySub('');
-        setSelectedThird('');
-        setSelectedThirdSub('');
-    }
-}, [selectedPrimarySub, selectedPrimary, locations]);
-
-useEffect(() => {
-    if (selectedSecondary && selectedPrimarySub && selectedPrimary) {
-        const primary = locations.find(loc => loc._id === selectedPrimary);
-        if (primary) {
-            const subLocation = primary.SubLocation.find(sub => sub._id === selectedPrimarySub);
-            if (subLocation) {
-                const secondary = subLocation.SecondaryLocation.find(sec => sec._id === selectedSecondary);
-                if (secondary && secondary.ThirdLocation) {
-                    const thirds = secondary.ThirdLocation.map(third => ({
-                        _id: third._id,
-                        name: third.ThirdLocation,
-                        subName: third.ThirdSubLocation
-                    }));
-                    setThirdLocations(thirds);
-                } else {
-                    setThirdLocations([]);
-                }
-            }
-        }
-        // Reset child selections when secondary changes
-        setSelectedThird('');
-        setSelectedThirdSub('');
-    }
-}, [selectedSecondary, selectedPrimarySub, selectedPrimary, locations]);
-
+    };
 
     const fetchPatrols = async () => {
         try {
@@ -417,117 +385,84 @@ useEffect(() => {
             setIsLoading(false);
         }
     };
-    
-    // const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
-    //     if (!shiftStart || !shiftEnd) return timeOptions;
-        
-    //     const now = new Date();
-    //     const currentHours = now.getHours();
-    //     const currentMinutes = now.getMinutes();
-    //     const currentTotalMinutes = currentHours * 60 + currentMinutes;
-        
-    //     const convertToMinutes = (timeStr) => {
-    //         const [time, period] = timeStr.split(' ');
-    //         const [hours, minutes] = time.split(':').map(Number);
-    //         let total = hours * 60 + minutes;
-    //         if (period === 'PM' && hours !== 12) total += 12 * 60;
-    //         if (period === 'AM' && hours === 12) total -= 12 * 60;
-    //         return total;
-    //     };
 
-    //     const startMinutes = convertToMinutes(shiftStart);
-    //     const endMinutes = convertToMinutes(shiftEnd);
-        
-    //     return timeOptions.filter(time => {
-    //         const [timeStr, period] = time.split(' ');
-    //         const [hours, minutes] = timeStr.split(':').map(Number);
-    //         let total = hours * 60 + minutes;
-    //         if (period === 'PM' && hours !== 12) total += 12 * 60;
-    //         if (period === 'AM' && hours === 12) total -= 12 * 60;
-            
-    //         return total >= startMinutes && 
-    //                total <= endMinutes && 
-    //                total >= currentTotalMinutes;
-    //     });
-    // };
-const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
-    if (!shiftStart || !shiftEnd) return timeOptions;
+    const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+        if (!shiftStart || !shiftEnd) return timeOptions;
 
-    const now = new Date();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTotalMinutes = currentHours * 60 + currentMinutes;
 
-    const convertToMinutes = (timeStr) => {
-        const [time, period] = timeStr.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
-        let total = hours * 60 + minutes;
-        if (period === 'PM' && hours !== 12) total += 12 * 60;
-        if (period === 'AM' && hours === 12) total -= 12 * 60;
-        return total;
+        const convertToMinutes = (timeStr) => {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let total = hours * 60 + minutes;
+            if (period === 'PM' && hours !== 12) total += 12 * 60;
+            if (period === 'AM' && hours === 12) total -= 12 * 60;
+            return total;
+        };
+
+        const startMinutes = convertToMinutes(shiftStart);
+        const endMinutes = convertToMinutes(shiftEnd);
+
+        return timeOptions.filter(time => {
+            const timeMinutes = convertToMinutes(time);
+
+            const isWithinShift = startMinutes <= endMinutes
+                ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
+                : timeMinutes >= startMinutes || timeMinutes <= endMinutes; // for overnight
+
+            const isFuture = timeMinutes >= currentTotalMinutes;
+
+            return isWithinShift && isFuture;
+        });
     };
-
-    const startMinutes = convertToMinutes(shiftStart);
-    const endMinutes = convertToMinutes(shiftEnd);
-
-    return timeOptions.filter(time => {
-        const timeMinutes = convertToMinutes(time);
-
-        const isWithinShift = startMinutes <= endMinutes
-            ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
-            : timeMinutes >= startMinutes || timeMinutes <= endMinutes; // for overnight
-
-        const isFuture = timeMinutes >= currentTotalMinutes;
-
-        return isWithinShift && isFuture;
-    });
-};
 
     const hasOverlappingAssignments = (userId, newStartDate, newEndDate, newStartTime, newEndTime) => {
-    const timeToMinutes = (timeStr) => {
-        const [time, period] = timeStr.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
-        let total = hours * 60 + minutes;
-        if (period === 'PM' && hours !== 12) total += 12 * 60;
-        if (period === 'AM' && hours === 12) total -= 12 * 60;
-        return total;
-    };
+        const timeToMinutes = (timeStr) => {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let total = hours * 60 + minutes;
+            if (period === 'PM' && hours !== 12) total += 12 * 60;
+            if (period === 'AM' && hours === 12) total -= 12 * 60;
+            return total;
+        };
 
-    // 1. Check for same time
-    if (newStartTime === newEndTime) {
-        console.error("Start Time and End Time cannot be the same.");
-        return true;
-    }
-
-    // 2. Check for invalid time order
-    if (timeToMinutes(newStartTime) >= timeToMinutes(newEndTime)) {
-        console.error("Start Time must be earlier than End Time.");
-        return true;
-    }
-
-    const newStartMinutes = timeToMinutes(newStartTime);
-    const newEndMinutes = timeToMinutes(newEndTime);
-    const newStartDateObj = new Date(newStartDate);
-    const newEndDateObj = new Date(newEndDate);
-
-    return assignedPatrols.some(assignment => {
-        if (!assignment || !assignment.userId || !assignment.userId._id) return false;
-        if (assignment.userId._id !== userId) return false;
-
-        const assignmentStartDate = new Date(assignment.startDate);
-        const assignmentEndDate = new Date(assignment.endDate);
-
-        if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
-            return false;
+        // 1. Check for same time
+        if (newStartTime === newEndTime) {
+            console.error("Start Time and End Time cannot be the same.");
+            return true;
         }
 
-        const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
-        const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
+        // 2. Check for invalid time order
+        if (timeToMinutes(newStartTime) >= timeToMinutes(newEndTime)) {
+            console.error("Start Time must be earlier than End Time.");
+            return true;
+        }
 
-        return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
-    });
-};
+        const newStartMinutes = timeToMinutes(newStartTime);
+        const newEndMinutes = timeToMinutes(newEndTime);
+        const newStartDateObj = new Date(newStartDate);
+        const newEndDateObj = new Date(newEndDate);
 
+        return assignedPatrols.some(assignment => {
+            if (!assignment || !assignment.userId || !assignment.userId._id) return false;
+            if (assignment.userId._id !== userId) return false;
+
+            const assignmentStartDate = new Date(assignment.startDate);
+            const assignmentEndDate = new Date(assignment.endDate);
+
+            if (newStartDateObj > assignmentEndDate || newEndDateObj < assignmentStartDate) {
+                return false;
+            }
+
+            const assignmentStartMinutes = timeToMinutes(assignment.StartedAt);
+            const assignmentEndMinutes = timeToMinutes(assignment.EndedAt);
+
+            return !(newEndMinutes <= assignmentStartMinutes || newStartMinutes >= assignmentEndMinutes);
+        });
+    };
 
     const handleSubmit = async () => {
         setIsLoading(true);
@@ -613,9 +548,16 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
 
     const openFormCanvas = () => {
         setPatrolName('');
-        setSelectedPrimary('');
-        setSelectedSecondary('');
-        setSelectedThird('');
+        setSelectedPrimary(null);
+        setPrimaryName('');
+        setSelectedPrimarySub(null);
+        setPrimarySubName('');
+        setSelectedSecondary(null);
+        setSecondaryName('');
+        setSelectedSecondarySub(null);
+        setSecondarySubName('');
+        setSelectedThird(null);
+        setThirdName('');
         setCheckpoints([]);
         setShowFormCanvas(true);
         setShowViewCanvas(false);
@@ -635,158 +577,200 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
         setShowAssignCanvas(true);
     };
 
-    const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
-    const getSelectedSecondary = () => getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
-    // const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
+    const renderLocationForm = () => {
+        const primaryLoc = locations.find(loc => loc._id === selectedPrimary);
+        const primarySubLoc = primaryLoc?.SubLocation?.find(sub => sub._id === selectedPrimarySub);
+        const secondaryLoc = primarySubLoc?.SecondaryLocation?.find(sec => sec._id === selectedSecondary);
+        
+        return (
+            <>
+                <div className="mb-3">
+                    <label className="form-label">Primary Location</label>
+                    <AutocompleteInput
+                        value={primaryName}
+                        onChange={(value) => {
+                            setPrimaryName(value);
+                            const filtered = locations.filter(loc => 
+                                loc.PrimaryLocation.toLowerCase().includes(value.toLowerCase())
+                            );
+                            setLocationSuggestions(prev => ({
+                                ...prev,
+                                primary: filtered.map(loc => ({
+                                    id: loc._id,
+                                    name: loc.PrimaryLocation
+                                }))
+                            }));
+                            setShowLocationSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
+                        }}
+                        onSelect={(selected) => {
+                            const primaryLoc = locations.find(loc => loc.PrimaryLocation === selected.name);
+                            setSelectedPrimary(primaryLoc._id);
+                            setPrimaryName(selected.name);
+                            setPrimarySubName('');
+                            setSecondaryName('');
+                            setSecondarySubName('');
+                            setThirdName('');
+                            setSelectedPrimarySub(null);
+                            setSelectedSecondary(null);
+                            setSelectedSecondarySub(null);
+                            setSelectedThird(null);
+                        }}
+                        suggestions={locationSuggestions.primary}
+                        showSuggestions={showLocationSuggestions.primary}
+                        setShowSuggestions={(show) => 
+                            setShowLocationSuggestions(prev => ({ ...prev, primary: show }))
+                        }
+                        placeholder="Type primary location..."
+                    />
+                </div>
 
-    const generateLocationSuggestions = (type, value, parentLocations = {}) => {
-  if (!value) return [];
+                {selectedPrimary && (
+                    <div className="mb-3">
+                        <label className="form-label">Primary Sub Location</label>
+                        <AutocompleteInput
+                            value={primarySubName}
+                            onChange={(value) => {
+                                setPrimarySubName(value);
+                                const filtered = primaryLoc.SubLocation.filter(sub => 
+                                    sub.PrimarySubLocation.toLowerCase().includes(value.toLowerCase())
+                                );
+                                setLocationSuggestions(prev => ({
+                                    ...prev,
+                                    primarySub: filtered.map(sub => ({
+                                        id: sub._id,
+                                        name: sub.PrimarySubLocation
+                                    }))
+                                }));
+                                setShowLocationSuggestions(prev => ({ ...prev, primarySub: value.length > 0 }));
+                            }}
+                            onSelect={(selected) => {
+                                setSelectedPrimarySub(selected.id);
+                                setPrimarySubName(selected.name);
+                                setSecondaryName('');
+                                setSecondarySubName('');
+                                setThirdName('');
+                                setSelectedSecondary(null);
+                                setSelectedSecondarySub(null);
+                                setSelectedThird(null);
+                            }}
+                            suggestions={locationSuggestions.primarySub}
+                            showSuggestions={showLocationSuggestions.primarySub}
+                            setShowSuggestions={(show) => 
+                                setShowLocationSuggestions(prev => ({ ...prev, primarySub: show }))
+                            }
+                            placeholder="Type primary sub location..."
+                        />
+                    </div>
+                )}
 
-  const allSuggestions = new Set();
-  
-  locations.forEach(location => {
-    // Primary location suggestions
-    if (type === 'primary') {
-      if (location.PrimaryLocation.toLowerCase().includes(value.toLowerCase())) {
-        allSuggestions.add(location.PrimaryLocation);
-      }
-      return;
-    }
-    
-    // Only proceed if Primary matches
-    if (location.PrimaryLocation.toLowerCase() !== parentLocations.primary?.toLowerCase()) {
-      return;
-    }
-    
-    // Secondary location suggestions
-    if (type === 'secondary' && location.SecondaryLocation) {
-      location.SecondaryLocation.forEach(sec => {
-        if (sec.SecondaryLocation?.toLowerCase().includes(value.toLowerCase())) {
-          allSuggestions.add(sec.SecondaryLocation);
-        }
-      });
-      return;
-    }
-    
-    // Only proceed if Secondary matches
-    const matchedSecondary = location.SecondaryLocation?.find(
-      sec => sec.SecondaryLocation?.toLowerCase() === parentLocations.secondary?.toLowerCase()
-    );
-    if (!matchedSecondary) return;
-    
-    // Third location suggestions
-    if (type === 'third' && matchedSecondary.ThirdLocation) {
-      matchedSecondary.ThirdLocation.forEach(third => {
-        if (third.ThirdLocation?.toLowerCase().includes(value.toLowerCase())) {
-          allSuggestions.add(third.ThirdLocation);
-        }
-      });
-    }
-  });
-  
-  return Array.from(allSuggestions);
-};
+                {selectedPrimarySub && (
+                    <div className="mb-3">
+                        <label className="form-label">Secondary Location</label>
+                        <AutocompleteInput
+                            value={secondaryName}
+                            onChange={(value) => {
+                                setSecondaryName(value);
+                                const filtered = primarySubLoc.SecondaryLocation.filter(sec => 
+                                    sec.SecondaryLocation.toLowerCase().includes(value.toLowerCase())
+                                );
+                                setLocationSuggestions(prev => ({
+                                    ...prev,
+                                    secondary: filtered.map(sec => ({
+                                        id: sec._id,
+                                        name: sec.SecondaryLocation
+                                    }))
+                                }));
+                                setShowLocationSuggestions(prev => ({ ...prev, secondary: value.length > 0 }));
+                            }}
+                            onSelect={(selected) => {
+                                setSelectedSecondary(selected.id);
+                                setSecondaryName(selected.name);
+                                setSecondarySubName('');
+                                setThirdName('');
+                                setSelectedSecondarySub(null);
+                                setSelectedThird(null);
+                            }}
+                            suggestions={locationSuggestions.secondary}
+                            showSuggestions={showLocationSuggestions.secondary}
+                            setShowSuggestions={(show) => 
+                                setShowLocationSuggestions(prev => ({ ...prev, secondary: show }))
+                            }
+                            placeholder="Type secondary location..."
+                        />
+                    </div>
+                )}
 
-// Updated location dropdown handlers
-const handlePrimaryLocationChange = (value) => {
-  setSelectedPrimary(value);
-  
-  // Filter primary locations that match the input
-  const newSuggestions = locations
-    .filter(loc => loc.PrimaryLocation.toLowerCase().includes(value.toLowerCase()))
-    .map(loc => loc.PrimaryLocation);
-  
-  setLocationSuggestions(prev => ({ 
-    ...prev, 
-    primary: [...new Set(newSuggestions)] // Remove duplicates
-  }));
-  
-  setShowLocationSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
-  
-  // Reset child selections when primary changes
-  setSelectedSecondary('');
-  setSelectedThird('');
-};
+                {selectedSecondary && (
+                    <div className="mb-3">
+                        <label className="form-label">Secondary Sub Location</label>
+                        <AutocompleteInput
+                            value={secondarySubName}
+                            onChange={(value) => {
+                                setSecondarySubName(value);
+                                const filtered = secondaryLoc.SecondarySubLocation.filter(sub => 
+                                    sub.SecondarySubLocation.toLowerCase().includes(value.toLowerCase())
+                                );
+                                setLocationSuggestions(prev => ({
+                                    ...prev,
+                                    secondarySub: filtered.map(sub => ({
+                                        id: sub._id,
+                                        name: sub.SecondarySubLocation
+                                    }))
+                                }));
+                                setShowLocationSuggestions(prev => ({ ...prev, secondarySub: value.length > 0 }));
+                            }}
+                            onSelect={(selected) => {
+                                setSelectedSecondarySub(selected.id);
+                                setSecondarySubName(selected.name);
+                                setThirdName('');
+                                setSelectedThird(null);
+                            }}
+                            suggestions={locationSuggestions.secondarySub}
+                            showSuggestions={showLocationSuggestions.secondarySub}
+                            setShowSuggestions={(show) => 
+                                setShowLocationSuggestions(prev => ({ ...prev, secondarySub: show }))
+                            }
+                            placeholder="Type secondary sub location..."
+                        />
+                    </div>
+                )}
 
-const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
-  setSelectedPrimary(selectedPrimaryLoc);
-  setShowLocationSuggestions(prev => ({ ...prev, primary: false }));
-  
-  // Reset child selections
-  setSelectedSecondary('');
-  setSelectedThird('');
-};
-
-const handleSecondaryLocationChange = (value) => {
-  setSelectedSecondary(value);
-  
-  // Find the selected primary location
-  const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
-  if (!primaryLoc) return;
-  
-  // Get all secondary locations under the primary
-  const secondaryLocs = primaryLoc.SubLocation.flatMap(sub => 
-    sub.SecondaryLocation.map(sec => sec.SecondaryLocation)
-  );
-  
-  // Filter matching secondary locations
-  const newSuggestions = secondaryLocs
-    .filter(sec => sec && sec.toLowerCase().includes(value.toLowerCase()));
-  
-  setLocationSuggestions(prev => ({ 
-    ...prev, 
-    secondary: [...new Set(newSuggestions)] // Remove duplicates
-  }));
-  
-  setShowLocationSuggestions(prev => ({ ...prev, secondary: value.length > 0 }));
-  
-  // Reset child selection when secondary changes
-  setSelectedThird('');
-};
-
-const handleSecondaryLocationSelect = (selectedSecondaryLoc) => {
-  setSelectedSecondary(selectedSecondaryLoc);
-  setShowLocationSuggestions(prev => ({ ...prev, secondary: false }));
-  
-  // Reset child selection
-  setSelectedThird('');
-};
-
-const handleThirdLocationChange = (value) => {
-  setSelectedThird(value);
-  
-  // Find the selected primary location
-  const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
-  if (!primaryLoc) return;
-  
-  // Find the selected secondary location
-  let thirdLocs = [];
-  for (const sub of primaryLoc.SubLocation) {
-    for (const sec of sub.SecondaryLocation) {
-      if (sec.SecondaryLocation === selectedSecondary) {
-        thirdLocs = sec.ThirdLocation.map(t => t.ThirdLocation);
-        break;
-      }
-    }
-    if (thirdLocs.length > 0) break;
-  }
-  
-  // Filter matching third locations
-  const newSuggestions = thirdLocs
-    .filter(t => t && t.toLowerCase().includes(value.toLowerCase()));
-  
-  setLocationSuggestions(prev => ({ 
-    ...prev, 
-    third: [...new Set(newSuggestions)] // Remove duplicates
-  }));
-  
-  setShowLocationSuggestions(prev => ({ ...prev, third: value.length > 0 }));
-};
-
-const handleThirdLocationSelect = (selectedThirdLoc) => {
-  setSelectedThird(selectedThirdLoc);
-  setShowLocationSuggestions(prev => ({ ...prev, third: false }));
-};
+                {selectedSecondarySub && (
+                    <div className="mb-3">
+                        <label className="form-label">Third Location</label>
+                        <AutocompleteInput
+                            value={thirdName}
+                            onChange={(value) => {
+                                setThirdName(value);
+                                const secondarySubLoc = secondaryLoc.SecondarySubLocation.find(sub => sub._id === selectedSecondarySub);
+                                const filtered = secondarySubLoc.ThirdLocation.filter(third => 
+                                    third.ThirdLocation.toLowerCase().includes(value.toLowerCase())
+                                );
+                                setLocationSuggestions(prev => ({
+                                    ...prev,
+                                    third: filtered.map(third => ({
+                                        id: third._id,
+                                        name: third.ThirdLocation
+                                    }))
+                                }));
+                                setShowLocationSuggestions(prev => ({ ...prev, third: value.length > 0 }));
+                            }}
+                            onSelect={(selected) => {
+                                setSelectedThird(selected.id);
+                                setThirdName(selected.name);
+                            }}
+                            suggestions={locationSuggestions.third}
+                            showSuggestions={showLocationSuggestions.third}
+                            setShowSuggestions={(show) => 
+                                setShowLocationSuggestions(prev => ({ ...prev, third: show }))
+                            }
+                            placeholder="Type third location..."
+                        />
+                    </div>
+                )}
+            </>
+        );
+    };
 
     return (
         <div className="container mt-4">
@@ -1038,97 +1022,8 @@ const handleThirdLocationSelect = (selectedThirdLoc) => {
                             onChange={e => setPatrolName(e.target.value)} 
                         />
                     </div>
-<div className="mb-3">
-    <label className="form-label">Primary Location</label>
-    <select 
-        className="form-select"
-        value={selectedPrimary}
-        onChange={(e) => setSelectedPrimary(e.target.value)}
-    >
-        <option value="">-- Select Primary Location --</option>
-        {primaryLocations.map(loc => (
-            <option key={loc._id} value={loc._id}>{loc.name}</option>
-        ))}
-    </select>
-</div>
 
-{selectedPrimary && (
-    <div className="mb-3">
-        <label className="form-label">Primary Sub Location</label>
-        <select 
-            className="form-select"
-            value={selectedPrimarySub}
-            onChange={(e) => setSelectedPrimarySub(e.target.value)}
-        >
-            <option value="">-- Select Primary Sub Location --</option>
-            {primarySubLocations.map(loc => (
-                <option key={loc._id} value={loc._id}>{loc.name}</option>
-            ))}
-        </select>
-    </div>
-)}
-
-{selectedPrimarySub && (
-    <div className="mb-3">
-        <label className="form-label">Secondary Location</label>
-        <select 
-            className="form-select"
-            value={selectedSecondary}
-            onChange={(e) => setSelectedSecondary(e.target.value)}
-        >
-            <option value="">-- Select Secondary Location --</option>
-            {secondaryLocations.map(loc => (
-                <option key={loc._id} value={loc._id}>
-                    {loc.name} {loc.subName && `(${loc.subName})`}
-                </option>
-            ))}
-        </select>
-    </div>
-)}
-
-{selectedSecondary && (
-    <div className="mb-3">
-        <label className="form-label">Secondary Sub Location</label>
-        <input 
-            type="text" 
-            className="form-control" 
-            value={selectedSecondarySub} 
-            onChange={(e) => setSelectedSecondarySub(e.target.value)}
-            placeholder="Secondary sub location"
-        />
-    </div>
-)}
-
-{selectedSecondary && (
-    <div className="mb-3">
-        <label className="form-label">Third Location</label>
-        <select 
-            className="form-select"
-            value={selectedThird}
-            onChange={(e) => setSelectedThird(e.target.value)}
-        >
-            <option value="">-- Select Third Location --</option>
-            {thirdLocations.map(loc => (
-                <option key={loc._id} value={loc._id}>
-                    {loc.name} {loc.subName && `(${loc.subName})`}
-                </option>
-            ))}
-        </select>
-    </div>
-)}
-
-{selectedThird && (
-    <div className="mb-3">
-        <label className="form-label">Third Sub Location</label>
-        <input 
-            type="text" 
-            className="form-control" 
-            value={selectedThirdSub} 
-            onChange={(e) => setSelectedThirdSub(e.target.value)}
-            placeholder="Third sub location"
-        />
-    </div>
-)}
+                    {renderLocationForm()}
 
                     <div className="mb-3">
                         <label className="form-label">Checkpoints</label>
@@ -1280,7 +1175,6 @@ const handleThirdLocationSelect = (selectedThirdLoc) => {
                                                                                 Lng: ${waypoint.Coordinates.lng || waypoint.Coordinates.longitude}` : 
                                                                                 'Coordinates not available'}
                                                                         </p>
-                                                                        {/* <p>Selfie Required: {waypoint.selfieRequired ? 'Yes' : 'No'}</p> */}
                                                                         {waypoint.qrCode && (
                                                                             <img 
                                                                                 src={waypoint.qrCode} 
@@ -1305,6 +1199,31 @@ const handleThirdLocationSelect = (selectedThirdLoc) => {
                     )}
                 </div>
             </div>
+
+            {/* Add this CSS */}
+            <style>
+                {`
+                .autocomplete-suggestions {
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid #ddd;
+                    border-top: none;
+                    border-radius: 0 0 4px 4px;
+                    background-color: white;
+                    z-index: 1000;
+                }
+
+                .autocomplete-suggestions li {
+                    padding: 8px 12px;
+                    list-style: none;
+                }
+
+                .autocomplete-suggestions li:hover {
+                    background-color: #f8f9fa;
+                    cursor: pointer;
+                }
+                `}
+            </style>
         </div>
     );
 }
