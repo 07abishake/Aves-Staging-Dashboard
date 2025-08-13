@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import debounce from "lodash.debounce";
 import axios from 'axios';
 import {
   Container,
@@ -31,6 +32,9 @@ function PassSetup() {
   const [success, setSuccess] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [passToDelete, setPassToDelete] = useState(null);
+  
+const [searchTerm, setSearchTerm] = useState("");
+const [filteredLocations, setFilteredLocations] = useState([]);
   const token = localStorage.getItem('access_token');
 
   useEffect(() => {
@@ -41,6 +45,21 @@ function PassSetup() {
     fetchLocations();
     fetchPasses();
   }, []);
+
+  useEffect(() => {
+  setFilteredLocations(locations);
+}, [locations]);
+
+const handleSearch = debounce((value) => {
+  if (!value) {
+    setFilteredLocations(locations);
+  } else {
+    const filtered = locations.filter((loc) =>
+      loc.label.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredLocations(filtered);
+  }
+}, 300)
 
   const fetchLocations = async () => {
     setLoading(true);
@@ -59,25 +78,44 @@ function PassSetup() {
     }
   };
 
- const flattenLocations = (data) => {
+const flattenLocations = (data) => {
   const result = [];
 
   data.forEach((primary) => {
-    // Add Primary
-    result.push({ label: primary.PrimaryLocation, id: primary._id });
+    // Primary
+    result.push({
+      label: primary.PrimaryLocation,
+      id: primary._id,
+    });
 
-    // Add Secondary
-    primary.SecondaryLocation?.forEach((secondary) => {
+    primary.SubLocation?.forEach((primarySub) => {
+      // Primary Sub
       result.push({
-        label: `🌐1Loc${primary.PrimaryLocation}      2Loc📍${secondary.SecondaryLocation}`, // Assume 'SecondaryLocationName' holds the correct name
-        id: secondary._id,
+        label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation}`,
+        id: primarySub._id,
       });
 
-      // Add Third
-      secondary.ThirdLocation?.forEach((third) => {
+      primarySub.SecondaryLocation?.forEach((secondary) => {
+        // Secondary
         result.push({
-          label: `🌐1Loc${primary.PrimaryLocation}    2Loc📍${secondary.SecondaryLocation}      3Loc🏢 ${third.ThirdLocation}`,
-          id: third._id,
+          label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation}`,
+          id: secondary._id,
+        });
+
+        secondary.SecondarySubLocation?.forEach((secondarySub) => {
+          // Secondary Sub
+          result.push({
+            label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`,
+            id: secondarySub._id,
+          });
+
+          secondarySub.ThirdLocation?.forEach((third) => {
+            // Third
+            result.push({
+              label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation} (${third.ThirdSubLocation})`,
+              id: third._id,
+            });
+          });
         });
       });
     });
@@ -85,6 +123,7 @@ function PassSetup() {
 
   return result;
 };
+
 
 
   const fetchPasses = async () => {
@@ -114,7 +153,7 @@ function PassSetup() {
       const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
       
       await axios.post(
-        'http://localhost:6378/api/Color/create',
+        'https://api.avessecurity.com/api/Color/create',
         {
           title: selectedLabel,
           CustomColor: color,
@@ -231,20 +270,52 @@ function PassSetup() {
               {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
 
               <Form.Group className="mb-3">
-                <Form.Label className="fw-bold">
-                  <Badge bg="light" className="me-2 text-primary">2</Badge>
-                  Location
-                </Form.Label>
-                <Form.Select
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="border-primary"
-                >
-                  <option value="">Select a location</option>
-                  {locations.map((loc, index) => (
-                    <option key={index} value={loc.id}>{loc.label}</option>
-                  ))}
-                </Form.Select>
+               <Form.Group className="mb-3 position-relative">
+  <Form.Label className="fw-bold">
+    <Badge bg="light" className="me-2 text-primary"></Badge>
+    Location
+  </Form.Label>
+
+  {/* Search input */}
+  <Form.Control
+    type="text"
+    placeholder="Type location..."
+    value={searchTerm}
+    onChange={(e) => {
+      setSearchTerm(e.target.value);
+      handleSearch(e.target.value);
+    }}
+    className="border-primary"
+  />
+
+  {/* Suggestions */}
+  {searchTerm && filteredLocations.length > 0 && (
+    <ListGroup
+      style={{
+        position: "absolute",
+        zIndex: 1000,
+        width: "100%",
+        maxHeight: "200px",
+        overflowY: "auto",
+      }}
+    >
+      {filteredLocations.map((loc) => (
+        <ListGroup.Item
+          key={loc.id}
+          action
+          onClick={() => {
+            setSelectedLocation(loc.id);
+            setSearchTerm(loc.label);
+            setFilteredLocations([]);
+          }}
+        >
+          {loc.label}
+        </ListGroup.Item>
+      ))}
+    </ListGroup>
+  )}
+</Form.Group>
+
               </Form.Group>
 
               <Form.Group className="mb-4">
@@ -286,7 +357,7 @@ function PassSetup() {
                     <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
                   ) : (
                     <>
-                      <Plus className="me-1" /> Create Pass
+                     Create Pass
                     </>
                   )}
                 </Button>
