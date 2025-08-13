@@ -603,10 +603,10 @@ const InventoryManager = () => {
           <Button variant="success" onClick={() => setShowAddStock(true)}>
             Add Stock
           </Button>
-          <Button variant="warning" onClick={() => setShowRemoveStock(true)}>
+          <Button variant="secondary" onClick={() => setShowRemoveStock(true)}>
             Remove Stock
           </Button>
-          <Button variant="info" onClick={() => setShowTransferStock(true)}>
+          <Button variant="primary" onClick={() => setShowTransferStock(true)}>
             Transfer Stock
           </Button>
         </div>
