@@ -59,6 +59,11 @@ const InventoryManager = () => {
   // Get token
   const token = localStorage.getItem("access_token");
   
+  // Helper function to generate unique keys
+  const generateUniqueKey = (baseId, suffix = '') => {
+    return `${baseId}-${suffix}-${Math.random().toString(36).substr(2, 5)}`;
+  };
+
   // Fetch initial data
   useEffect(() => {
     if (!token) {
@@ -124,13 +129,22 @@ const InventoryManager = () => {
         `https://api.avessecurity.com/api/inventory/product/${productId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      setInventory(data?.data || []);
+
+      // Handle both array and object responses
+      if (Array.isArray(data?.data)) {
+        setInventory(data.data);
+      } else if (data?.data) {
+        setInventory([data.data]);
+      } else {
+        setInventory([]);
+      }
+
       setCurrentItem(products.find(p => p._id === productId));
       setShowInventoryView(true);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch inventory');
+      setInventory([]);
     } finally {
       setIsLoading(false);
       setRefreshInventory(false);
@@ -146,7 +160,15 @@ const InventoryManager = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setLocationStock(response.data?.data || []);
+      // Handle both array and object responses
+      let stockData = [];
+      if (Array.isArray(response.data?.data)) {
+        stockData = response.data.data;
+      } else if (response.data?.data) {
+        stockData = [response.data.data];
+      }
+      
+      setLocationStock(stockData);
       const locationDetails = findLocationDetails(locationId);
       setSelectedLocation(locationDetails);
       setShowInventoryView(true);
@@ -167,7 +189,7 @@ const InventoryManager = () => {
         return {
           id: primary._id,
           name: primary.PrimaryLocation,
-          type: 'Primary',
+          type: 'PrimaryLocation',
           path: primary.PrimaryLocation
         };
       }
@@ -177,8 +199,8 @@ const InventoryManager = () => {
           return {
             id: sub._id,
             name: sub.PrimarySubLocation,
-            type: 'Secondary',
-            path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation}`
+            type: 'PrimarySubLocation',
+            path: `${primary.PrimaryLocation},${sub.PrimarySubLocation}`
           };
         }
 
@@ -187,19 +209,39 @@ const InventoryManager = () => {
             return {
               id: secondary._id,
               name: secondary.SecondaryLocation,
-              type: 'Tertiary',
-              path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation}`
+              type: 'SecondaryLocation',
+              path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation}`
             };
           }
 
-          for (const tertiary of secondary.ThirdLocation || []) {
-            if (tertiary._id === locationId) {
+          for (const subSecondary of secondary.SecondarySubLocation || []) {
+            if (subSecondary._id === locationId) {
               return {
-                id: tertiary._id,
-                name: tertiary.ThirdLocation,
-                type: 'Quaternary',
-                path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${tertiary.ThirdLocation}`
+                id: subSecondary._id,
+                name: subSecondary.SecondarySubLocation,
+                type: 'SecondarySubLocation',
+                path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation}`
               };
+            }
+
+            for (const third of subSecondary.ThirdLocation || []) {
+              if (third._id === locationId) {
+                return {
+                  id: third._id,
+                  name: third.ThirdLocation,
+                  type: 'ThirdLocation',
+                  path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation},${third.ThirdLocation}`
+                };
+              }
+
+              if (third.ThirdSubLocation && third._id === locationId) {
+                return {
+                  id: third._id,
+                  name: third.ThirdSubLocation,
+                  type: 'ThirdSubLocation',
+                  path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation},${third.ThirdLocation},${third.ThirdSubLocation}`
+                };
+              }
             }
           }
         }
@@ -222,7 +264,6 @@ const InventoryManager = () => {
       setShowAddStock(false);
       setAddStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      // Trigger all relevant refreshes
       setRefreshProducts(true);
       setRefreshInventory(true);
       setRefreshLocationStock(true);
@@ -247,7 +288,6 @@ const InventoryManager = () => {
       setShowRemoveStock(false);
       setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      // Trigger all relevant refreshes
       setRefreshProducts(true);
       setRefreshInventory(true);
       setRefreshLocationStock(true);
@@ -277,7 +317,6 @@ const InventoryManager = () => {
         quantity: 0
       });
       
-      // Trigger all relevant refreshes
       setRefreshProducts(true);
       setRefreshInventory(true);
       setRefreshLocationStock(true);
@@ -293,39 +332,44 @@ const InventoryManager = () => {
     const flattened = [];
     
     allLocations.forEach(primary => {
-      // Add primary location
       flattened.push({
         id: primary._id,
         name: primary.PrimaryLocation,
-        type: 'Primary',
+        type: 'PrimaryLocation',
         path: primary.PrimaryLocation
       });
 
-      // Add secondary locations
       primary.SubLocation?.forEach(sub => {
         flattened.push({
           id: sub._id,
           name: sub.PrimarySubLocation,
-          type: 'Secondary',
-          path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation}`
+          type: 'PrimarySubLocation',
+          path: `${primary.PrimaryLocation},${sub.PrimarySubLocation}`
         });
 
-        // Add tertiary locations
         sub.SecondaryLocation?.forEach(secondary => {
           flattened.push({
             id: secondary._id,
             name: secondary.SecondaryLocation,
-            type: 'Tertiary',
-            path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation}`
+            type: 'SecondaryLocation',
+            path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation}`
           });
 
-          // Add quaternary locations
-          secondary.ThirdLocation?.forEach(tertiary => {
+          secondary.SecondarySubLocation?.forEach(subSecondary => {
             flattened.push({
-              id: tertiary._id,
-              name: tertiary.ThirdLocation,
-              type: 'Quaternary',
-              path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${tertiary.ThirdLocation}`
+              id: subSecondary._id,
+              name: subSecondary.SecondarySubLocation,
+              type: 'SecondarySubLocation',
+              path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation}`
+            });
+
+            subSecondary.ThirdLocation?.forEach(third => {
+              flattened.push({
+                id: third._id,
+                name: third.ThirdLocation || third.ThirdSubLocation,
+                type: 'ThirdLocation',
+                path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation},${third.ThirdLocation || ''}${third.ThirdSubLocation ? ',' + third.ThirdSubLocation : ''}`
+              });
             });
           });
         });
@@ -357,13 +401,15 @@ const InventoryManager = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredLocations.map(location => (
-            <tr key={location.id}>
+          {filteredLocations.map((location, index) => (
+            <tr key={generateUniqueKey(location.id, `loc-${index}`)}>
               <td>
                 <Badge bg={
-                  location.type === 'Primary' ? 'primary' : 
-                  location.type === 'Secondary' ? 'secondary' : 
-                  location.type === 'Tertiary' ? 'info' : 'warning'
+                  location.type === 'PrimaryLocation' ? 'primary' : 
+                  location.type === 'PrimarySubLocation' ? 'secondary' : 
+                  location.type === 'SecondaryLocation' ? 'danger' : 
+                  location.type === 'SecondarySubLocation' ? 'warning' :
+                  location.type === 'ThirdLocation' ? 'dark' : 'light'
                 }>
                   {location.type}
                 </Badge>
@@ -398,7 +444,7 @@ const InventoryManager = () => {
       );
     }
 
-    if (locationStock.length === 0) {
+    if (!Array.isArray(locationStock) || locationStock.length === 0) {
       return <Alert variant="info">No stock found in this location</Alert>;
     }
 
@@ -418,8 +464,8 @@ const InventoryManager = () => {
           </tr>
         </thead>
         <tbody>
-          {locationStock.map(item => (
-            <tr key={item._id}>
+          {locationStock.map((item, index) => (
+            <tr key={generateUniqueKey(item._id, `stock-${index}`)}>
               <td>
                 <strong>{item.product?.ItemName || 'Unknown'}</strong>
                 <div className="text-muted small">{item.product?.Description || ''}</div>
@@ -443,6 +489,60 @@ const InventoryManager = () => {
     );
   };
 
+  // Render product table
+  const renderProductTable = () => {
+    if (isLoading && products.length === 0) {
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+        </div>
+      );
+    }
+
+    if (products.length === 0) {
+      return <Alert variant="info">No products found</Alert>;
+    }
+
+    return (
+      <Table striped hover responsive>
+        <thead>
+          <tr>
+            <th>Item Code</th>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((product) => (
+            <tr key={generateUniqueKey(product._id, 'product')}>
+              <td>{product.ItemCode}</td>
+              <td>
+                <strong>{product.ItemName}</strong>
+              </td>
+              <td>{product.Category}</td>
+              <td>{product.Type}</td>
+              <td className="text-muted small">{product.Description}</td>
+              <td>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm" 
+                  onClick={() => fetchInventoryByProduct(product._id)}
+                >
+                  View Inventory
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  };
+
   // Render product inventory view
   const renderProductInventory = () => {
     if (isLoading) {
@@ -455,8 +555,8 @@ const InventoryManager = () => {
       );
     }
 
-    if (inventory.length === 0) {
-      return <Alert variant="info">No inventory records found</Alert>;
+    if (!Array.isArray(inventory) || inventory.length === 0) {
+      return <Alert variant="info">No inventory records found for this product</Alert>;
     }
 
     return (
@@ -472,22 +572,24 @@ const InventoryManager = () => {
           </tr>
         </thead>
         <tbody>
-          {inventory.map(item => (
-            <tr key={item._id}>
-              <td>
-                {findLocationDetails(item.status?.[0]?.locationId)?.path || 'Unknown Location'}
-              </td>
-              <td>{item.status?.[0]?.totalStock || 0}</td>
-              <td>{item.status?.[0]?.inUse || 0}</td>
-              <td>{item.status?.[0]?.reserved || 0}</td>
-              <td>{item.status?.[0]?.available || 0}</td>
-              <td>
-                {item.status?.[0]?.lastUpdated ? 
-                  new Date(item.status[0].lastUpdated).toLocaleString() : 
-                  'N/A'}
-              </td>
-            </tr>
-          ))}
+          {inventory.flatMap((item) => {
+            // Handle both array and object status
+            const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
+            return statuses.map((status, sIdx) => (
+              <tr key={generateUniqueKey(item._id, `status-${sIdx}`)}>
+                <td>{findLocationDetails(status?.locationId)?.path || 'Unknown Location'}</td>
+                <td>{status?.totalStock || 0}</td>
+                <td>{status?.inUse || 0}</td>
+                <td>{status?.reserved || 0}</td>
+                <td>{status?.available || 0}</td>
+                <td>
+                  {status?.lastUpdated ? 
+                    new Date(status.lastUpdated).toLocaleString() : 
+                    'N/A'}
+                </td>
+              </tr>
+            ));
+          })}
         </tbody>
       </Table>
     );
@@ -525,46 +627,7 @@ const InventoryManager = () => {
               </Spinner>
             </div>
           ) : (
-            <div className="table-responsive">
-              <Table striped hover className="mb-0">
-                <thead>
-                  <tr>
-                    <th>Item Code</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Total Stock</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map(product => (
-                    <tr key={product._id}>
-                      <td>
-                        <Badge bg="secondary">{product.ItemCode}</Badge>
-                      </td>
-                      <td>{product.ItemName}</td>
-                      <td>{product.Category}</td>
-                      <td>{product.AddQuntity || 0}</td>
-                      <td>
-                        <Badge bg={product.isActive ? 'success' : 'secondary'}>
-                          {product.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => fetchInventoryByProduct(product._id)}
-                        >
-                          View Inventory
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+            renderProductTable()
           )}
         </Card.Body>
       </Card>
@@ -604,7 +667,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Product</option>
                 {products.map(product => (
-                  <option key={product._id} value={product._id}>
+                  <option key={generateUniqueKey(product._id, 'add-prod')} value={product._id}>
                     {product.ItemName} ({product.ItemCode})
                   </option>
                 ))}
@@ -620,7 +683,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Location</option>
                 {getFlattenedLocations().map(location => (
-                  <option key={location.id} value={location.id}>
+                  <option key={generateUniqueKey(location.id, 'add-loc')} value={location.id}>
                     {location.path}
                   </option>
                 ))}
@@ -665,7 +728,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Product</option>
                 {products.map(product => (
-                  <option key={product._id} value={product._id}>
+                  <option key={generateUniqueKey(product._id, 'rem-prod')} value={product._id}>
                     {product.ItemName} ({product.ItemCode})
                   </option>
                 ))}
@@ -681,7 +744,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Location</option>
                 {getFlattenedLocations().map(location => (
-                  <option key={location.id} value={location.id}>
+                  <option key={generateUniqueKey(location.id, 'rem-loc')} value={location.id}>
                     {location.path}
                   </option>
                 ))}
@@ -726,7 +789,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Product</option>
                 {products.map(product => (
-                  <option key={product._id} value={product._id}>
+                  <option key={generateUniqueKey(product._id, 'trans-prod')} value={product._id}>
                     {product.ItemName} ({product.ItemCode})
                   </option>
                 ))}
@@ -742,7 +805,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Source Location</option>
                 {getFlattenedLocations().map(location => (
-                  <option key={location.id} value={location.id}>
+                  <option key={generateUniqueKey(location.id, 'from-loc')} value={location.id}>
                     {location.path}
                   </option>
                 ))}
@@ -758,7 +821,7 @@ const InventoryManager = () => {
               >
                 <option value="">Select Destination Location</option>
                 {getFlattenedLocations().map(location => (
-                  <option key={location.id} value={location.id}>
+                  <option key={generateUniqueKey(location.id, 'to-loc')} value={location.id}>
                     {location.path}
                   </option>
                 ))}
