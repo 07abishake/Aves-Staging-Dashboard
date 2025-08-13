@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Modal, Button, Form, Table, Card, Badge, Spinner, Alert, Offcanvas } from 'react-bootstrap';
+import { 
+  Modal, 
+  Button, 
+  Form, 
+  Table, 
+  Card, 
+  Badge, 
+  Spinner, 
+  Alert, 
+  Offcanvas, 
+  InputGroup, 
+  FormControl 
+} from 'react-bootstrap';
 
 const InventoryManager = () => {
   // State declarations
   const [inventory, setInventory] = useState([]);
   const [products, setProducts] = useState([]);
-  const [locations, setLocations] = useState([]);
+  const [allLocations, setAllLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -16,11 +28,8 @@ const InventoryManager = () => {
   const [showInventoryView, setShowInventoryView] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-
-  // Location hierarchy state
-  const [selectedPrimary, setSelectedPrimary] = useState('');
-  const [selectedSecondary, setSelectedSecondary] = useState('');
-  const [selectedTertiary, setSelectedTertiary] = useState('');
+  const [locationStock, setLocationStock] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Form states
   const [addStockForm, setAddStockForm] = useState({
@@ -42,7 +51,7 @@ const InventoryManager = () => {
     quantity: 0
   });
 
-  // Get token and redirect if not authenticated
+  // Get token
   const token = localStorage.getItem("access_token");
   
   // Fetch initial data
@@ -56,16 +65,16 @@ const InventoryManager = () => {
       setIsLoading(true);
       try {
         const [productsRes, locationsRes] = await Promise.all([
-          axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+          axios.get('http://localhost:6378/api/products', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+          axios.get('http://localhost:6378/api/locations', {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
         
         setProducts(productsRes.data?.Products || []);
-        setLocations(locationsRes.data?.Location || []);
+        setAllLocations(locationsRes.data?.Location || []);
         setError(null);
       } catch (err) {
         setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
@@ -88,95 +97,16 @@ const InventoryManager = () => {
     }
   }, [error, success]);
 
-  // Fetch inventory by location
-  const fetchInventoryByLocation = async (locationId) => {
-    setIsLoading(true);
-    try {
-      const { data } = await axios.get(
-        `https://api.avessecurity.com/api/inventory/GetInventoryLocation/${locationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      // Handle the response data
-      const inventoryData = data?.data || [];
-      
-      // Find the location details from the locations state
-      let locationDetails = null;
-      
-      // Check primary locations
-      const primaryLoc = locations.find(loc => loc._id === locationId);
-      if (primaryLoc) {
-        locationDetails = {
-          _id: primaryLoc._id,
-          name: primaryLoc.PrimaryLocation,
-          subLocation: primaryLoc.SubLocation,
-          level: 'primary'
-        };
-      } else {
-        // Check secondary locations
-        for (const primary of locations) {
-          const secondaryLoc = primary.SecondaryLocation?.find(sec => sec._id === locationId);
-          if (secondaryLoc) {
-            locationDetails = {
-              _id: secondaryLoc._id,
-              name: secondaryLoc.SecondaryLocation,
-              subLocation: secondaryLoc.SubLocation,
-              parentId: primary._id,
-              parentName: primary.PrimaryLocation,
-              level: 'secondary'
-            };
-            break;
-          }
-        }
-        
-        // Check tertiary locations if not found in secondary
-        if (!locationDetails) {
-          for (const primary of locations) {
-            for (const secondary of primary.SecondaryLocation || []) {
-              const tertiaryLoc = secondary.ThirdLocation?.find(ter => ter._id === locationId);
-              if (tertiaryLoc) {
-                locationDetails = {
-                  _id: tertiaryLoc._id,
-                  name: tertiaryLoc.ThirdLocation,
-                  subLocation: tertiaryLoc.SubLocation,
-                  parentId: secondary._id,
-                  parentName: secondary.SecondaryLocation,
-                  grandParentId: primary._id,
-                  grandParentName: primary.PrimaryLocation,
-                  level: 'tertiary'
-                };
-                break;
-              }
-            }
-          }
-        }
-      }
-      
-      setInventory(inventoryData);
-      setSelectedLocation(locationDetails);
-      setShowInventoryView(true);
-      setError(null);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch inventory');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   // Fetch inventory by product
   const fetchInventoryByProduct = async (productId) => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
-        `https://api.avessecurity.com/api/inventory/GetInventoryByProduct/${productId}`,
+        `http://localhost:6378/api/inventory/product/${productId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      const inventoryData = Array.isArray(data) ? data : 
-                         (Array.isArray(data?.data?.status) ? data.data.status : 
-                         (Array.isArray(data?.status) ? data.status : []));
-      
-      setInventory(inventoryData);
+      setInventory(data?.data || []);
       setCurrentItem(products.find(p => p._id === productId));
       setShowInventoryView(true);
       setError(null);
@@ -187,52 +117,92 @@ const InventoryManager = () => {
     }
   };
 
+  // Fetch stock for a specific location
+  const fetchLocationStock = async (locationId) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(
+        `http://localhost:6378/api/inventory/location/${locationId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setLocationStock(response.data?.data || []);
+      
+      // Find the location details
+      const locationDetails = findLocationDetails(locationId);
+      
+      setSelectedLocation(locationDetails);
+      setShowInventoryView(true);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch location stock');
+      setLocationStock([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Find location details by ID
+  const findLocationDetails = (locationId) => {
+    for (const primary of allLocations) {
+      if (primary._id === locationId) {
+        return {
+          id: primary._id,
+          name: primary.PrimaryLocation,
+          type: 'Primary',
+          path: primary.PrimaryLocation
+        };
+      }
+
+      for (const sub of primary.SubLocation || []) {
+        if (sub._id === locationId) {
+          return {
+            id: sub._id,
+            name: sub.PrimarySubLocation,
+            type: 'Secondary',
+            path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation}`
+          };
+        }
+
+        for (const secondary of sub.SecondaryLocation || []) {
+          if (secondary._id === locationId) {
+            return {
+              id: secondary._id,
+              name: secondary.SecondaryLocation,
+              type: 'Tertiary',
+              path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation}`
+            };
+          }
+
+          for (const tertiary of secondary.ThirdLocation || []) {
+            if (tertiary._id === locationId) {
+              return {
+                id: tertiary._id,
+                name: tertiary.ThirdLocation,
+                type: 'Quaternary',
+                path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${tertiary.ThirdLocation}`
+              };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   // Handle add stock
   const handleAddStock = async (e) => {
     e.preventDefault();
-    
-    let locationId = '';
-    if (selectedTertiary) {
-      locationId = selectedTertiary;
-    } else if (selectedSecondary) {
-      locationId = selectedSecondary;
-    } else if (selectedPrimary) {
-  const primaryLoc = locations.find(loc => loc._id === selectedPrimary);
-  locationId = primaryLoc?._id || '';
-}
-
-    if (!addStockForm.productId || !locationId || addStockForm.quantity <= 0) {
-      setError('Please fill all required fields with valid values');
-      return;
-    }
-
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/inventory/AddStock',
-        {
-          productId: addStockForm.productId,
-          locationId: locationId,
-          quantity: addStockForm.quantity
-        },
+        'http://localhost:6378/api/inventory/add-stock',
+        addStockForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock added successfully');
       setShowAddStock(false);
       setAddStockForm({ productId: '', locationId: '', quantity: 0 });
-      setSelectedPrimary('');
-      setSelectedSecondary('');
-      setSelectedTertiary('');
-      
-      if (currentItem) {
-        await fetchInventoryByProduct(currentItem._id);
-      } else if (selectedLocation) {
-        // Determine the level based on the selected location
-        let level = 'primary';
-        if (selectedLocation.SecondaryLocationId) level = 'secondary';
-        if (selectedLocation.ThirdLocation) level = 'tertiary';
-        await fetchInventoryByLocation(selectedLocation._id, level);
-      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add stock');
     } finally {
@@ -246,22 +216,13 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/inventory/RemoveStock',
+        'http://localhost:6378/api/inventory/remove-stock',
         removeStockForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock removed successfully');
       setShowRemoveStock(false);
       setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
-      
-      if (currentItem) {
-        await fetchInventoryByProduct(currentItem._id);
-      } else if (selectedLocation) {
-        let level = 'primary';
-        if (selectedLocation.SecondaryLocationId) level = 'secondary';
-        if (selectedLocation.ThirdLocation) level = 'tertiary';
-        await fetchInventoryByLocation(selectedLocation._id, level);
-      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove stock');
     } finally {
@@ -275,7 +236,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/inventory/Transfer',
+        'http://localhost:6378/api/inventory/transfer-stock',
         transferForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -287,15 +248,6 @@ const InventoryManager = () => {
         toLocationId: '',
         quantity: 0
       });
-      
-      if (currentItem) {
-        await fetchInventoryByProduct(currentItem._id);
-      } else if (selectedLocation) {
-        let level = 'primary';
-        if (selectedLocation.SecondaryLocationId) level = 'secondary';
-        if (selectedLocation.ThirdLocation) level = 'tertiary';
-        await fetchInventoryByLocation(selectedLocation._id, level);
-      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to transfer stock');
     } finally {
@@ -303,102 +255,177 @@ const InventoryManager = () => {
     }
   };
 
-const getAllLocations = () => {
-  const allLocations = [];
-  
-  locations.forEach(primary => {
-    // Add primary location
-    allLocations.push({
-      _id: primary._id,
-      name: primary.PrimaryLocation,
-      subLocation: primary.SubLocation?.[0]?.SubLocation || '',
-      level: 'primary'
-    });
+  // Flatten the location hierarchy for display and search
+  const getFlattenedLocations = () => {
+    const flattened = [];
     
-    // Add secondary and tertiary locations
-    primary.SubLocation?.forEach(sub => {
-      sub.SecondaryLocation?.forEach(secondary => {
-        // Add secondary location
-        allLocations.push({
-          _id: secondary._id,
-          name: secondary.SecondaryLocation,
-          subLocation: secondary.SubLocation,
-          parentId: primary._id,
-          parentName: primary.PrimaryLocation,
-          level: 'secondary'
+    allLocations.forEach(primary => {
+      // Add primary location
+      flattened.push({
+        id: primary._id,
+        name: primary.PrimaryLocation,
+        type: 'Primary',
+        path: primary.PrimaryLocation
+      });
+
+      // Add secondary locations
+      primary.SubLocation?.forEach(sub => {
+        flattened.push({
+          id: sub._id,
+          name: sub.PrimarySubLocation,
+          type: 'Secondary',
+          path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation}`
         });
-        
+
         // Add tertiary locations
-        secondary.ThirdLocation?.forEach(tertiary => {
-          allLocations.push({
-            _id: tertiary._id,
-            name: tertiary.ThirdLocation,
-            subLocation: tertiary.SubLocation,
-            parentId: secondary._id,
-            parentName: secondary.SecondaryLocation,
-            grandParentId: primary._id,
-            grandParentName: primary.PrimaryLocation,
-            level: 'tertiary'
+        sub.SecondaryLocation?.forEach(secondary => {
+          flattened.push({
+            id: secondary._id,
+            name: secondary.SecondaryLocation,
+            type: 'Tertiary',
+            path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation}`
+          });
+
+          // Add quaternary locations
+          secondary.ThirdLocation?.forEach(tertiary => {
+            flattened.push({
+              id: tertiary._id,
+              name: tertiary.ThirdLocation,
+              type: 'Quaternary',
+              path: `${primary.PrimaryLocation} > ${sub.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${tertiary.ThirdLocation}`
+            });
           });
         });
       });
     });
-  });
-  
-  return allLocations;
-};
 
-const renderLocationRows = () => {
-  return locations.map(primary => (
-    <tr key={`primary-${primary._id}`}>
-      {/* Primary Location */}
-      <td>{primary.PrimaryLocation}</td>
+    return flattened.filter(loc => 
+      loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      loc.path.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
 
-      {/* Sub Locations */}
-      <td>
-        {primary.SubLocation?.map((sub, i) => (
-          <div key={`sub-${i}`}>{sub.SubLocation}</div>
-        ))}
-      </td>
+  // Render the location hierarchy table
+  const renderLocationTable = () => {
+    const filteredLocations = getFlattenedLocations();
 
-      {/* Secondary Location count */}
-      <td>
-        {primary.SubLocation?.reduce(
-          (acc, sub) => acc + (sub.SecondaryLocation?.length || 0),
-          0
-        )}
-      </td>
+    if (filteredLocations.length === 0) {
+      return <Alert variant="info">No locations found matching your search</Alert>;
+    }
 
-      {/* Third Location count */}
-      <td>
-        {primary.SubLocation?.reduce(
-          (acc, sub) =>
-            acc +
-            (sub.SecondaryLocation?.reduce(
-              (secAcc, sec) => secAcc + (sec.ThirdLocation?.length || 0),
-              0
-            ) || 0),
-          0
-        )}
-      </td>
+    return (
+      <Table striped hover className="mb-0">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Location Name</th>
+            <th>Full Path</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredLocations.map(location => (
+            <tr key={location.id}>
+              <td>
+                <Badge bg={
+                  location.type === 'Primary' ? 'primary' : 
+                  location.type === 'Secondary' ? 'secondary' : 
+                  location.type === 'Tertiary' ? 'info' : 'warning'
+                }>
+                  {location.type}
+                </Badge>
+              </td>
+              <td>{location.name}</td>
+              <td>{location.path}</td>
+              <td>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm" 
+                  onClick={() => fetchLocationStock(location.id)}
+                >
+                  View Stock
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  };
 
-      {/* View Inventory button */}
-      <td>
-        <Button
-          variant="outline-primary"
-          size="sm"
-          onClick={() => fetchInventoryByLocation(primary._id)}
-        >
-          View Inventory
-        </Button>
-      </td>
-    </tr>
-  ));
-};
+  // Render the stock view for a selected location
+  const renderLocationStock = () => {
+    if (isLoading) {
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+        </div>
+      );
+    }
 
+    if (locationStock.length === 0) {
+      return <Alert variant="info">No stock found in this location</Alert>;
+    }
 
+    return (
+      <Table striped hover>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Item Code</th>
+            <th>Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {locationStock.map(item => (
+            <tr key={item._id}>
+              <td>{item.product?.ItemName || 'Unknown Product'}</td>
+              <td>{item.product?.ItemCode || 'N/A'}</td>
+              <td>{item.quantity}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  };
 
+  // Render product inventory view
+  const renderProductInventory = () => {
+    if (isLoading) {
+      return (
+        <div className="text-center py-5">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </Spinner>
+        </div>
+      );
+    }
 
+    if (inventory.length === 0) {
+      return <Alert variant="info">No inventory records found</Alert>;
+    }
+
+    return (
+      <Table striped hover>
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {inventory.map(item => (
+            <tr key={item._id}>
+              <td>{item.location?.path || 'Unknown Location'}</td>
+              <td>{item.quantity}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  };
 
   return (
     <div className="container-fluid py-4">
@@ -477,34 +504,21 @@ const renderLocationRows = () => {
       </Card>
 
       <Card className="shadow-sm">
-        <Card.Header className="bg-light">
-          <h5 className="mb-0">Locations Overview</h5>
+        <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">All Locations</h5>
+          <InputGroup style={{ width: '300px' }}>
+            <FormControl
+              placeholder="Search locations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button variant="outline-secondary" onClick={() => setSearchTerm('')}>
+              Clear
+            </Button>
+          </InputGroup>
         </Card.Header>
         <Card.Body>
-          {isLoading && locations.length === 0 ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </Spinner>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <Table striped hover className="mb-0">
-                <thead>
-                  <tr>
-                    <th>Primary Location</th>
-                    <th>Sub Location</th>
-                    <th>Secondary Location</th>
-                    <th>Tertiary Location</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {renderLocationRows()}
-                </tbody>
-              </Table>
-            </div>
-          )}
+          {renderLocationTable()}
         </Card.Body>
       </Card>
 
@@ -532,65 +546,20 @@ const renderLocationRows = () => {
             </Form.Group>
             
             <Form.Group className="mb-3">
-              <Form.Label>Primary Location</Form.Label>
+              <Form.Label>Location</Form.Label>
               <Form.Select
-                value={selectedPrimary}
-                onChange={(e) => setSelectedPrimary(e.target.value)}
+                value={addStockForm.locationId}
+                onChange={(e) => setAddStockForm({...addStockForm, locationId: e.target.value})}
                 required
               >
-                <option value="">Select Primary Location</option>
-                {locations.map(loc => (
-                 <option key={loc._id} value={loc._id}>
-  {loc.PrimaryLocation} - {loc.SubLocation}
-</option>
+                <option value="">Select Location</option>
+                {getFlattenedLocations().map(location => (
+                  <option key={location.id} value={location.id}>
+                    {location.path}
+                  </option>
                 ))}
               </Form.Select>
             </Form.Group>
-            
-           {selectedPrimary && (
-  <Form.Group className="mb-3">
-    <Form.Label>Secondary Location (Optional)</Form.Label>
-    <Form.Select
-      value={selectedSecondary}
-      onChange={(e) => setSelectedSecondary(e.target.value)}
-    >
-      <option value="">Select Secondary Location (Optional)</option>
-      {locations
-        .find(loc => loc._id === selectedPrimary)
-        ?.SubLocation?.flatMap(sub => 
-          sub.SecondaryLocation?.map(sec => (
-            <option key={sec._id} value={sec._id}>
-              {sec.SecondaryLocation} - {sec.SubLocation}
-            </option>
-          ))
-        )}
-    </Form.Select>
-  </Form.Group>
-)}
-
-{selectedSecondary && (
-  <Form.Group className="mb-3">
-    <Form.Label>Tertiary Location (Optional)</Form.Label>
-    <Form.Select
-      value={selectedTertiary}
-      onChange={(e) => setSelectedTertiary(e.target.value)}
-    >
-      <option value="">Select Tertiary Location (Optional)</option>
-      {locations
-        .find(loc => loc._id === selectedPrimary)
-        ?.SubLocation?.flatMap(sub =>
-          sub.SecondaryLocation
-            ?.find(sec => sec._id === selectedSecondary)
-            ?.ThirdLocation?.map(ter => (
-              <option key={ter._id} value={ter._id}>
-                {ter.ThirdLocation} - {ter.SubLocation}
-              </option>
-            ))
-        )}
-    </Form.Select>
-  </Form.Group>
-)}
-
             
             <Form.Group className="mb-3">
               <Form.Label>Quantity</Form.Label>
@@ -645,11 +614,9 @@ const renderLocationRows = () => {
                 required
               >
                 <option value="">Select Location</option>
-                {getAllLocations().map(location => (
-                  <option key={location._id} value={location._id}>
-                    {location.level === 'primary' && location.name}
-                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
-                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                {getFlattenedLocations().map(location => (
+                  <option key={location.id} value={location.id}>
+                    {location.path}
                   </option>
                 ))}
               </Form.Select>
@@ -708,11 +675,9 @@ const renderLocationRows = () => {
                 required
               >
                 <option value="">Select Source Location</option>
-                {getAllLocations().map(location => (
-                  <option key={location._id} value={location._id}>
-                    {location.level === 'primary' && location.name}
-                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
-                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                {getFlattenedLocations().map(location => (
+                  <option key={location.id} value={location.id}>
+                    {location.path}
                   </option>
                 ))}
               </Form.Select>
@@ -726,11 +691,9 @@ const renderLocationRows = () => {
                 required
               >
                 <option value="">Select Destination Location</option>
-                {getAllLocations().map(location => (
-                  <option key={location._id} value={location._id}>
-                    {location.level === 'primary' && location.name}
-                    {location.level === 'secondary' && `${location.parentName} > ${location.name}`}
-                    {location.level === 'tertiary' && `${location.grandParentName} > ${location.parentName} > ${location.name}`}
+                {getFlattenedLocations().map(location => (
+                  <option key={location.id} value={location.id}>
+                    {location.path}
                   </option>
                 ))}
               </Form.Select>
@@ -759,85 +722,29 @@ const renderLocationRows = () => {
       </Modal>
 
       {/* Inventory View Offcanvas */}
-      <Offcanvas show={showInventoryView} onHide={() => setShowInventoryView(false)} placement="end" style={{ width: '600px' }}>
+      <Offcanvas 
+        show={showInventoryView} 
+        onHide={() => setShowInventoryView(false)} 
+        placement="end" 
+        style={{ width: '600px' }}
+      >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>
-            Inventory Details
+            {currentItem ? 'Product Inventory' : 'Location Stock'}
             {currentItem && (
               <span className="ms-2">
                 <Badge bg="secondary">{currentItem.ItemCode}</Badge>
               </span>
             )}
             {selectedLocation && (
-              <span className="ms-2">
-                <Badge bg="info">
-                  {selectedLocation.grandParentName && `${selectedLocation.grandParentName} > `}
-                  {selectedLocation.parentName && `${selectedLocation.parentName} > `}
-                  {selectedLocation.name}
-                </Badge>
-              </span>
+              <Badge bg="info" className="ms-2">
+                {selectedLocation.path}
+              </Badge>
             )}
           </Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          {isLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </Spinner>
-            </div>
-          ) : (
-            <>
-              {currentItem && (
-                <div className="mb-4">
-                  <h5>{currentItem.ItemName}</h5>
-                  <p className="text-muted">{currentItem.Description || 'No description available'}</p>
-                  <div className="d-flex gap-2 mb-3">
-                    <Badge bg="info">Category: {currentItem.Category}</Badge>
-                    <Badge bg="info">Type: {currentItem.Type}</Badge>
-                    <Badge bg={currentItem.isActive ? 'success' : 'secondary'}>
-                      {currentItem.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </div>
-              )}
-              
-              {selectedLocation && (
-                <div className="mb-4">
-                  <h5>Location Details</h5>
-                  <p className="text-muted">
-                    {selectedLocation.grandParentName && `${selectedLocation.grandParentName} > `}
-                    {selectedLocation.parentName && `${selectedLocation.parentName} > `}
-                    {selectedLocation.name}
-                  </p>
-                  <p className="text-muted">Sub Location: {selectedLocation.subLocation}</p>
-                  <p className="text-muted">Level: {selectedLocation.level}</p>
-                </div>
-              )}
-              
-              <h5 className="mb-3">Stock Details</h5>
-              {inventory.length > 0 ? (
-                <div className="table-responsive">
-                <Table striped hover className="mb-0">
-  <thead>
-    <tr>
-      <th>Primary Location</th>
-      <th>Sub Location</th>
-      <th>Secondary Location</th>
-      <th>Tertiary Location</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {renderLocationRows()}
-  </tbody>
-</Table>
-                </div>
-              ) : (
-                <div className="alert alert-info">No inventory records found</div>
-              )}
-            </>
-          )}
+          {currentItem ? renderProductInventory() : renderLocationStock()}
         </Offcanvas.Body>
       </Offcanvas>
     </div>
