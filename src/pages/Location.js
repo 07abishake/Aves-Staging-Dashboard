@@ -897,80 +897,88 @@ function LocationManager() {
                 </div>
             </div>
             {/* View Location Off-Canvas */}
-            <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} 
-                 style={{ visibility: showViewCanvas ? 'visible' : 'hidden', width: '500px' }}>
-                <div className="offcanvas-header text-black">
-                    <h5 className="offcanvas-title">Location Details</h5>
-                    <button type="button" 
-                            className="btn-close" 
-                            onClick={closeViewCanvas} 
-                            aria-label="Close"></button>
+          {/* View Location Off-Canvas */}
+<div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} 
+     style={{ visibility: showViewCanvas ? 'visible' : 'hidden', width: '500px' }}>
+    <div className="offcanvas-header text-black">
+        <h5 className="offcanvas-title">Location Details</h5>
+        <button type="button" 
+                className="btn-close" 
+                onClick={closeViewCanvas} 
+                aria-label="Close"></button>
+    </div>
+    <div className="offcanvas-body">
+        {selectedLocation && (
+            <>
+                <div className="mb-4">
+                    <h6 className="text-muted">Primary Location</h6>
+                    <h4>{selectedLocation.PrimaryLocation}</h4>
                 </div>
-                <div className="offcanvas-body">
-                    {selectedLocation && (
-                        <>
-                            <div className="mb-4">
-                                <h6 className="text-muted">Primary Location</h6>
-                                <h4>{selectedLocation.PrimaryLocation}</h4>
-                            </div>
 
-                            {Array.isArray(selectedLocation.SubLocation) && selectedLocation.SubLocation.map((subLoc, subIdx) => (
-                                <div key={subIdx} className="mb-4">
-                                    <h6 className="text-muted">Primary Sub Location</h6>
-                                    <p>{subLoc.PrimarySubLocation}</p>
+                {Array.isArray(selectedLocation.SubLocation) && selectedLocation.SubLocation.map((subLoc, subIdx) => (
+                    <div key={subIdx} className="mb-4">
+                        <h6 className="text-muted">Primary Sub Location</h6>
+                        <p>{subLoc.PrimarySubLocation}</p>
 
-                                    {Array.isArray(subLoc.SecondaryLocation) && subLoc.SecondaryLocation.length > 0 && (
-                                        <div className="mt-3">
-                                            <h6 className="text-muted mb-3">Secondary Locations</h6>
-                                            <div className="accordion" id={`secondaryAccordion-${subIdx}`}>
-                                                {subLoc.SecondaryLocation.map((sec, secIdx) => (
-                                                    <div key={secIdx} className="accordion-item mb-2">
-                                                        <h2 className="accordion-header">
-                                                            <button className="accordion-button collapsed" 
-                                                                    type="button" 
-                                                                    data-bs-toggle="collapse" 
-                                                                    data-bs-target={`#collapseSec-${subIdx}-${secIdx}`}>
-                                                                {sec.SecondaryLocation || 'Unnamed Secondary Location'}
-                                                            </button>
-                                                        </h2>
-                                                        <div id={`collapseSec-${subIdx}-${secIdx}`} 
-                                                             className="accordion-collapse collapse" 
-                                                             data-bs-parent={`#secondaryAccordion-${subIdx}`}>
-                                                            <div className="accordion-body">
-                                                                {Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 && (
-                                                                    <p><strong>Secondary SubLocation:</strong> {sec.SecondarySubLocation[0].SecondarySubLocation}</p>
-                                                                )}
-                                                                
-                                                                {Array.isArray(sec.ThirdLocation) && sec.ThirdLocation.length > 0 && (
-                                                                    <>
-                                                                        <h6 className="mt-3">Third Locations</h6>
-                                                                        <ul className="list-group list-group-flush">
-                                                                            {sec.ThirdLocation.map((third, thirdIdx) => (
-                                                                                <li key={thirdIdx} className="list-group-item">
-                                                                                    {third.ThirdLocation && (
-                                                                                        <p><strong>Location:</strong> {third.ThirdLocation}</p>
-                                                                                    )}
-                                                                                    {third.ThirdSubLocation && (
-                                                                                        <p><strong>SubLocation:</strong> {third.ThirdSubLocation}</p>
-                                                                                    )}
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </>
-                                                                )}
-                                                            </div>
+                        {Array.isArray(subLoc.SecondaryLocation) && subLoc.SecondaryLocation.length > 0 && (
+                            <div className="mt-3">
+                                <h6 className="text-muted mb-3">Secondary Locations</h6>
+                                <div className="accordion" id={`secondaryAccordion-${subIdx}`}>
+                                    {subLoc.SecondaryLocation.map((sec, secIdx) => (
+                                        <div key={secIdx} className="accordion-item mb-2">
+                                            <h2 className="accordion-header">
+                                                <button className="accordion-button collapsed" 
+                                                        type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target={`#collapseSec-${subIdx}-${secIdx}`}>
+                                                    {sec.SecondaryLocation || 'Unnamed Secondary Location'}
+                                                </button>
+                                            </h2>
+                                            <div id={`collapseSec-${subIdx}-${secIdx}`} 
+                                                 className="accordion-collapse collapse" 
+                                                 data-bs-parent={`#secondaryAccordion-${subIdx}`}>
+                                                <div className="accordion-body">
+                                                    {/* Show all Secondary Sub Locations */}
+                                                    {Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 && (
+                                                        <div className="mb-3">
+                                                            <h6 className="text-muted">Secondary Sub Locations</h6>
+                                                            <ul className="list-group list-group-flush">
+                                                                {sec.SecondarySubLocation.map((subSec, subSecIdx) => (
+                                                                    <li key={subSecIdx} className="list-group-item">
+                                                                        <p><strong>Sub Location:</strong> {subSec.SecondarySubLocation}</p>
+                                                                        
+                                                                        {/* Show all Third Locations under this Secondary Sub Location */}
+                                                                        {Array.isArray(subSec.ThirdLocation) && subSec.ThirdLocation.length > 0 && (
+                                                                            <div className="mt-2">
+                                                                                <h6 className="text-muted">Third Locations</h6>
+                                                                                <ul className="list-group list-group-flush">
+                                                                                    {subSec.ThirdLocation.map((third, thirdIdx) => (
+                                                                                        <li key={thirdIdx} className="list-group-item">
+                                                                                            <p><strong>Location:</strong> {third.ThirdLocation}</p>
+                                                                                            <p><strong>Sub Location:</strong> {third.ThirdSubLocation}</p>
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                        )}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
-                            ))}
-                        </>
-                    )}
-                </div>
-            </div>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </>
+        )}
+    </div>
+</div>
         </div>
     );
 }
