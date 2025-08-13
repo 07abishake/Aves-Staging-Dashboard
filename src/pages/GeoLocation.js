@@ -497,74 +497,68 @@ const fetchLocationSuggestions = debounce(async (query) => {
     );
     
     if (response.data && response.data.Location) {
-      const suggestions = [];
+      const suggestions = new Set(); // Using Set to avoid duplicates
       
       // Process each location in the response
       response.data.Location.forEach(location => {
         if (!location.PrimaryLocation) return;
         
-        // Helper function to recursively process sublocations
-        const processLocation = (currentPath, subLocations, level) => {
-          if (!subLocations || subLocations.length === 0) return;
-          
-          subLocations.forEach(subLoc => {
-            // Determine the current level's property names
-            let locationName, subLocations;
-            
-            switch(level) {
-              case 1: // SubLocation level
-                locationName = subLoc.PrimarySubLocation;
-                subLocations = subLoc.SecondaryLocation;
-                break;
-              case 2: // SecondaryLocation level
-                locationName = subLoc.SecondaryLocation;
-                subLocations = subLoc.ThirdLocation;
-                break;
-              case 3: // ThirdLocation level
-                locationName = subLoc.ThirdLocation;
-                subLocations = null; // No deeper levels in the sample
-                break;
-              default:
-                return;
+        // Add primary location if it matches
+        if (location.PrimaryLocation.toLowerCase().includes(query.toLowerCase())) {
+          suggestions.add(location.PrimaryLocation);
+        }
+
+        // Process sublocations
+        if (location.SubLocation && location.SubLocation.length > 0) {
+          location.SubLocation.forEach(subLoc => {
+            // State level (PrimarySubLocation)
+            const state = subLoc.PrimarySubLocation;
+            if (state && state.toLowerCase().includes(query.toLowerCase())) {
+              suggestions.add(`${location.PrimaryLocation}, ${state}`);
             }
-            
-            if (!locationName) return;
-            
-            // Add the current path to suggestions
-            const newPath = currentPath ? `${currentPath},${locationName}` : locationName;
-            suggestions.push(newPath);
-            
-            // Process deeper levels if they exist
-            if (subLocations && subLocations.length > 0) {
-              processLocation(newPath, subLocations, level + 1);
-            }
-            
-            // Handle any sublocation properties (like SecondarySubLocation, ThirdSubLocation)
-            const subLocationProperty = 
-              level === 2 ? subLoc.SecondarySubLocation : 
-              level === 3 ? subLoc.ThirdSubLocation : 
-              null;
-            
-            if (subLocationProperty) {
-              suggestions.push(`${newPath},${subLocationProperty}`);
+
+            // Process cities (SecondaryLocation)
+            if (subLoc.SecondaryLocation && subLoc.SecondaryLocation.length > 0) {
+              subLoc.SecondaryLocation.forEach(city => {
+                const cityName = city.SecondaryLocation;
+                if (cityName && cityName.toLowerCase().includes(query.toLowerCase())) {
+                  suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}`);
+                }
+
+                // Process areas (SecondarySubLocation)
+                if (city.SecondarySubLocation && city.SecondarySubLocation.length > 0) {
+                  city.SecondarySubLocation.forEach(area => {
+                    const areaName = area.SecondarySubLocation;
+                    if (areaName && areaName.toLowerCase().includes(query.toLowerCase())) {
+                      suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}`);
+                    }
+
+                    // Process buildings (ThirdLocation)
+                    if (area.ThirdLocation && area.ThirdLocation.length > 0) {
+                      area.ThirdLocation.forEach(building => {
+                        const buildingName = building.ThirdLocation;
+                        if (buildingName && buildingName.toLowerCase().includes(query.toLowerCase())) {
+                          suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}`);
+                        }
+
+                        // Process floors (ThirdSubLocation)
+                        const floorName = building.ThirdSubLocation;
+                        if (floorName && floorName.toLowerCase().includes(query.toLowerCase())) {
+                          suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}, ${floorName}`);
+                        }
+                      });
+                    }
+                  });
+                }
+              });
             }
           });
-        };
-        
-        // Start processing with the primary location
-        suggestions.push(location.PrimaryLocation);
-        processLocation(location.PrimaryLocation, location.SubLocation, 1);
+        }
       });
       
-      // Filter suggestions based on query and remove duplicates
-      const filtered = suggestions
-        .filter(suggestion => 
-          suggestion.toLowerCase().includes(query.toLowerCase())
-        )
-        .filter((value, index, self) => self.indexOf(value) === index)
-        .sort(); // Optional: sort alphabetically
-      
-      setLocationSuggestions(filtered);
+      // Convert Set to array and sort
+      const sortedSuggestions = Array.from(suggestions).sort();
+      setLocationSuggestions(sortedSuggestions);
       setShowLocationSuggestions(true);
     }
   } catch (error) {
@@ -706,23 +700,35 @@ const fetchLocationSuggestions = debounce(async (query) => {
       }
     }}
     onBlur={() => {
-      setTimeout(() => setShowLocationSuggestions(false), 100);
+      setTimeout(() => setShowLocationSuggestions(false), 200);
     }}
+    placeholder="Start typing to see location suggestions"
   />
   {showLocationSuggestions && locationSuggestions.length > 0 && (
     <div 
       className="list-group position-absolute w-100" 
-      style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
+      style={{ 
+        zIndex: 1000, 
+        maxHeight: '300px', 
+        overflowY: 'auto',
+        border: '1px solid #ddd',
+        borderRadius: '0 0 4px 4px'
+      }}
     >
       {locationSuggestions.map((suggestion, index) => (
         <button
           key={index}
           type="button"
-          className="list-group-item list-group-item-action"
+          className="list-group-item list-group-item-action text-start"
           onMouseDown={(e) => {
             e.preventDefault(); // Prevent input blur before click
             setGeoFenceName(suggestion);
             setShowLocationSuggestions(false);
+          }}
+          style={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
         >
           {suggestion}
