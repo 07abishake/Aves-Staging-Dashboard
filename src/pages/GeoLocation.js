@@ -638,7 +638,7 @@ const fetchLocationSuggestions = debounce(async (query) => {
       </div>
 
       <div className="table-responsive mb-5">
-        <h5>Assigned GeoFences</h5>
+        <h5>Assigned GeoFence</h5>
         <table className="table table-striped table-hover">
           <thead>
             <tr>
