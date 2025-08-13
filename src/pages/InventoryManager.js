@@ -65,10 +65,10 @@ const InventoryManager = () => {
       setIsLoading(true);
       try {
         const [productsRes, locationsRes] = await Promise.all([
-          axios.get('http://localhost:6378/api/products', {
+          axios.get('https://api.avessecurity.com/api/AddProducts/products', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get('http://localhost:6378/api/locations', {
+          axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
@@ -102,7 +102,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       const { data } = await axios.get(
-        `http://localhost:6378/api/inventory/product/${productId}`,
+        `https://api.avessecurity.com/api/inventory/product/${productId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -122,7 +122,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:6378/api/inventory/location/${locationId}`,
+        `https://api.avessecurity.com/api/inventory/location/${locationId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -196,13 +196,18 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://localhost:6378/api/inventory/add-stock',
+        'https://api.avessecurity.com/api/inventory/add-stock',
         addStockForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock added successfully');
       setShowAddStock(false);
       setAddStockForm({ productId: '', locationId: '', quantity: 0 });
+      
+      // Refresh the location stock if we're viewing that location
+      if (selectedLocation && addStockForm.locationId === selectedLocation.id) {
+        fetchLocationStock(selectedLocation.id);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add stock');
     } finally {
@@ -216,13 +221,18 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://localhost:6378/api/inventory/remove-stock',
+        'https://api.avessecurity.com/api/inventory/remove-stock',
         removeStockForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Stock removed successfully');
       setShowRemoveStock(false);
       setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
+      
+      // Refresh the location stock if we're viewing that location
+      if (selectedLocation && removeStockForm.locationId === selectedLocation.id) {
+        fetchLocationStock(selectedLocation.id);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove stock');
     } finally {
@@ -236,7 +246,7 @@ const InventoryManager = () => {
     setIsLoading(true);
     try {
       await axios.post(
-        'http://localhost:6378/api/inventory/transfer-stock',
+        'https://api.avessecurity.com/api/inventory/transfer-stock',
         transferForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -248,6 +258,14 @@ const InventoryManager = () => {
         toLocationId: '',
         quantity: 0
       });
+      
+      // Refresh the location stock if we're viewing either location
+      if (selectedLocation) {
+        if (transferForm.fromLocationId === selectedLocation.id || 
+            transferForm.toLocationId === selectedLocation.id) {
+          fetchLocationStock(selectedLocation.id);
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to transfer stock');
     } finally {
@@ -370,20 +388,39 @@ const InventoryManager = () => {
     }
 
     return (
-      <Table striped hover>
+      <Table striped hover responsive>
         <thead>
           <tr>
             <th>Product</th>
+            <th>Category</th>
+            <th>Type</th>
             <th>Item Code</th>
-            <th>Quantity</th>
+            <th>Total Stock</th>
+            <th>In Use</th>
+            <th>Reserved</th>
+            <th>Available</th>
+            <th>Last Updated</th>
           </tr>
         </thead>
         <tbody>
           {locationStock.map(item => (
             <tr key={item._id}>
-              <td>{item.product?.ItemName || 'Unknown Product'}</td>
+              <td>
+                <strong>{item.product?.ItemName || 'Unknown'}</strong>
+                <div className="text-muted small">{item.product?.Description || ''}</div>
+              </td>
+              <td>{item.product?.Category || 'N/A'}</td>
+              <td>{item.product?.Type || 'N/A'}</td>
               <td>{item.product?.ItemCode || 'N/A'}</td>
-              <td>{item.quantity}</td>
+              <td>{item.status?.[0]?.totalStock || 0}</td>
+              <td>{item.status?.[0]?.inUse || 0}</td>
+              <td>{item.status?.[0]?.reserved || 0}</td>
+              <td>{item.status?.[0]?.available || 0}</td>
+              <td>
+                {item.status?.[0]?.lastUpdated ? 
+                  new Date(item.status[0].lastUpdated).toLocaleString() : 
+                  'N/A'}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -408,18 +445,32 @@ const InventoryManager = () => {
     }
 
     return (
-      <Table striped hover>
+      <Table striped hover responsive>
         <thead>
           <tr>
             <th>Location</th>
-            <th>Quantity</th>
+            <th>Total Stock</th>
+            <th>In Use</th>
+            <th>Reserved</th>
+            <th>Available</th>
+            <th>Last Updated</th>
           </tr>
         </thead>
         <tbody>
           {inventory.map(item => (
             <tr key={item._id}>
-              <td>{item.location?.path || 'Unknown Location'}</td>
-              <td>{item.quantity}</td>
+              <td>
+                {findLocationDetails(item.status?.[0]?.locationId)?.path || 'Unknown Location'}
+              </td>
+              <td>{item.status?.[0]?.totalStock || 0}</td>
+              <td>{item.status?.[0]?.inUse || 0}</td>
+              <td>{item.status?.[0]?.reserved || 0}</td>
+              <td>{item.status?.[0]?.available || 0}</td>
+              <td>
+                {item.status?.[0]?.lastUpdated ? 
+                  new Date(item.status[0].lastUpdated).toLocaleString() : 
+                  'N/A'}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -726,7 +777,7 @@ const InventoryManager = () => {
         show={showInventoryView} 
         onHide={() => setShowInventoryView(false)} 
         placement="end" 
-        style={{ width: '600px' }}
+        style={{ width: '800px' }}
       >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>

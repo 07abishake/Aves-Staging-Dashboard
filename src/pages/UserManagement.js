@@ -143,7 +143,8 @@ const getLocationOptions = () => {
     // Add primary location
     options.push({
       value: location.PrimaryLocation,
-      label: location.PrimaryLocation
+      label: location.PrimaryLocation,
+      level: 0
     });
 
     // Process SubLocations
@@ -155,7 +156,8 @@ const getLocationOptions = () => {
         const subLocPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation}`;
         options.push({
           value: subLocPath,
-          label: subLocPath
+          label: subLocPath,
+          level: 1
         });
 
         // Process Secondary Locations
@@ -167,36 +169,45 @@ const getLocationOptions = () => {
             const secondaryPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation}`;
             options.push({
               value: secondaryPath,
-              label: secondaryPath
+              label: secondaryPath,
+              level: 2
             });
 
-            // Add Secondary SubLocation if exists
-            if (secondary.SecondarySubLocation) {
-              const secondarySubPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${secondary.SecondarySubLocation}`;
-              options.push({
-                value: secondarySubPath,
-                label: secondarySubPath
-              });
-            }
-
-            // Process Third Locations
-            if (secondary.ThirdLocation?.length > 0) {
-              secondary.ThirdLocation.forEach(third => {
-                if (!third.ThirdLocation) return;
-
-                // Add Third Location (level 3)
-                const thirdPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
+            // Process Secondary SubLocations
+            if (secondary.SecondarySubLocation?.length > 0) {
+              secondary.SecondarySubLocation.forEach(secondarySub => {
+                if (!secondarySub.SecondarySubLocation) return;
+                
+                // Add Secondary SubLocation (level 3)
+                const secondarySubPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`;
                 options.push({
-                  value: thirdPath,
-                  label: thirdPath
+                  value: secondarySubPath,
+                  label: secondarySubPath,
+                  level: 3
                 });
 
-                // Add Third SubLocation if exists (level 4)
-                if (third.ThirdSubLocation) {
-                  const thirdSubPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${third.ThirdLocation},${third.ThirdSubLocation}`;
-                  options.push({
-                    value: thirdSubPath,
-                    label: thirdSubPath
+                // Process Third Locations
+                if (secondarySub.ThirdLocation?.length > 0) {
+                  secondarySub.ThirdLocation.forEach(third => {
+                    if (!third.ThirdLocation) return;
+
+                    // Add Third Location (level 4)
+                    const thirdPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation}`;
+                    options.push({
+                      value: thirdPath,
+                      label: thirdPath,
+                      level: 4
+                    });
+
+                    // Add Third SubLocation if exists (level 5)
+                    if (third.ThirdSubLocation) {
+                      const thirdSubPath = `${location.PrimaryLocation},${subLoc.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation},${third.ThirdSubLocation}`;
+                      options.push({
+                        value: thirdSubPath,
+                        label: thirdSubPath,
+                        level: 5
+                      });
+                    }
                   });
                 }
               });
@@ -208,7 +219,7 @@ const getLocationOptions = () => {
   });
 
   return options;
-};
+}
   // Fetch all users
   const fetchAllUsers = async () => {
     try {
@@ -999,6 +1010,11 @@ const fetchLocations = async () => {
   placeholder="Select location"
   isClearable
   className="w-100"
+  formatOptionLabel={(option) => (
+    <div style={{ paddingLeft: `${option.level * 10}px` }}>
+      {option.label}
+    </div>
+  )}
 />
 
                 </div>
