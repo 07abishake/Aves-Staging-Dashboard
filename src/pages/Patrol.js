@@ -94,9 +94,6 @@ function Patrol() {
     // State for patrol creation
     const [patrolName, setPatrolName] = useState('');
     const [locations, setLocations] = useState([]);
-    const [selectedPrimary, setSelectedPrimary] = useState('');
-    const [selectedSecondary, setSelectedSecondary] = useState('');
-    const [selectedThird, setSelectedThird] = useState('');
     const [checkpoints, setCheckpoints] = useState([]);
     const [currentCheckpoint, setCurrentCheckpoint] = useState(null);
     const [waypointMode, setWaypointMode] = useState(false);
@@ -138,6 +135,22 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState({
     
     // Loading state
     const [isLoading, setIsLoading] = useState(false);
+
+
+    //Location 
+const [primaryLocations, setPrimaryLocations] = useState([]);
+const [primarySubLocations, setPrimarySubLocations] = useState([]);
+const [secondaryLocations, setSecondaryLocations] = useState([]);
+const [secondarySubLocations, setSecondarySubLocations] = useState([]);
+const [thirdLocations, setThirdLocations] = useState([]);
+const [thirdSubLocations, setThirdSubLocations] = useState([]);
+
+const [selectedPrimary, setSelectedPrimary] = useState('');
+const [selectedPrimarySub, setSelectedPrimarySub] = useState('');
+const [selectedSecondary, setSelectedSecondary] = useState('');
+const [selectedSecondarySub, setSelectedSecondarySub] = useState('');
+const [selectedThird, setSelectedThird] = useState('');
+const [selectedThirdSub, setSelectedThirdSub] = useState('');
     
     const token = localStorage.getItem("access_token");
 
@@ -185,16 +198,95 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState({
         }
     };
 
-    const fetchLocations = async () => {
-        try {
-            const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setLocations(res.data.Location || []);
-        } catch (err) {
-            console.error('Error fetching locations:', err);
+   const fetchLocations = async () => {
+    try {
+        const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        setLocations(res.data.Location || []);
+        
+        // Extract unique primary locations
+        const primaries = res.data.Location.map(loc => ({
+            _id: loc._id,
+            name: loc.PrimaryLocation
+        }));
+        setPrimaryLocations(primaries);
+    } catch (err) {
+        console.error('Error fetching locations:', err);
+    }
+};
+
+// Add these useEffect hooks to handle the hierarchical selections
+useEffect(() => {
+    if (selectedPrimary) {
+        const primary = locations.find(loc => loc._id === selectedPrimary);
+        if (primary && primary.SubLocation) {
+            const primarySubs = primary.SubLocation.map(sub => ({
+                _id: sub._id,
+                name: sub.PrimarySubLocation
+            }));
+            setPrimarySubLocations(primarySubs);
+        } else {
+            setPrimarySubLocations([]);
         }
-    };
+        // Reset child selections when primary changes
+        setSelectedPrimarySub('');
+        setSelectedSecondary('');
+        setSelectedSecondarySub('');
+        setSelectedThird('');
+        setSelectedThirdSub('');
+    }
+}, [selectedPrimary, locations]);
+
+useEffect(() => {
+    if (selectedPrimarySub && selectedPrimary) {
+        const primary = locations.find(loc => loc._id === selectedPrimary);
+        if (primary) {
+            const subLocation = primary.SubLocation.find(sub => sub._id === selectedPrimarySub);
+            if (subLocation && subLocation.SecondaryLocation) {
+                const secondaries = subLocation.SecondaryLocation.map(sec => ({
+                    _id: sec._id,
+                    name: sec.SecondaryLocation,
+                    subName: sec.SecondarySubLocation
+                }));
+                setSecondaryLocations(secondaries);
+            } else {
+                setSecondaryLocations([]);
+            }
+        }
+        // Reset child selections when primary sub changes
+        setSelectedSecondary('');
+        setSelectedSecondarySub('');
+        setSelectedThird('');
+        setSelectedThirdSub('');
+    }
+}, [selectedPrimarySub, selectedPrimary, locations]);
+
+useEffect(() => {
+    if (selectedSecondary && selectedPrimarySub && selectedPrimary) {
+        const primary = locations.find(loc => loc._id === selectedPrimary);
+        if (primary) {
+            const subLocation = primary.SubLocation.find(sub => sub._id === selectedPrimarySub);
+            if (subLocation) {
+                const secondary = subLocation.SecondaryLocation.find(sec => sec._id === selectedSecondary);
+                if (secondary && secondary.ThirdLocation) {
+                    const thirds = secondary.ThirdLocation.map(third => ({
+                        _id: third._id,
+                        name: third.ThirdLocation,
+                        subName: third.ThirdSubLocation
+                    }));
+                    setThirdLocations(thirds);
+                } else {
+                    setThirdLocations([]);
+                }
+            }
+        }
+        // Reset child selections when secondary changes
+        setSelectedThird('');
+        setSelectedThirdSub('');
+    }
+}, [selectedSecondary, selectedPrimarySub, selectedPrimary, locations]);
+
 
     const fetchPatrols = async () => {
         try {
@@ -545,7 +637,7 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
 
     const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
     const getSelectedSecondary = () => getSelectedPrimary()?.SecondaryLocation.find(sec => sec._id === selectedSecondary);
-    const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
+    // const thirdLocations = getSelectedSecondary()?.ThirdLocation || [];
 
     const generateLocationSuggestions = (type, value, parentLocations = {}) => {
   if (!value) return [];
@@ -595,10 +687,20 @@ const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
   return Array.from(allSuggestions);
 };
 
+// Updated location dropdown handlers
 const handlePrimaryLocationChange = (value) => {
   setSelectedPrimary(value);
-  const newSuggestions = generateLocationSuggestions('primary', value);
-  setLocationSuggestions(prev => ({ ...prev, primary: newSuggestions }));
+  
+  // Filter primary locations that match the input
+  const newSuggestions = locations
+    .filter(loc => loc.PrimaryLocation.toLowerCase().includes(value.toLowerCase()))
+    .map(loc => loc.PrimaryLocation);
+  
+  setLocationSuggestions(prev => ({ 
+    ...prev, 
+    primary: [...new Set(newSuggestions)] // Remove duplicates
+  }));
+  
   setShowLocationSuggestions(prev => ({ ...prev, primary: value.length > 0 }));
   
   // Reset child selections when primary changes
@@ -610,11 +712,6 @@ const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
   setSelectedPrimary(selectedPrimaryLoc);
   setShowLocationSuggestions(prev => ({ ...prev, primary: false }));
   
-  // Find matching location to get its sublocations
-  const matchedLocation = locations.find(
-    loc => loc.PrimaryLocation.toLowerCase() === selectedPrimaryLoc.toLowerCase()
-  );
-  
   // Reset child selections
   setSelectedSecondary('');
   setSelectedThird('');
@@ -622,10 +719,25 @@ const handlePrimaryLocationSelect = (selectedPrimaryLoc) => {
 
 const handleSecondaryLocationChange = (value) => {
   setSelectedSecondary(value);
-  const newSuggestions = generateLocationSuggestions('secondary', value, { 
-    primary: selectedPrimary 
-  });
-  setLocationSuggestions(prev => ({ ...prev, secondary: newSuggestions }));
+  
+  // Find the selected primary location
+  const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
+  if (!primaryLoc) return;
+  
+  // Get all secondary locations under the primary
+  const secondaryLocs = primaryLoc.SubLocation.flatMap(sub => 
+    sub.SecondaryLocation.map(sec => sec.SecondaryLocation)
+  );
+  
+  // Filter matching secondary locations
+  const newSuggestions = secondaryLocs
+    .filter(sec => sec && sec.toLowerCase().includes(value.toLowerCase()));
+  
+  setLocationSuggestions(prev => ({ 
+    ...prev, 
+    secondary: [...new Set(newSuggestions)] // Remove duplicates
+  }));
+  
   setShowLocationSuggestions(prev => ({ ...prev, secondary: value.length > 0 }));
   
   // Reset child selection when secondary changes
@@ -642,11 +754,32 @@ const handleSecondaryLocationSelect = (selectedSecondaryLoc) => {
 
 const handleThirdLocationChange = (value) => {
   setSelectedThird(value);
-  const newSuggestions = generateLocationSuggestions('third', value, { 
-    primary: selectedPrimary,
-    secondary: selectedSecondary 
-  });
-  setLocationSuggestions(prev => ({ ...prev, third: newSuggestions }));
+  
+  // Find the selected primary location
+  const primaryLoc = locations.find(loc => loc.PrimaryLocation === selectedPrimary);
+  if (!primaryLoc) return;
+  
+  // Find the selected secondary location
+  let thirdLocs = [];
+  for (const sub of primaryLoc.SubLocation) {
+    for (const sec of sub.SecondaryLocation) {
+      if (sec.SecondaryLocation === selectedSecondary) {
+        thirdLocs = sec.ThirdLocation.map(t => t.ThirdLocation);
+        break;
+      }
+    }
+    if (thirdLocs.length > 0) break;
+  }
+  
+  // Filter matching third locations
+  const newSuggestions = thirdLocs
+    .filter(t => t && t.toLowerCase().includes(value.toLowerCase()));
+  
+  setLocationSuggestions(prev => ({ 
+    ...prev, 
+    third: [...new Set(newSuggestions)] // Remove duplicates
+  }));
+  
   setShowLocationSuggestions(prev => ({ ...prev, third: value.length > 0 }));
 };
 
@@ -905,90 +1038,96 @@ const handleThirdLocationSelect = (selectedThirdLoc) => {
                             onChange={e => setPatrolName(e.target.value)} 
                         />
                     </div>
-
-                   <div className="mb-3">
-  <label className="form-label">Primary Location</label>
-  <div className="position-relative">
-    <input
-      type="text"
-      className="form-control"
-      value={selectedPrimary}
-      onChange={(e) => handlePrimaryLocationChange(e.target.value)}
-      placeholder="Type to search primary locations"
-    />
-    {showLocationSuggestions.primary && locationSuggestions.primary.length > 0 && (
-      <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-        {locationSuggestions.primary.map((suggestion, idx) => (
-          <button
-            key={idx}
-            type="button"
-            className="list-group-item list-group-item-action"
-            onClick={() => handlePrimaryLocationSelect(suggestion)}
-          >
-            {suggestion}
-          </button>
+<div className="mb-3">
+    <label className="form-label">Primary Location</label>
+    <select 
+        className="form-select"
+        value={selectedPrimary}
+        onChange={(e) => setSelectedPrimary(e.target.value)}
+    >
+        <option value="">-- Select Primary Location --</option>
+        {primaryLocations.map(loc => (
+            <option key={loc._id} value={loc._id}>{loc.name}</option>
         ))}
-      </div>
-    )}
-  </div>
+    </select>
 </div>
 
 {selectedPrimary && (
-  <div className="mb-3">
-    <label className="form-label">Secondary Location</label>
-    <div className="position-relative">
-      <input
-        type="text"
-        className="form-control"
-        value={selectedSecondary}
-        onChange={(e) => handleSecondaryLocationChange(e.target.value)}
-        placeholder="Type to search secondary locations"
-      />
-      {showLocationSuggestions.secondary && locationSuggestions.secondary.length > 0 && (
-        <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-          {locationSuggestions.secondary.map((suggestion, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className="list-group-item list-group-item-action"
-              onClick={() => handleSecondaryLocationSelect(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="mb-3">
+        <label className="form-label">Primary Sub Location</label>
+        <select 
+            className="form-select"
+            value={selectedPrimarySub}
+            onChange={(e) => setSelectedPrimarySub(e.target.value)}
+        >
+            <option value="">-- Select Primary Sub Location --</option>
+            {primarySubLocations.map(loc => (
+                <option key={loc._id} value={loc._id}>{loc.name}</option>
+            ))}
+        </select>
     </div>
-  </div>
+)}
+
+{selectedPrimarySub && (
+    <div className="mb-3">
+        <label className="form-label">Secondary Location</label>
+        <select 
+            className="form-select"
+            value={selectedSecondary}
+            onChange={(e) => setSelectedSecondary(e.target.value)}
+        >
+            <option value="">-- Select Secondary Location --</option>
+            {secondaryLocations.map(loc => (
+                <option key={loc._id} value={loc._id}>
+                    {loc.name} {loc.subName && `(${loc.subName})`}
+                </option>
+            ))}
+        </select>
+    </div>
 )}
 
 {selectedSecondary && (
-  <div className="mb-3">
-    <label className="form-label">Third Location</label>
-    <div className="position-relative">
-      <input
-        type="text"
-        className="form-control"
-        value={selectedThird}
-        onChange={(e) => handleThirdLocationChange(e.target.value)}
-        placeholder="Type to search third locations"
-      />
-      {showLocationSuggestions.third && locationSuggestions.third.length > 0 && (
-        <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-          {locationSuggestions.third.map((suggestion, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className="list-group-item list-group-item-action"
-              onClick={() => handleThirdLocationSelect(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="mb-3">
+        <label className="form-label">Secondary Sub Location</label>
+        <input 
+            type="text" 
+            className="form-control" 
+            value={selectedSecondarySub} 
+            onChange={(e) => setSelectedSecondarySub(e.target.value)}
+            placeholder="Secondary sub location"
+        />
     </div>
-  </div>
+)}
+
+{selectedSecondary && (
+    <div className="mb-3">
+        <label className="form-label">Third Location</label>
+        <select 
+            className="form-select"
+            value={selectedThird}
+            onChange={(e) => setSelectedThird(e.target.value)}
+        >
+            <option value="">-- Select Third Location --</option>
+            {thirdLocations.map(loc => (
+                <option key={loc._id} value={loc._id}>
+                    {loc.name} {loc.subName && `(${loc.subName})`}
+                </option>
+            ))}
+        </select>
+    </div>
+)}
+
+{selectedThird && (
+    <div className="mb-3">
+        <label className="form-label">Third Sub Location</label>
+        <input 
+            type="text" 
+            className="form-control" 
+            value={selectedThirdSub} 
+            onChange={(e) => setSelectedThirdSub(e.target.value)}
+            placeholder="Third sub location"
+        />
+    </div>
 )}
 
                     <div className="mb-3">

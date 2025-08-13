@@ -499,56 +499,61 @@ const fetchLocationSuggestions = debounce(async (query) => {
     if (response.data && response.data.Location) {
       const suggestions = [];
       
+      // Process each location in the response
       response.data.Location.forEach(location => {
         if (!location.PrimaryLocation) return;
         
-        // Add primary location
-        suggestions.push(location.PrimaryLocation);
-        
-        // Process SubLocations
-        if (location.SubLocation?.length > 0) {
-          location.SubLocation.forEach(subLoc => {
-            if (!subLoc.SubLocation) return;
+        // Helper function to recursively process sublocations
+        const processLocation = (currentPath, subLocations, level) => {
+          if (!subLocations || subLocations.length === 0) return;
+          
+          subLocations.forEach(subLoc => {
+            // Determine the current level's property names
+            let locationName, subLocations;
             
-            // Add SubLocation (level 1)
-            const subLocPath = `${location.PrimaryLocation},${subLoc.SubLocation}`;
-            suggestions.push(subLocPath);
+            switch(level) {
+              case 1: // SubLocation level
+                locationName = subLoc.PrimarySubLocation;
+                subLocations = subLoc.SecondaryLocation;
+                break;
+              case 2: // SecondaryLocation level
+                locationName = subLoc.SecondaryLocation;
+                subLocations = subLoc.ThirdLocation;
+                break;
+              case 3: // ThirdLocation level
+                locationName = subLoc.ThirdLocation;
+                subLocations = null; // No deeper levels in the sample
+                break;
+              default:
+                return;
+            }
             
-            // Process Secondary Locations
-            if (subLoc.SecondaryLocation?.length > 0) {
-              subLoc.SecondaryLocation.forEach(secondary => {
-                if (!secondary.SecondaryLocation) return;
-                
-                // Add Secondary Location (level 2)
-                const secondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation}`;
-                suggestions.push(secondaryPath);
-                
-                // Process Third Locations
-                if (secondary.ThirdLocation?.length > 0) {
-                  secondary.ThirdLocation.forEach(third => {
-                    if (!third.ThirdLocation) return;
-                    
-                    // Add Third Location (level 3)
-                    const thirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation}`;
-                    suggestions.push(thirdPath);
-                    
-                    // Add SubLocation of Third Location if exists (level 4)
-                    if (third.SubLocation) {
-                      const subThirdPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${third.ThirdLocation},${third.SubLocation}`;
-                      suggestions.push(subThirdPath);
-                    }
-                  });
-                }
-                
-                // Add SubLocation of Secondary Location if exists
-                if (secondary.SubLocation) {
-                  const subSecondaryPath = `${location.PrimaryLocation},${subLoc.SubLocation},${secondary.SecondaryLocation},${secondary.SubLocation}`;
-                  suggestions.push(subSecondaryPath);
-                }
-              });
+            if (!locationName) return;
+            
+            // Add the current path to suggestions
+            const newPath = currentPath ? `${currentPath},${locationName}` : locationName;
+            suggestions.push(newPath);
+            
+            // Process deeper levels if they exist
+            if (subLocations && subLocations.length > 0) {
+              processLocation(newPath, subLocations, level + 1);
+            }
+            
+            // Handle any sublocation properties (like SecondarySubLocation, ThirdSubLocation)
+            const subLocationProperty = 
+              level === 2 ? subLoc.SecondarySubLocation : 
+              level === 3 ? subLoc.ThirdSubLocation : 
+              null;
+            
+            if (subLocationProperty) {
+              suggestions.push(`${newPath},${subLocationProperty}`);
             }
           });
-        }
+        };
+        
+        // Start processing with the primary location
+        suggestions.push(location.PrimaryLocation);
+        processLocation(location.PrimaryLocation, location.SubLocation, 1);
       });
       
       // Filter suggestions based on query and remove duplicates
@@ -556,7 +561,8 @@ const fetchLocationSuggestions = debounce(async (query) => {
         .filter(suggestion => 
           suggestion.toLowerCase().includes(query.toLowerCase())
         )
-        .filter((value, index, self) => self.indexOf(value) === index);
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .sort(); // Optional: sort alphabetically
       
       setLocationSuggestions(filtered);
       setShowLocationSuggestions(true);
