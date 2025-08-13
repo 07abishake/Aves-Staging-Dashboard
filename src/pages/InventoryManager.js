@@ -31,6 +31,11 @@ const InventoryManager = () => {
   const [locationStock, setLocationStock] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Refresh triggers
+  const [refreshProducts, setRefreshProducts] = useState(false);
+  const [refreshInventory, setRefreshInventory] = useState(false);
+  const [refreshLocationStock, setRefreshLocationStock] = useState(false);
+
   // Form states
   const [addStockForm, setAddStockForm] = useState({
     productId: '',
@@ -57,7 +62,6 @@ const InventoryManager = () => {
   // Fetch initial data
   useEffect(() => {
     if (!token) {
-      // window.location.href = "/login";
       return;
     }
 
@@ -68,7 +72,7 @@ const InventoryManager = () => {
           axios.get('https://api.avessecurity.com/api/AddProducts/products', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get('http://api.avessecurity.com/api/Location/getLocations', {
+          axios.get('https://api.avessecurity.com/api/Location/getLocations', {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
@@ -80,11 +84,26 @@ const InventoryManager = () => {
         setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
       } finally {
         setIsLoading(false);
+        setRefreshProducts(false);
       }
     };
     
     fetchData();
-  }, [token]);
+  }, [token, refreshProducts]);
+
+  // Auto-refresh for inventory view
+  useEffect(() => {
+    if (currentItem && refreshInventory) {
+      fetchInventoryByProduct(currentItem._id);
+    }
+  }, [refreshInventory]);
+
+  // Auto-refresh for location stock view
+  useEffect(() => {
+    if (selectedLocation && refreshLocationStock) {
+      fetchLocationStock(selectedLocation.id);
+    }
+  }, [refreshLocationStock]);
 
   // Reset alerts after 5 seconds
   useEffect(() => {
@@ -114,6 +133,7 @@ const InventoryManager = () => {
       setError(err.response?.data?.message || 'Failed to fetch inventory');
     } finally {
       setIsLoading(false);
+      setRefreshInventory(false);
     }
   };
 
@@ -127,10 +147,7 @@ const InventoryManager = () => {
       );
       
       setLocationStock(response.data?.data || []);
-      
-      // Find the location details
       const locationDetails = findLocationDetails(locationId);
-      
       setSelectedLocation(locationDetails);
       setShowInventoryView(true);
       setError(null);
@@ -139,6 +156,7 @@ const InventoryManager = () => {
       setLocationStock([]);
     } finally {
       setIsLoading(false);
+      setRefreshLocationStock(false);
     }
   };
 
@@ -204,10 +222,10 @@ const InventoryManager = () => {
       setShowAddStock(false);
       setAddStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      // Refresh the location stock if we're viewing that location
-      if (selectedLocation && addStockForm.locationId === selectedLocation.id) {
-        fetchLocationStock(selectedLocation.id);
-      }
+      // Trigger all relevant refreshes
+      setRefreshProducts(true);
+      setRefreshInventory(true);
+      setRefreshLocationStock(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add stock');
     } finally {
@@ -229,10 +247,10 @@ const InventoryManager = () => {
       setShowRemoveStock(false);
       setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      // Refresh the location stock if we're viewing that location
-      if (selectedLocation && removeStockForm.locationId === selectedLocation.id) {
-        fetchLocationStock(selectedLocation.id);
-      }
+      // Trigger all relevant refreshes
+      setRefreshProducts(true);
+      setRefreshInventory(true);
+      setRefreshLocationStock(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove stock');
     } finally {
@@ -259,13 +277,10 @@ const InventoryManager = () => {
         quantity: 0
       });
       
-      // Refresh the location stock if we're viewing either location
-      if (selectedLocation) {
-        if (transferForm.fromLocationId === selectedLocation.id || 
-            transferForm.toLocationId === selectedLocation.id) {
-          fetchLocationStock(selectedLocation.id);
-        }
-      }
+      // Trigger all relevant refreshes
+      setRefreshProducts(true);
+      setRefreshInventory(true);
+      setRefreshLocationStock(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to transfer stock');
     } finally {
