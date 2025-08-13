@@ -68,7 +68,7 @@ const InventoryManager = () => {
           axios.get('https://api.avessecurity.com/api/AddProducts/products', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+          axios.get('http://api.avessecurity.com/api/Location/getLocations', {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
