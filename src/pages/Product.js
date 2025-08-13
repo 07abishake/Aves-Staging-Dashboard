@@ -29,26 +29,36 @@ const ProductManager = () => {
   const token = localStorage.getItem("access_token");
 
   // Fetch products function
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      const productsData = response.data?.Products || [];
-      setProducts(Array.isArray(productsData) ? productsData : []);
-      setError(null);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch products');
-      setProducts([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+ const fetchProducts = async () => {
+  setIsLoading(true);
+  try {
+    const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    const productsData = response.data?.Products || [];
+    
+    // Ensure ProductImage is an array and construct full URLs
+    const processedProducts = productsData.map(product => ({
+      ...product,
+      ProductImage: Array.isArray(product.ProductImage) 
+        ? product.ProductImage.map(img => 
+            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`)
+        : []
+    }));
+    
+    setProducts(processedProducts);
+    setError(null);
+  } catch (err) {
+    console.error('Fetch error:', err);
+    setError(err.response?.data?.message || err.message || 'Failed to fetch products');
+    setProducts([]);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // useEffect for initial data loading
   useEffect(() => {
@@ -90,21 +100,25 @@ const ProductManager = () => {
   };
 
   // Open form for editing
-  const openEditForm = (product) => {
-    setCurrentProduct(product);
-    setFormData({
-      ItemName: product.ItemName || '',
-      Category: product.Category || '',
-      Type: product.Type || '',
-      BrandModel: product.BrandModel || '',
-      Description: product.Description || '',
-      AddQuntity: product.AddQuntity || 0,
-      MinimumStockLevel: product.MinimumStockLevel || 0,
-      ProductImage: []
-    });
-    setImagePreview(product.ProductImage || []);
-    setShowFormModal(true);
-  };
+ const openEditForm = (product) => {
+  setCurrentProduct(product);
+  setFormData({
+    ItemName: product.ItemName || '',
+    Category: product.Category || '',
+    Type: product.Type || '',
+    BrandModel: product.BrandModel || '',
+    Description: product.Description || '',
+    AddQuntity: product.AddQuntity || 0,
+    MinimumStockLevel: product.MinimumStockLevel || 0,
+    ProductImage: [] // This is correct for new uploads, but keep existing images for display
+  });
+  // Set image previews from existing product images
+  setImagePreview(
+    product.ProductImage?.map(img => 
+      img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
+  );
+  setShowFormModal(true);
+};
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -446,15 +460,15 @@ const ProductManager = () => {
                       className="rounded"
                     />
                     <div className="d-flex gap-2">
-                      {currentProduct.ProductImage.slice(1).map((img, index) => (
-                        <Image
-                          key={index}
-                          src={img}
-                          alt={currentProduct.ItemName}
-                          thumbnail
-                          style={{ width: '60px', height: '60px', objectFit: 'cover' }}
-                        />
-                      ))}
+                      {currentProduct.ProductImage.map((img, index) => (
+      <Image
+        key={index}
+        src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`}
+        alt={currentProduct.ItemName}
+        fluid
+        className="rounded"
+      />
+    ))}
                     </div>
                   </div>
                 ) : (
