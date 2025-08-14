@@ -247,7 +247,7 @@ function Patrol() {
 
     const fetchLocations = async () => {
         try {
-            const res = await axios.get('http://api.avessecurity.com:6378/api/Location/getLocations', {
+            const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setLocations(res.data.Location || []);

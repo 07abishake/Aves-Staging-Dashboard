@@ -15,11 +15,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 const localizer = momentLocalizer(moment);
 
 const API_BASE_URL = 'https://api.avessecurity.com/api/event';
-
 const token = localStorage.getItem("access_token");
-if (!token) {
-  // window.location.href = "/login";
-}
 
 // Department Dropdown Component
 const DepartmentDropdown = ({ value, onChange }) => {
@@ -31,9 +27,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
     const fetchDepartments = async () => {
       try {
         const response = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` }
         });
         setDepartments(response.data);
       } catch (err) {
@@ -62,9 +56,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
     return (
       <Form.Group controlId="Department">
         <Form.Label>Department</Form.Label>
-        <Alert variant="danger" className="py-1">
-          {error}
-        </Alert>
+        <Alert variant="danger" className="py-1">{error}</Alert>
       </Form.Group>
     );
   }
@@ -72,16 +64,10 @@ const DepartmentDropdown = ({ value, onChange }) => {
   return (
     <Form.Group controlId="Department">
       <Form.Label>Department</Form.Label>
-      <Form.Select
-        name="Department"
-        value={value}
-        onChange={onChange}
-      >
+      <Form.Select name="Department" value={value} onChange={onChange}>
         <option value="">Select Department</option>
         {departments.map((dept) => (
-          <option key={dept._id} value={dept._id}>
-            {dept.name}
-          </option>
+          <option key={dept._id} value={dept._id}>{dept.name}</option>
         ))}
       </Form.Select>
     </Form.Group>
@@ -93,18 +79,20 @@ const LocationDropdown = ({ value, onChange }) => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPrimary, setSelectedPrimary] = useState('');
-  const [selectedSecondary, setSelectedSecondary] = useState('');
-  const [selectedTertiary, setSelectedTertiary] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredLocations, setFilteredLocations] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const token = localStorage.getItem('access_token');
         const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         });
-        setLocations(data.Location || []);
+        const nested = data?.Location || [];
+        const flattened = flattenLocations(nested);
+        setLocations(flattened);
+        setFilteredLocations(flattened);
       } catch (err) {
         setError(err.message || 'Failed to load locations');
       } finally {
@@ -115,36 +103,73 @@ const LocationDropdown = ({ value, onChange }) => {
     fetchLocations();
   }, []);
 
-  const handlePrimaryChange = (e) => {
-    const primaryId = e.target.value;
-    setSelectedPrimary(primaryId);
-    setSelectedSecondary('');
-    setSelectedTertiary('');
-    onChange({ target: { name: 'Location', value: primaryId } });
+  const flattenLocations = (data) => {
+    const result = [];
+
+    data.forEach((primary) => {
+      result.push({ label: primary.PrimaryLocation, id: primary._id });
+
+      primary.SubLocation?.forEach((primarySub) => {
+        result.push({
+          label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}`,
+          id: primarySub._id,
+        });
+
+        primarySub.SecondaryLocation?.forEach((secondary) => {
+          result.push({
+            label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}`,
+            id: secondary._id,
+          });
+
+          secondary.SecondarySubLocation?.forEach((secondarySub) => {
+            result.push({
+              label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}, ${secondarySub.SecondarySubLocation}`,
+              id: secondarySub._id,
+            });
+
+            secondarySub.ThirdLocation?.forEach((third) => {
+              result.push({
+                label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}, ${secondarySub.SecondarySubLocation}, ${third.ThirdLocation} (${third.ThirdSubLocation})`,
+                id: third._id,
+              });
+            });
+          });
+        });
+      });
+    });
+
+    return result;
   };
 
-  const handleSecondaryChange = (e) => {
-    const secondaryId = e.target.value;
-    setSelectedSecondary(secondaryId);
-    setSelectedTertiary('');
-    onChange({ target: { name: 'Location', value: secondaryId } });
+  const handleSearch = debounce((value) => {
+    if (!value) {
+      setFilteredLocations(locations);
+    } else {
+      const filtered = locations.filter((loc) =>
+        loc.label.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredLocations(filtered);
+    }
+  }, 300);
+
+  const handleInputChange = (e) => {
+    const newValue = e.target.value;
+    setSearchTerm(newValue);
+    handleSearch(newValue);
+    if (!newValue) onChange({ target: { name: 'Location', value: '' } });
   };
 
-  const handleTertiaryChange = (e) => {
-    const tertiaryId = e.target.value;
-    setSelectedTertiary(tertiaryId);
-    onChange({ target: { name: 'Location', value: tertiaryId } });
+  const handleSelectLocation = (location) => {
+    setSearchTerm(location.label);
+    onChange({ target: { name: 'Location', value: location.id } });
+    setShowSuggestions(false);
   };
 
-  const getSelectedPrimary = () => {
-    return locations.find(loc => loc._id === selectedPrimary);
+  const handleFocus = () => {
+    if (searchTerm && filteredLocations.length > 0) setShowSuggestions(true);
   };
 
-  const getSelectedSecondary = () => {
-    const primary = getSelectedPrimary();
-    if (!primary) return null;
-    return primary.SecondaryLocation.find(sec => sec._id === selectedSecondary);
-  };
+  const handleBlur = () => setTimeout(() => setShowSuggestions(false), 200);
 
   if (loading) {
     return (
@@ -162,60 +187,33 @@ const LocationDropdown = ({ value, onChange }) => {
     return (
       <Form.Group controlId="Location">
         <Form.Label>Location</Form.Label>
-        <Alert variant="danger" className="py-1">
-          {error}
-        </Alert>
+        <Alert variant="danger" className="py-1">{error}</Alert>
       </Form.Group>
     );
   }
 
   return (
-    <Form.Group controlId="Location">
+    <Form.Group controlId="Location" className="position-relative">
       <Form.Label>Location</Form.Label>
+      <Form.Control
+        type="text"
+        placeholder="Type location..."
+        value={searchTerm}
+        onChange={handleInputChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        autoComplete="off"
+      />
       
-      {/* Primary Location Dropdown */}
-      <Form.Select 
-        className="mb-2"
-        value={selectedPrimary}
-        onChange={handlePrimaryChange}
-      >
-        <option value="">Select Primary Location</option>
-        {locations.map(loc => (
-          <option key={loc._id} value={loc._id}>
-            {loc.PrimaryLocation} - {loc.SubLocation}
-          </option>
-        ))}
-      </Form.Select>
-
-      {/* Secondary Location Dropdown */}
-      {selectedPrimary && (
-        <Form.Select
-          className="mb-2"
-          value={selectedSecondary}
-          onChange={handleSecondaryChange}
-        >
-          <option value="">Select Secondary Location</option>
-          {getSelectedPrimary()?.SecondaryLocation?.map(sec => (
-            <option key={sec._id} value={sec._id}>
-              {sec.SecondaryLocation} - {sec.SubLocation}
-            </option>
+      {showSuggestions && filteredLocations.length > 0 && (
+        <ListGroup className="position-absolute w-100 mt-1 border shadow" 
+          style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+          {filteredLocations.map((loc) => (
+            <ListGroup.Item key={loc.id} action onClick={() => handleSelectLocation(loc)} className="py-2">
+              {loc.label}
+            </ListGroup.Item>
           ))}
-        </Form.Select>
-      )}
-
-      {/* Tertiary Location Dropdown */}
-      {selectedSecondary && (
-        <Form.Select
-          value={selectedTertiary}
-          onChange={handleTertiaryChange}
-        >
-          <option value="">Select Tertiary Location</option>
-          {getSelectedSecondary()?.ThirdLocation?.map(ter => (
-            <option key={ter._id} value={ter._id}>
-              {ter.ThirdLocation} - {ter.SubLocation}
-            </option>
-          ))}
-        </Form.Select>
+        </ListGroup>
       )}
     </Form.Group>
   );
@@ -241,14 +239,10 @@ const EventInchargeDropdown = ({ value, onChange }) => {
       setError(null);
       const response = await axios.get(
         `https://api.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
-      if (response.data && response.data.Report) {
+      if (response.data?.Report) {
         setUsers(response.data.Report);
         setShowSuggestions(true);
       } else {
@@ -256,7 +250,6 @@ const EventInchargeDropdown = ({ value, onChange }) => {
         setShowSuggestions(false);
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
       setError(error.response?.data?.message || error.message || 'Failed to fetch users');
       setUsers([]);
       setShowSuggestions(false);
@@ -267,17 +260,13 @@ const EventInchargeDropdown = ({ value, onChange }) => {
 
   useEffect(() => {
     fetchUsers(inputValue);
-    return () => {
-      fetchUsers.cancel();
-    };
+    return () => fetchUsers.cancel();
   }, [inputValue]);
 
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    if (!newValue) {
-      onChange({ target: { name: 'EventIncharge', value: '' } });
-    }
+    if (!newValue) onChange({ target: { name: 'EventIncharge', value: '' } });
   };
 
   const handleSelectUser = (user) => {
@@ -287,16 +276,10 @@ const EventInchargeDropdown = ({ value, onChange }) => {
   };
 
   const handleFocus = () => {
-    if (inputValue && users.length > 0) {
-      setShowSuggestions(true);
-    }
+    if (inputValue && users.length > 0) setShowSuggestions(true);
   };
 
-  const handleBlur = () => {
-    setTimeout(() => {
-      setShowSuggestions(false);
-    }, 200);
-  };
+  const handleBlur = () => setTimeout(() => setShowSuggestions(false), 200);
 
   return (
     <Form.Group controlId="EventIncharge" className="mb-3">
@@ -320,24 +303,13 @@ const EventInchargeDropdown = ({ value, onChange }) => {
           </div>
         )}
         
-        {error && (
-          <Alert variant="danger" className="mt-2 py-1">
-            {error}
-          </Alert>
-        )}
+        {error && <Alert variant="danger" className="mt-2 py-1">{error}</Alert>}
         
         {showSuggestions && users.length > 0 && (
-          <ListGroup 
-            className="position-absolute w-100 mt-1 border shadow" 
-            style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
-          >
+          <ListGroup className="position-absolute w-100 mt-1 border shadow" 
+            style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
             {users.map((user) => (
-              <ListGroup.Item 
-                key={user._id}
-                action
-                onClick={() => handleSelectUser(user)}
-                className="py-2"
-              >
+              <ListGroup.Item key={user._id} action onClick={() => handleSelectUser(user)} className="py-2">
                 {user.username}
               </ListGroup.Item>
             ))}
@@ -351,16 +323,18 @@ const EventInchargeDropdown = ({ value, onChange }) => {
 // Event Service Functions
 const fetchEvents = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/get`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const response = await axios.get('https://api.avessecurity.com/api/event', {
+      headers: { Authorization: `Bearer ${token}` }
     });
-    if (!response.data || !response.data.events) return [];
-    return Array.isArray(response.data.events) ? response.data.events : [response.data.events];
+    
+    if (!response.data) throw new Error('Invalid response structure from server');
+    
+    const eventsData = response.data.events || response.data.event || response.data;
+    return Array.isArray(eventsData) ? eventsData : [eventsData];
   } catch (error) {
-    console.error('Error fetching events:', error);
-    throw error;
+    const enhancedError = new Error(error.message || 'Failed to fetch events');
+    enhancedError.status = error.response?.status;
+    throw enhancedError;
   }
 };
 
@@ -377,14 +351,10 @@ const createEvent = async (eventData) => {
     };
 
     const response = await axios.post(`${API_BASE_URL}/create`, dataToSend, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` }
     });
-    if (!response.data || !response.data.events) return [];
     return Array.isArray(response.data.events) ? response.data.events : [response.data.events];
   } catch (error) {
-    console.error('Error creating event:', error);
     throw error;
   }
 };
@@ -402,13 +372,10 @@ const updateEvent = async (id, eventData) => {
     };
 
     const response = await axios.put(`${API_BASE_URL}/update/${id}`, dataToSend, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data || {};
   } catch (error) {
-    console.error('Error updating event:', error);
     throw error;
   }
 };
@@ -425,18 +392,13 @@ const deleteEvent = async (id) => {
     };
 
     await axios.put(`${API_BASE_URL}/update/${id}`, dataToSend, {  
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` }
     });
     const response = await axios.delete(`${API_BASE_URL}/delete/${id}`, {  
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data || {};
   } catch (error) {
-    console.error('Error deleting event:', error);
     throw error;
   }
 };
@@ -486,10 +448,7 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -685,20 +644,10 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         <Button variant="primary" type="submit" disabled={loading}>
           {loading ? (
             <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-              />
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
               <span className="ms-2">Saving...</span>
             </>
-          ) : action === 'create' ? (
-            'Create Event'
-          ) : (
-            'Update Event'
-          )}
+          ) : action === 'create' ? 'Create Event' : 'Update Event'}
         </Button>
       </div>
     </Form>
@@ -816,9 +765,7 @@ const EventDetails = ({ event, onHide }) => {
         </Card.Body>
       </Card>
       <div className="mt-3 d-flex justify-content-end">
-        <Button variant="outline-secondary" onClick={onHide}>
-          Close
-        </Button>
+        <Button variant="outline-secondary" onClick={onHide}>Close</Button>
       </div>
     </>
   );
@@ -840,9 +787,7 @@ const EventManagement = () => {
   const [activeTab, setActiveTab] = useState('table');
   const [calendarDate, setCalendarDate] = useState(new Date());
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
+  useEffect(() => { loadEvents(); }, []);
 
   const loadEvents = async () => {
     try {
@@ -851,8 +796,13 @@ const EventManagement = () => {
       const data = await fetchEvents();
       setEvents(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error loading events:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to load events');
+      let errorMessage = err.message || 'Failed to load events';
+      if (err.status === 404) errorMessage = 'Events endpoint not found. Please contact support.';
+      else if (err.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+        window.location.href = "/login";
+      } else if (err.status >= 500) errorMessage = 'Server error. Please try again later.';
+      setError(errorMessage);
       setEvents([]);
     } finally {
       setLoading(false);
@@ -887,7 +837,6 @@ const EventManagement = () => {
         await deleteEvent(eventToDelete._id);
         loadEvents();
       } catch (err) {
-        console.error('Failed to delete event:', err);
         setError(err.response?.data?.message || err.message || 'Failed to delete event');
       } finally {
         setShowDeleteModal(false);
@@ -895,9 +844,7 @@ const EventManagement = () => {
     }
   };
 
-  const handleSuccess = () => {
-    loadEvents();
-  };
+  const handleSuccess = () => loadEvents();
 
   const filteredEvents = events.filter(event => {
     if (!event) return false;
@@ -909,7 +856,6 @@ const EventManagement = () => {
     return matchesSearch && matchesType;
   });
 
-  // Prepare calendar events
   const calendarEvents = filteredEvents.map(event => ({
     id: event._id,
     title: event.EventName,
@@ -922,10 +868,10 @@ const EventManagement = () => {
   }));
 
   const eventStyleGetter = (event) => {
-    let backgroundColor = '#3174ad'; // default blue
-    if (event.type === 'VIP') backgroundColor = '#dc3545'; // red
-    if (event.type === 'Corporate') backgroundColor = '#6f42c1'; // purple
-    if (event.type === 'Private') backgroundColor = '#20c997'; // teal
+    let backgroundColor = '#3174ad';
+    if (event.type === 'VIP') backgroundColor = '#dc3545';
+    if (event.type === 'Corporate') backgroundColor = '#6f42c1';
+    if (event.type === 'Private') backgroundColor = '#20c997';
 
     return {
       style: {
@@ -939,9 +885,7 @@ const EventManagement = () => {
     };
   };
 
-  const handleNavigate = (newDate) => {
-    setCalendarDate(newDate);
-  };
+  const handleNavigate = (newDate) => setCalendarDate(newDate);
 
   if (loading) {
     return (
@@ -950,18 +894,6 @@ const EventManagement = () => {
           <span className="visually-hidden">Loading events...</span>
         </Spinner>
         <p className="mt-2">Loading events...</p>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container className="mt-5">
-        <Alert variant="danger">
-          <Alert.Heading>Error loading events</Alert.Heading>
-          <p>{error}</p>
-          <Button variant="primary" onClick={loadEvents}>Retry</Button>
-        </Alert>
       </Container>
     );
   }
@@ -980,9 +912,7 @@ const EventManagement = () => {
           <Row className="g-3">
             <Col md={6}>
               <InputGroup>
-                <InputGroup.Text>
-                  <i className="bi bi-search"></i>
-                </InputGroup.Text>
+                <InputGroup.Text><i className="bi bi-search"></i></InputGroup.Text>
                 <Form.Control
                   type="text"
                   placeholder="Search by event name or client..."
@@ -1012,25 +942,13 @@ const EventManagement = () => {
         </Card.Body>
       </Card>
 
-      {error && (
-        <Alert variant="danger" className="mb-4">
-          {error}
-        </Alert>
-      )}
+      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
       <Card className="shadow-sm mb-4">
         <Card.Body className="p-0">
-          <Tabs
-            activeKey={activeTab}
-            onSelect={(k) => setActiveTab(k)}
-            className="mb-3 px-3"
-          >
-            <Tab eventKey="table" title="Table View">
-              {/* Table view content will be rendered here */}
-            </Tab>
-            <Tab eventKey="calendar" title="Calendar View">
-              {/* Calendar view content will be rendered here */}
-            </Tab>
+          <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3 px-3">
+            <Tab eventKey="table" title="Table View" />
+            <Tab eventKey="calendar" title="Calendar View" />
           </Tabs>
 
           {activeTab === 'table' ? (
@@ -1071,30 +989,16 @@ const EventManagement = () => {
                           </small>
                         </td>
                         <td className="text-center">
-                          <Button
-                            variant="outline-info"
-                            size="sm"
-                            className="me-2"
-                            onClick={() => handleView(event)}
-                            title="View"
-                          >
+                          <Button variant="outline-info" size="sm" className="me-2"
+                            onClick={() => handleView(event)} title="View">
                             <i className="bi bi-eye"></i>
                           </Button>
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="me-2"
-                            onClick={() => handleEdit(event)}
-                            title="Edit"
-                          >
+                          <Button variant="outline-warning" size="sm" className="me-2"
+                            onClick={() => handleEdit(event)} title="Edit">
                             <i className="bi bi-pencil"></i>
                           </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDeleteClick(event)}
-                            title="Delete"
-                          >
+                          <Button variant="outline-danger" size="sm"
+                            onClick={() => handleDeleteClick(event)} title="Delete">
                             <i className="bi bi-trash"></i>
                           </Button>
                         </td>
@@ -1165,10 +1069,7 @@ const EventManagement = () => {
           <Offcanvas.Title>Event Details</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          <EventDetails 
-            event={selectedEvent} 
-            onHide={() => setShowDetails(false)} 
-          />
+          <EventDetails event={selectedEvent} onHide={() => setShowDetails(false)} />
         </Offcanvas.Body>
       </Offcanvas>
 
@@ -1181,9 +1082,7 @@ const EventManagement = () => {
           Are you sure you want to delete the event "{eventToDelete?.EventName}"? This action cannot be undone.
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
           <Button variant="danger" onClick={handleDeleteConfirm}>
             <i className="bi bi-trash me-1"></i> Delete
           </Button>
