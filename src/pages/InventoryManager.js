@@ -433,39 +433,114 @@ const InventoryManager = () => {
   };
 
   // Render the stock view for a selected location
-  const renderLocationStock = () => {
-    if (isLoading) {
-      return (
-        <div className="text-center py-5">
-          <Spinner animation="border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-        </div>
-      );
-    }
+  // const renderLocationStock = () => {
+  //   if (isLoading) {
+  //     return (
+  //       <div className="text-center py-5">
+  //         <Spinner animation="border" role="status">
+  //           <span className="visually-hidden">Loading...</span>
+  //         </Spinner>
+  //       </div>
+  //     );
+  //   }
 
-    if (!Array.isArray(locationStock) || locationStock.length === 0) {
-      return <Alert variant="info">No stock found in this location</Alert>;
-    }
+  //   if (!Array.isArray(locationStock) || locationStock.length === 0) {
+  //     return <Alert variant="info">No stock found in this location</Alert>;
+  //   }
 
+  //   return (
+  //     <Table striped hover responsive>
+  //       <thead>
+  //         <tr>
+  //           <th>Product</th>
+  //           <th>Category</th>
+  //           <th>Type</th>
+  //           <th>Item Code</th>
+  //           <th>Total Stock</th>
+  //           <th>In Use</th>
+  //           <th>Reserved</th>
+  //           <th>Available</th>
+  //           <th>Last Updated</th>
+  //         </tr>
+  //       </thead>
+  //       <tbody>
+  //         {locationStock.map((item, index) => (
+  //           <tr key={generateUniqueKey(item._id, `stock-${index}`)}>
+  //             <td>
+  //               <strong>{item.product?.ItemName || 'Unknown'}</strong>
+  //               <div className="text-muted small">{item.product?.Description || ''}</div>
+  //             </td>
+  //             <td>{item.product?.Category || 'N/A'}</td>
+  //             <td>{item.product?.Type || 'N/A'}</td>
+  //             <td>{item.product?.ItemCode || 'N/A'}</td>
+  //             <td>{item.status?.[0]?.totalStock || 0}</td>
+  //             <td>{item.status?.[0]?.inUse || 0}</td>
+  //             <td>{item.status?.[0]?.reserved || 0}</td>
+  //             <td>{item.status?.[0]?.available || 0}</td>
+  //             <td>
+  //               {item.status?.[0]?.lastUpdated ? 
+  //                 new Date(item.status[0].lastUpdated).toLocaleString() : 
+  //                 'N/A'}
+  //             </td>
+  //           </tr>
+  //         ))}
+  //       </tbody>
+  //     </Table>
+  //   );
+  // };
+
+
+  // Render the stock view for a selected location
+const renderLocationStock = () => {
+  if (isLoading) {
     return (
-      <Table striped hover responsive>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th>Item Code</th>
-            <th>Total Stock</th>
-            <th>In Use</th>
-            <th>Reserved</th>
-            <th>Available</th>
-            <th>Last Updated</th>
-          </tr>
-        </thead>
-        <tbody>
-          {locationStock.map((item, index) => (
+      <div className="text-center py-5">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  if (!Array.isArray(locationStock) || locationStock.length === 0) {
+    return <Alert variant="info">No stock found in this location</Alert>;
+  }
+
+  return (
+    <Table striped hover responsive>
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Product</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Item Code</th>
+          <th>Total Stock</th>
+          <th>In Use</th>
+          <th>Reserved</th>
+          <th>Available</th>
+          <th>Last Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {locationStock.map((item, index) => {
+          const imageUrl = item.product?.ProductImage?.[0] 
+            ? `https://api.avessecurity.com/${item.product.ProductImage[0]}`
+            : null;
+            
+          return (
             <tr key={generateUniqueKey(item._id, `stock-${index}`)}>
+              <td>
+                {imageUrl ? (
+                  <img 
+                    src={imageUrl} 
+                    alt={item.product?.ItemName || 'Product'} 
+                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ width: '50px', height: '50px', backgroundColor: '#f8f9fa' }} />
+                )}
+              </td>
               <td>
                 <strong>{item.product?.ItemName || 'Unknown'}</strong>
                 <div className="text-muted small">{item.product?.Description || ''}</div>
@@ -483,43 +558,116 @@ const InventoryManager = () => {
                   'N/A'}
               </td>
             </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
-  };
+          );
+        })}
+      </tbody>
+    </Table>
+  );
+};
 
   // Render product table
-  const renderProductTable = () => {
-    if (isLoading && products.length === 0) {
-      return (
-        <div className="text-center py-5">
-          <Spinner animation="border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-        </div>
-      );
-    }
+  // const renderProductTable = () => {
+  //   if (isLoading && products.length === 0) {
+  //     return (
+  //       <div className="text-center py-5">
+  //         <Spinner animation="border" role="status">
+  //           <span className="visually-hidden">Loading...</span>
+  //         </Spinner>
+  //       </div>
+  //     );
+  //   }
 
-    if (products.length === 0) {
-      return <Alert variant="info">No products found</Alert>;
-    }
+  //   if (products.length === 0) {
+  //     return <Alert variant="info">No products found</Alert>;
+  //   }
 
+  //   return (
+  //     <Table striped hover responsive>
+  //       <thead>
+  //         <tr>
+  //           <th>Item Code</th>
+  //           <th>Item Name</th>
+  //           <th>Category</th>
+  //           <th>Type</th>
+  //           <th>Description</th>
+  //           <th>Actions</th>
+  //         </tr>
+  //       </thead>
+  //       <tbody>
+  //         {products.map((product) => (
+  //           <tr key={generateUniqueKey(product._id, 'product')}>
+  //             <td>{product.ItemCode}</td>
+  //             <td>
+  //               <strong>{product.ItemName}</strong>
+  //             </td>
+  //             <td>{product.Category}</td>
+  //             <td>{product.Type}</td>
+  //             <td className="text-muted small">{product.Description}</td>
+  //             <td>
+  //               <Button 
+  //                 variant="outline-primary" 
+  //                 size="sm" 
+  //                 onClick={() => fetchInventoryByProduct(product._id)}
+  //               >
+  //                 View Inventory
+  //               </Button>
+  //             </td>
+  //           </tr>
+  //         ))}
+  //       </tbody>
+  //     </Table>
+  //   );
+  // };
+
+
+  // Render product table
+const renderProductTable = () => {
+  if (isLoading && products.length === 0) {
     return (
-      <Table striped hover responsive>
-        <thead>
-          <tr>
-            <th>Item Code</th>
-            <th>Item Name</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th>Description</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
+      <div className="text-center py-5">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return <Alert variant="info">No products found</Alert>;
+  }
+
+  return (
+    <Table striped hover responsive>
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Item Code</th>
+          <th>Item Name</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {products.map((product) => {
+          const imageUrl = product.ProductImage?.[0] 
+            ? `https://api.avessecurity.com/${product.ProductImage[0]}`
+            : null;
+            
+          return (
             <tr key={generateUniqueKey(product._id, 'product')}>
+              <td>
+                {imageUrl ? (
+                  <img 
+                    src={imageUrl} 
+                    alt={product.ItemName} 
+                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ width: '50px', height: '50px', backgroundColor: '#f8f9fa' }} />
+                )}
+              </td>
               <td>{product.ItemCode}</td>
               <td>
                 <strong>{product.ItemName}</strong>
@@ -537,29 +685,96 @@ const InventoryManager = () => {
                 </Button>
               </td>
             </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
-  };
+          );
+        })}
+      </tbody>
+    </Table>
+  );
+};
 
   // Render product inventory view
-  const renderProductInventory = () => {
-    if (isLoading) {
-      return (
-        <div className="text-center py-5">
-          <Spinner animation="border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-        </div>
-      );
-    }
+  // const renderProductInventory = () => {
+  //   if (isLoading) {
+  //     return (
+  //       <div className="text-center py-5">
+  //         <Spinner animation="border" role="status">
+  //           <span className="visually-hidden">Loading...</span>
+  //         </Spinner>
+  //       </div>
+  //     );
+  //   }
 
-    if (!Array.isArray(inventory) || inventory.length === 0) {
-      return <Alert variant="info">No inventory records found for this product</Alert>;
-    }
+  //   if (!Array.isArray(inventory) || inventory.length === 0) {
+  //     return <Alert variant="info">No inventory records found for this product</Alert>;
+  //   }
 
+  //   return (
+  //     <Table striped hover responsive>
+  //       <thead>
+  //         <tr>
+  //           <th>Location</th>
+  //           <th>Total Stock</th>
+  //           <th>In Use</th>
+  //           <th>Reserved</th>
+  //           <th>Available</th>
+  //           <th>Last Updated</th>
+  //         </tr>
+  //       </thead>
+  //       <tbody>
+  //         {inventory.flatMap((item) => {
+  //           // Handle both array and object status
+  //           const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
+  //           return statuses.map((status, sIdx) => (
+  //             <tr key={generateUniqueKey(item._id, `status-${sIdx}`)}>
+  //               <td>{findLocationDetails(status?.locationId)?.path || 'Unknown Location'}</td>
+  //               <td>{status?.totalStock || 0}</td>
+  //               <td>{status?.inUse || 0}</td>
+  //               <td>{status?.reserved || 0}</td>
+  //               <td>{status?.available || 0}</td>
+  //               <td>
+  //                 {status?.lastUpdated ? 
+  //                   new Date(status.lastUpdated).toLocaleString() : 
+  //                   'N/A'}
+  //               </td>
+  //             </tr>
+  //           ));
+  //         })}
+  //       </tbody>
+  //     </Table>
+  //   );
+  // };
+// Render product inventory view
+const renderProductInventory = () => {
+  if (isLoading) {
     return (
+      <div className="text-center py-5">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  if (!Array.isArray(inventory) || inventory.length === 0) {
+    return <Alert variant="info">No inventory records found for this product</Alert>;
+  }
+
+  const imageUrl = currentItem?.ProductImage?.[0] 
+    ? `https://api.avessecurity.com/${currentItem.ProductImage[0]}`
+    : null;
+
+  return (
+    <div>
+      {imageUrl && (
+        <div className="text-center mb-3">
+          <img 
+            src={imageUrl} 
+            alt={currentItem.ItemName} 
+            style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain' }}
+            className="img-thumbnail"
+          />
+        </div>
+      )}
       <Table striped hover responsive>
         <thead>
           <tr>
@@ -592,8 +807,10 @@ const InventoryManager = () => {
           })}
         </tbody>
       </Table>
-    );
-  };
+    </div>
+  );
+};
+
 
   return (
     <div className="container-fluid py-4">
