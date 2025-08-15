@@ -13,9 +13,15 @@ function LocationManager() {
     // Form state
     const [primaryLocation, setPrimaryLocation] = useState('');
     const [primarySubLocation, setPrimarySubLocation] = useState('');
+    // const [secondaryLocations, setSecondaryLocations] = useState([
+    //     { SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }
+    // ]);
     const [secondaryLocations, setSecondaryLocations] = useState([
-        { SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }
-    ]);
+    { SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [], showThirdFields: false }
+]);
+
+
+
 
     // Suggestions state
     const [suggestions, setSuggestions] = useState({
@@ -68,20 +74,24 @@ function LocationManager() {
         }
     };
 
-    const resetForm = () => {
-        setPrimaryLocation('');
-        setPrimarySubLocation('');
-        setSecondaryLocations([{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }]);
-        setEditId(null);
-        setIsEditing(false);
-        setFormProgress({
-            primary: false,
-            primarySub: false,
-            secondary: false,
-            third: false
-        });
-    };
-
+const resetForm = () => {
+    setPrimaryLocation('');
+    setPrimarySubLocation('');
+    setSecondaryLocations([{ 
+        SecondaryLocation: '', 
+        SecondarySubLocation: '', 
+        ThirdLocations: [],
+        showThirdFields: false
+    }]);
+    setEditId(null);
+    setIsEditing(false);
+    setFormProgress({
+        primary: false,
+        primarySub: false,
+        secondary: false,
+        third: false
+    });
+};
     const openFormCanvas = (location = null) => {
         if (location) {
             setPrimaryLocation(location.PrimaryLocation || '');
@@ -90,21 +100,21 @@ function LocationManager() {
                 ? location.SubLocation[0] 
                 : {};
             setPrimarySubLocation(firstSubLoc.PrimarySubLocation || '');
-            
             const transformedSecondary = Array.isArray(firstSubLoc.SecondaryLocation) && firstSubLoc.SecondaryLocation.length > 0 
-                ? firstSubLoc.SecondaryLocation.map(sec => ({
-                    SecondaryLocation: sec.SecondaryLocation || '',
-                    SecondarySubLocation: Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 
-                        ? sec.SecondarySubLocation[0].SecondarySubLocation || ''
-                        : '',
-                    ThirdLocations: Array.isArray(sec.ThirdLocation) && sec.ThirdLocation.length > 0
-                        ? sec.ThirdLocation.map(third => ({
-                            ThirdLocation: third.ThirdLocation || '',
-                            ThirdSubLocation: third.ThirdSubLocation || ''
-                        }))
-                        : []
-                }))
-                : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }];
+    ? firstSubLoc.SecondaryLocation.map(sec => ({
+        SecondaryLocation: sec.SecondaryLocation || '',
+        SecondarySubLocation: Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 
+            ? sec.SecondarySubLocation[0].SecondarySubLocation || ''
+            : '',
+        ThirdLocations: Array.isArray(sec.ThirdLocation) && sec.ThirdLocation.length > 0
+            ? sec.ThirdLocation.map(third => ({
+                ThirdLocation: third.ThirdLocation || '',
+                ThirdSubLocation: third.ThirdSubLocation || ''
+            }))
+            : [],
+        showThirdFields: Array.isArray(sec.ThirdLocation) && sec.ThirdLocation.length > 0 // Add this
+    }))
+    : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [], showThirdFields: false }];
             
             setSecondaryLocations(transformedSecondary);
             setEditId(location._id);
@@ -528,16 +538,20 @@ function LocationManager() {
         }));
         setFormProgress(prev => ({ ...prev, secondary: true, third: false }));
     };
-
-    const handleSecondarySublocationSelect = (selectedSubloc, secIndex) => {
-        const updated = [...secondaryLocations];
-        updated[secIndex].SecondarySubLocation = selectedSubloc;
-        setSecondaryLocations(updated);
-        setShowSublocationSuggestions(prev => ({
-            ...prev,
-            secondary: { ...prev.secondary, [secIndex]: false }
-        }));
-    };
+const handleSecondarySublocationSelect = (selectedSubloc, secIndex) => {
+    const updated = [...secondaryLocations];
+    updated[secIndex].SecondarySubLocation = selectedSubloc;
+    updated[secIndex].showThirdFields = true;
+    // Initialize ThirdLocations if empty
+    if (!updated[secIndex].ThirdLocations || updated[secIndex].ThirdLocations.length === 0) {
+        updated[secIndex].ThirdLocations = [{ ThirdLocation: '', ThirdSubLocation: '' }];
+    }
+    setSecondaryLocations(updated);
+    setShowSublocationSuggestions(prev => ({
+        ...prev,
+        secondary: { ...prev.secondary, [secIndex]: false }
+    }));
+};
 
     const handleThirdLocationSelect = (selectedThirdLoc, secIndex, thirdIndex) => {
         const updated = [...secondaryLocations];
@@ -567,21 +581,21 @@ function LocationManager() {
     };
 
     // Add/remove location handlers
-    const addSecondary = () => {
-        setSecondaryLocations([
-            ...secondaryLocations,
-            { SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }
-        ]);
-    };
+    // const addSecondary = () => {
+    //     setSecondaryLocations([
+    //         ...secondaryLocations,
+    //         { SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [] }
+    //     ]);
+    // };
 
-    const addThird = (secondaryIndex) => {
-        const updated = [...secondaryLocations];
-        updated[secondaryIndex].ThirdLocations.push({ 
-            ThirdLocation: '', 
-            ThirdSubLocation: '' 
-        });
-        setSecondaryLocations(updated);
-    };
+    // const addThird = (secondaryIndex) => {
+    //     const updated = [...secondaryLocations];
+    //     updated[secondaryIndex].ThirdLocations.push({ 
+    //         ThirdLocation: '', 
+    //         ThirdSubLocation: '' 
+    //     });
+    //     setSecondaryLocations(updated);
+    // };
 
     const removeSecondary = (index) => {
         const updated = [...secondaryLocations];
@@ -592,11 +606,11 @@ function LocationManager() {
         );
     };
 
-    const removeThird = (secondaryIndex, thirdIndex) => {
-        const updated = [...secondaryLocations];
-        updated[secondaryIndex].ThirdLocations.splice(thirdIndex, 1);
-        setSecondaryLocations(updated);
-    };
+    // const removeThird = (secondaryIndex, thirdIndex) => {
+    //     const updated = [...secondaryLocations];
+    //     updated[secondaryIndex].ThirdLocations.splice(thirdIndex, 1);
+    //     setSecondaryLocations(updated);
+    // };
 
     return (
         <div className="container mt-4">
@@ -795,85 +809,69 @@ function LocationManager() {
                                                 </div>
                                             </div>
                                         )}
-
-                                        {formProgress.secondary && (
-                                            <div className="mb-3">
-                                                <h6>Third Locations</h6>
-                                                {Array.isArray(sec.ThirdLocations) && sec.ThirdLocations.map((third, thirdIndex) => (
-                                                    <div key={thirdIndex} className="border p-2 mb-2 rounded position-relative ms-3 bg-white">
-                                                        {sec.ThirdLocations.length > 1 && (
-                                                            <button type="button" 
-                                                                    className="btn-close position-absolute top-0 end-0 m-1" 
-                                                                    onClick={() => removeThird(secIndex, thirdIndex)} />
-                                                        )}
-                                                        <div className="mb-2">
-                                                            <label className="form-label">Third Location</label>
-                                                            <div className="position-relative">
-                                                                <input
-                                                                    className="form-control"
-                                                                    value={third.ThirdLocation}
-                                                                    onChange={(e) => handleThirdLocationChange(secIndex, thirdIndex, e.target.value)}
-                                                                />
-                                                                {showSuggestions.third[secIndex]?.[thirdIndex] && 
-                                                                 Array.isArray(suggestions.third[secIndex]?.[thirdIndex]) && 
-                                                                 suggestions.third[secIndex][thirdIndex].length > 0 && (
-                                                                    <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                                                        {suggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
-                                                                            <button
-                                                                                key={idx}
-                                                                                type="button"
-                                                                                className="list-group-item list-group-item-action"
-                                                                                onClick={() => handleThirdLocationSelect(suggestion, secIndex, thirdIndex)}
-                                                                            >
-                                                                                {suggestion}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="mb-2">
-                                                            <label className="form-label">Third SubLocation</label>
-                                                            <div className="position-relative">
-                                                                <input
-                                                                    className="form-control"
-                                                                    value={third.ThirdSubLocation}
-                                                                    onChange={(e) => handleThirdSublocationChange(secIndex, thirdIndex, e.target.value)}
-                                                                />
-                                                                {showSublocationSuggestions.third[secIndex]?.[thirdIndex] && 
-                                                                 Array.isArray(sublocationSuggestions.third[secIndex]?.[thirdIndex]) && 
-                                                                 sublocationSuggestions.third[secIndex][thirdIndex].length > 0 && (
-                                                                    <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                                                        {sublocationSuggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
-                                                                            <button
-                                                                                key={idx}
-                                                                                type="button"
-                                                                                className="list-group-item list-group-item-action"
-                                                                                onClick={() => handleThirdSublocationSelect(suggestion, secIndex, thirdIndex)}
-                                                                            >
-                                                                                {suggestion}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <button type="button" 
-                                                        className="btn btn-sm btn-outline-secondary mt-2 ms-3" 
-                                                        onClick={() => addThird(secIndex)}>
-                                                    <i className="bi bi-plus"></i> Add Third Location
-                                                </button>
-                                            </div>
-                                        )}
+{formProgress.secondary && sec.showThirdFields && (
+    <div className="mb-3">
+        <h6>Third Locations</h6>
+        {Array.isArray(sec.ThirdLocations) && sec.ThirdLocations.map((third, thirdIndex) => (
+            <div key={thirdIndex} className="border p-2 mb-2 rounded position-relative ms-3 bg-white">
+                <div className="mb-2">
+                    <label className="form-label">Third Location</label>
+                    <div className="position-relative">
+                        <input
+                            className="form-control"
+                            value={third.ThirdLocation}
+                            onChange={(e) => handleThirdLocationChange(secIndex, thirdIndex, e.target.value)}
+                        />
+                        {showSuggestions.third[secIndex]?.[thirdIndex] && 
+                         Array.isArray(suggestions.third[secIndex]?.[thirdIndex]) && 
+                         suggestions.third[secIndex][thirdIndex].length > 0 && (
+                            <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                {suggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        className="list-group-item list-group-item-action"
+                                        onClick={() => handleThirdLocationSelect(suggestion, secIndex, thirdIndex)}
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="mb-2">
+                    <label className="form-label">Third SubLocation</label>
+                    <div className="position-relative">
+                        <input
+                            className="form-control"
+                            value={third.ThirdSubLocation}
+                            onChange={(e) => handleThirdSublocationChange(secIndex, thirdIndex, e.target.value)}
+                        />
+                        {showSublocationSuggestions.third[secIndex]?.[thirdIndex] && 
+                         Array.isArray(sublocationSuggestions.third[secIndex]?.[thirdIndex]) && 
+                         sublocationSuggestions.third[secIndex][thirdIndex].length > 0 && (
+                            <div className="list-group position-absolute w-100 z-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                {sublocationSuggestions.third[secIndex][thirdIndex].map((suggestion, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        className="list-group-item list-group-item-action"
+                                        onClick={() => handleThirdSublocationSelect(suggestion, secIndex, thirdIndex)}
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+)}
                                     </div>
                                 ))}
-                                <button type="button" 
-                                        className="btn btn-outline-secondary" 
-                                        onClick={addSecondary}>
-                                    <i className="bi bi-plus"></i> Add Secondary Location
-                                </button>
                             </div>
                         )}
 
@@ -895,7 +893,7 @@ function LocationManager() {
                                     </>
                                 ) : (
                                     <>
-                                        <i className="bi bi-plus-circle me-2"></i>Create Location
+                                        Create Location
                                     </>
                                 )}
                             </button>
@@ -989,5 +987,4 @@ function LocationManager() {
         </div>
     );
 }
-
 export default LocationManager;
