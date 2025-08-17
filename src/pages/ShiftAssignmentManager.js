@@ -444,7 +444,8 @@ const ShiftAssignmentManager = () => {
                         <td className="ps-4 fw-medium">{user.Name}</td>
                         <td>
                           <Badge bg="info" className="text-dark">
-                            {user.Designation?.Name || 'N/A'}
+                        {user.Designation?.[0]?.Name || "N/A"}
+
                           </Badge>
                         </td>
                         <td>{user.Department?.name || 'N/A'}</td>

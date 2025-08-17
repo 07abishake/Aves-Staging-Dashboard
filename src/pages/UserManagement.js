@@ -747,11 +747,11 @@ const fetchLocations = async () => {
                           </td>
                           <td>{user.EmailId}</td>
                           <td>{user.Department?.name || "N/A"}</td>
-                          <td>
-                            <span className="badge bg-primary">
-                              {user.Designation?.Name || "N/A"}
-                            </span>
-                          </td>
+                        <td>
+  <span className="badge bg-primary">
+    {user.Designation?.[0]?.Name || "N/A"}
+  </span>
+</td>
                           <td>
                             <span className={`badge ${user.isOnline ? 'bg-success' : 'bg-secondary'}`}>
                               {user.isOnline ? 'Active' : 'Inactive'}
