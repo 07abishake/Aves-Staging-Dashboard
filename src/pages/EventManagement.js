@@ -82,6 +82,7 @@ const LocationDropdown = ({ value, onChange }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredLocations, setFilteredLocations] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -93,6 +94,15 @@ const LocationDropdown = ({ value, onChange }) => {
         const flattened = flattenLocations(nested);
         setLocations(flattened);
         setFilteredLocations(flattened);
+        
+        // If there's an initial value, find and set the corresponding location
+        if (value) {
+          const initialLocation = flattened.find(loc => loc.id === value);
+          if (initialLocation) {
+            setSearchTerm(initialLocation.fullPath);
+            setSelectedLocation(initialLocation);
+          }
+        }
       } catch (err) {
         setError(err.message || 'Failed to load locations');
       } finally {
@@ -101,45 +111,82 @@ const LocationDropdown = ({ value, onChange }) => {
     };
 
     fetchLocations();
-  }, []);
+  }, [value]);
 
-  const flattenLocations = (data) => {
-    const result = [];
-
-    data.forEach((primary) => {
-      result.push({ label: primary.PrimaryLocation, id: primary._id });
-
-      primary.SubLocation?.forEach((primarySub) => {
-        result.push({
-          label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}`,
-          id: primarySub._id,
-        });
-
-        primarySub.SecondaryLocation?.forEach((secondary) => {
-          result.push({
-            label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}`,
-            id: secondary._id,
-          });
-
-          secondary.SecondarySubLocation?.forEach((secondarySub) => {
-            result.push({
-              label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}, ${secondarySub.SecondarySubLocation}`,
-              id: secondarySub._id,
-            });
-
-            secondarySub.ThirdLocation?.forEach((third) => {
-              result.push({
-                label: `${primary.PrimaryLocation}, ${primarySub.PrimarySubLocation}, ${secondary.SecondaryLocation}, ${secondarySub.SecondarySubLocation}, ${third.ThirdLocation} (${third.ThirdSubLocation})`,
-                id: third._id,
-              });
-            });
-          });
-        });
-      });
+const flattenLocations = (data) => {
+  const result = [];
+  
+  // Use for loops instead of forEach for better performance
+  for (let i = 0; i < data.length; i++) {
+    const primary = data[i];
+    
+    // Primary location
+    result.push({
+      label: primary.PrimaryLocation,
+      id: primary._id,
+      type: 'primary',
+      fullPath: primary.PrimaryLocation
     });
 
-    return result;
-  };
+    if (primary.SubLocation) {
+      for (let j = 0; j < primary.SubLocation.length; j++) {
+        const primarySub = primary.SubLocation[j];
+        
+        // Primary sub-location
+        result.push({
+          label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation}`,
+          id: primarySub._id,
+          type: 'primarySub',
+          fullPath: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation}`
+        });
+
+        if (primarySub.SecondaryLocation) {
+          for (let k = 0; k < primarySub.SecondaryLocation.length; k++) {
+            const secondary = primarySub.SecondaryLocation[k];
+            
+            // Secondary locations
+            result.push({
+              label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation}`,
+              id: secondary._id,
+              type: 'secondary',
+              fullPath: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation}`
+            });
+
+            if (secondary.SecondarySubLocation) {
+              for (let l = 0; l < secondary.SecondarySubLocation.length; l++) {
+                const secondarySub = secondary.SecondarySubLocation[l];
+                
+                // Secondary sub-locations
+                result.push({
+                  label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`,
+                  id: secondarySub._id,
+                  type: 'secondarySub',
+                  fullPath: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`
+                });
+
+                if (secondarySub.ThirdLocation) {
+                  for (let m = 0; m < secondarySub.ThirdLocation.length; m++) {
+                    const third = secondarySub.ThirdLocation[m];
+                    
+                    // Third locations
+                    result.push({
+                      label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation} (${third.ThirdSubLocation})`,
+                      id: third._id,
+                      type: 'third',
+                      fullPath: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation} (${third.ThirdSubLocation})`
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+};
 
   const handleSearch = debounce((value) => {
     if (!value) {
@@ -150,26 +197,34 @@ const LocationDropdown = ({ value, onChange }) => {
       );
       setFilteredLocations(filtered);
     }
-  }, 300);
+  });
 
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
     handleSearch(newValue);
-    if (!newValue) onChange({ target: { name: 'Location', value: '' } });
+    if (!newValue) {
+      setSelectedLocation(null);
+      onChange({ target: { name: 'Location', value: '' } });
+    }
   };
 
   const handleSelectLocation = (location) => {
-    setSearchTerm(location.label);
+    setSearchTerm(location.fullPath);
+    setSelectedLocation(location);
     onChange({ target: { name: 'Location', value: location.id } });
     setShowSuggestions(false);
   };
 
   const handleFocus = () => {
-    if (searchTerm && filteredLocations.length > 0) setShowSuggestions(true);
+    if (searchTerm && filteredLocations.length > 0) {
+      setShowSuggestions(true);
+    }
   };
 
-  const handleBlur = () => setTimeout(() => setShowSuggestions(false), 200);
+  const handleBlur = () => {
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
 
   if (loading) {
     return (
@@ -209,7 +264,12 @@ const LocationDropdown = ({ value, onChange }) => {
         <ListGroup className="position-absolute w-100 mt-1 border shadow" 
           style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
           {filteredLocations.map((loc) => (
-            <ListGroup.Item key={loc.id} action onClick={() => handleSelectLocation(loc)} className="py-2">
+            <ListGroup.Item 
+              key={loc.id} 
+              action 
+              onClick={() => handleSelectLocation(loc)} 
+              className="py-2"
+            >
               {loc.label}
             </ListGroup.Item>
           ))}
@@ -774,20 +834,22 @@ const EventDetails = ({ event, onHide }) => {
 // Main Event Management Component
 const EventManagement = () => {
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [action, setAction] = useState('create');
-  const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [activeTab, setActiveTab] = useState('table');
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => { loadEvents(); }, []);
+  useEffect(() => { 
+    loadEvents(); 
+  }, []);
 
   const loadEvents = async () => {
     try {
@@ -887,7 +949,7 @@ const EventManagement = () => {
 
   const handleNavigate = (newDate) => setCalendarDate(newDate);
 
-  if (loading) {
+  if (loading && events.length === 0) {
     return (
       <Container className="mt-5 text-center">
         <Spinner animation="border" role="status">
