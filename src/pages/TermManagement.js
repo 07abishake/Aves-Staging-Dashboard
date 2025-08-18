@@ -481,8 +481,48 @@ const TermForm = ({ term, onSuccess, action, onHide }) => {
 };
 
 // Term Details Component
+// Term Details Component
 const TermDetails = ({ term, onHide }) => {
   if (!term) return <div>No term data available</div>;
+
+  // Helper function to render location path
+  const renderLocationPath = (location) => {
+    if (!location) return 'N/A';
+    
+    let path = [];
+    
+    // Primary location
+    if (location.PrimaryLocation) {
+      path.push(location.PrimaryLocation);
+    }
+    
+    // SubLocation (PrimarySubLocation)
+    if (location.SubLocation && location.SubLocation.PrimarySubLocation) {
+      path.push(location.SubLocation.PrimarySubLocation);
+    }
+    
+    // SecondaryLocation
+    if (location.SubLocation?.SecondaryLocation?.SecondaryLocation) {
+      path.push(location.SubLocation.SecondaryLocation.SecondaryLocation);
+    }
+    
+    // SecondarySubLocation
+    if (location.SubLocation?.SecondaryLocation?.SecondarySubLocation?.SecondarySubLocation) {
+      path.push(location.SubLocation.SecondaryLocation.SecondarySubLocation.SecondarySubLocation);
+    }
+    
+    // ThirdLocation
+    if (location.SubLocation?.SecondaryLocation?.SecondarySubLocation?.ThirdLocation?.ThirdLocation) {
+      path.push(location.SubLocation.SecondaryLocation.SecondarySubLocation.ThirdLocation.ThirdLocation);
+    }
+    
+    // ThirdSubLocation
+    if (location.SubLocation?.SecondaryLocation?.SecondarySubLocation?.ThirdLocation?.ThirdSubLocation) {
+      path.push(location.SubLocation.SecondaryLocation.SecondarySubLocation.ThirdLocation.ThirdSubLocation);
+    }
+    
+    return path.length > 0 ? path.join(' → ') : 'N/A';
+  };
 
   return (
     <>
@@ -500,23 +540,13 @@ const TermDetails = ({ term, onHide }) => {
             </ListGroup.Item>
             <ListGroup.Item>
               <div className="d-flex justify-content-between">
-                <strong>Location :</strong> 
-                <span>     {term.Location ? (
-        <>
-          {term.Location.PrimaryLocation} - {term.Location.SubLocation}
-          {term.Location.SecondaryLocation?.[0] && (
-            <> / {term.Location.SecondaryLocation[0].SecondaryLocation}</>
-          )}
-          {term.Location.SecondaryLocation?.[0]?.ThirdLocation?.[0] && (
-            <> / {term.Location.SecondaryLocation[0].ThirdLocation[0].ThirdLocation}</>
-          )}
-        </>
-      ) : 'N/A'}</span>
+                <strong>Location:</strong> 
+                <span>{renderLocationPath(term.Location)}</span>
               </div>
             </ListGroup.Item>
             <ListGroup.Item>
               <div className="d-flex justify-content-between">
-                <strong>Department ID:</strong> 
+                <strong>Department:</strong> 
                 <span>{term.Department?.name || 'N/A'}</span>
               </div>
             </ListGroup.Item>
