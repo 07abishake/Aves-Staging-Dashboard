@@ -333,7 +333,7 @@ const toggleExpand = (type, id) => {
               className="mb-3"
               fill
             >
-              <Tab eventKey="country" title="Countries">
+              <Tab eventKey="country" title="Location">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h4></h4>
                   <Button 
@@ -341,21 +341,21 @@ const toggleExpand = (type, id) => {
                     onClick={() => handleOpenOffcanvas('country')}
                     className="d-flex align-items-center"
                   >
-               Country
+               Location
                   </Button>
                 </div>
                 
                 <Table striped responsive>
                   <thead>
                     <tr>
-                      <th>Country Name</th>
+                      <th>Location Name</th>
                       <th className="text-end">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sustainabilityData.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="text-center">No countries found</td>
+                        <td colSpan={2} className="text-center">No Location found</td>
                       </tr>
                     ) : (
                       sustainabilityData.map((country) => (
@@ -390,7 +390,7 @@ const toggleExpand = (type, id) => {
                               size="sm" 
                               onClick={() => handleOpenOffcanvas('hotel', country._id)}
                             >
-                            Hotel
+                            Property
                             </Button>
                           </td>
                         </tr>
@@ -400,13 +400,13 @@ const toggleExpand = (type, id) => {
                 </Table>
               </Tab>
 
-              <Tab eventKey="hotel" title="Hotels">
+              <Tab eventKey="hotel" title="Property">
                 <h4 className="mb-3"></h4>
                 <Table striped responsive>
                   <thead>
                     <tr>
-                      <th>Country</th>
-                      <th>Hotel Name</th>
+                      <th>Location</th>
+                      <th>Property Name</th>
                       <th className="text-end">Actions</th>
                     </tr>
                   </thead>
@@ -460,8 +460,8 @@ const toggleExpand = (type, id) => {
                 <Table striped responsive>
                   <thead>
                     <tr>     
-                      <th>Country</th>
-                      <th>Hotel</th>
+                      <th>Location</th>
+                      <th>Property</th>
                       <th>Module Name</th>
                       <th className="text-end">Actions</th>
                     </tr>
@@ -530,8 +530,8 @@ const toggleExpand = (type, id) => {
                 <Table striped responsive>
                   <thead>
                     <tr>
-                      <th>Country</th>
-                      <th>Hotel</th>
+                      <th>Location</th>
+                      <th>Property</th>
                       <th>Module</th>
                       <th>SubModule Name</th>
                       <th className="text-end">Actions</th>
@@ -695,8 +695,8 @@ const toggleExpand = (type, id) => {
   <Table striped responsive>
     <thead>
       <tr>
-        <th>Country</th>
-        <th>Hotel</th>
+        <th>Location</th>
+        <th>Property</th>
         <th>Module</th>
         <th>SubModule</th>
         <th>Class Name</th>
@@ -782,8 +782,8 @@ const toggleExpand = (type, id) => {
                 <Table striped responsive>
                   <thead>
                     <tr>
-                      <th>Country</th>
-                      <th>Hotel</th>
+                      <th>Location</th>
+                      <th>Property</th>
                       <th>Module</th>
                       <th>SubModule</th>
                       <th>Class</th>
