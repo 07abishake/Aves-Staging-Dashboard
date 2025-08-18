@@ -30,15 +30,15 @@ const OshaInvite = () => {
     const [showEmailCanvas, setShowEmailCanvas] = useState(false);
     const [emailList, setEmailList] = useState([]);
     const [emailMeetingId, setEmailMeetingId] = useState(null);
-    const [location, setLocation] = useState("");
     const [showFollowUp, setShowFollowUp] = useState(false);
+    const [selectedLocation, setSelectedLocation] = useState(null);
     const [followUpType, setFollowUpType] = useState('Description');
     const [followUpForm, setFollowUpForm] = useState({
         Title: '',
         Status: '',
         Department: '',
         ActionBy: '',
-        DaedLine: '',
+        Deadline: '',
         Remarks: ''
     });
     const [showRemarksCanvas, setShowRemarksCanvas] = useState(false);
@@ -115,9 +115,14 @@ const OshaInvite = () => {
     }, 500);
 
     useEffect(() => {
-        fetchUsers(inputValue);
-        fetchDepartments();
+        if (inputValue) {
+            fetchUsers(inputValue);
+        }
     }, [inputValue]);
+
+    useEffect(() => {
+        fetchDepartments();
+    }, []);
 
     const fetchData = async () => {
         try {
@@ -167,11 +172,16 @@ const OshaInvite = () => {
     const handleCreate = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.post('https://api.avessecurity.com/api/oshaminutes/create', form, {
+            const payload = {
+                ...form,
+                Venue: selectedLocation
+            };
+            await axios.post('https://api.avessecurity.com/api/oshaminutes/create', payload, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowCreate(false);
             setForm({});
+            setSelectedLocation(null);
             fetchData();
         } catch (error) {
             console.error("Error creating occurrence", error);
@@ -186,11 +196,16 @@ const OshaInvite = () => {
     const handleUpdate = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.put(`https://api.avessecurity.com/api/DailyOccurance/update/${editId}`, form, {
+            const payload = {
+                ...form,
+                Venue: selectedLocation
+            };
+            await axios.put(`https://api.avessecurity.com/api/oshaminutes/update/${editId}`, payload, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowEdit(false);
             setForm({});
+            setSelectedLocation(null);
             fetchData();
         } catch (error) {
             console.error("Error updating occurrence", error);
@@ -198,26 +213,98 @@ const OshaInvite = () => {
     };
 
     const getLocationOptions = () => {
-        const options = [];
-        locations.forEach(location => {
-            if (!location.PrimaryLocation) return;
-            options.push({ value: location._id, label: location.PrimaryLocation });
-            location.SecondaryLocation?.forEach(secondary => {
-                if (!secondary.SecondaryLocation) return;
-                options.push({
-                    value: secondary._id,
-                    label: `Primary : ${location.PrimaryLocation} -> Secondary : ${secondary.SecondaryLocation}`
-                });
-                secondary.ThirdLocation?.forEach(third => {
-                    if (!third.ThirdLocation) return;
-                    options.push({
-                        value: third._id,
-                        label: `Primary : ${location.PrimaryLocation} -> Secondary : ${secondary.SecondaryLocation} -> Third : ${third.ThirdLocation}`
-                    });
-                });
-            });
+         if (!locations || locations.length === 0) return [];
+
+  const options = [];
+
+  locations.forEach(location => {
+    if (!location.PrimaryLocation) return;
+
+    // Add primary location
+    options.push({
+      id: location._id,
+      value: location.PrimaryLocation,
+      label: location.PrimaryLocation,
+      level: 0
+    });
+
+    // Process SubLocations
+    if (location.SubLocation?.length > 0) {
+      location.SubLocation.forEach(subLoc => {
+        if (!subLoc.PrimarySubLocation) return;
+
+        // Add SubLocation (level 1)
+        const subLocValue = `${location.PrimaryLocation} > ${subLoc.PrimarySubLocation}`;
+        options.push({
+          id: subLoc._id,
+          value: subLocValue,
+          label: `${subLoc.PrimarySubLocation} (${location.PrimaryLocation})`,
+          level: 1
         });
-        return options;
+
+        // Process Secondary Locations
+        if (subLoc.SecondaryLocation?.length > 0) {
+          subLoc.SecondaryLocation.forEach(secondary => {
+            if (!secondary.SecondaryLocation) return;
+
+            // Add Secondary Location (level 2)
+            const secondaryValue = `${subLocValue} > ${secondary.SecondaryLocation}`;
+            options.push({
+              id: secondary._id,
+              value: secondaryValue,
+              label: `${secondary.SecondaryLocation} (${subLoc.PrimarySubLocation})`,
+              level: 2
+            });
+
+            // Process Secondary SubLocations
+            if (secondary.SecondarySubLocation?.length > 0) {
+              secondary.SecondarySubLocation.forEach(secondarySub => {
+                if (!secondarySub.SecondarySubLocation) return;
+                
+                // Add Secondary SubLocation (level 3)
+                const secondarySubValue = `${secondaryValue} > ${secondarySub.SecondarySubLocation}`;
+                options.push({
+                  id: secondarySub._id,
+                  value: secondarySubValue,
+                  label: `${secondarySub.SecondarySubLocation} (${secondary.SecondaryLocation})`,
+                  level: 3
+                });
+
+                // Process Third Locations
+                if (secondarySub.ThirdLocation?.length > 0) {
+                  secondarySub.ThirdLocation.forEach(third => {
+                    if (!third.ThirdLocation) return;
+
+                    // Add Third Location (level 4)
+                    const thirdValue = `${secondarySubValue} > ${third.ThirdLocation}`;
+                    options.push({
+                      id: third._id,
+                      value: thirdValue,
+                      label: `${third.ThirdLocation} (${secondarySub.SecondarySubLocation})`,
+                      level: 4
+                    });
+
+                    // Add Third SubLocation if exists (level 5)
+                    if (third.ThirdSubLocation) {
+                      const thirdSubValue = `${thirdValue} > ${third.ThirdSubLocation}`;
+                      options.push({
+                        id: third._id, // Might need a different ID if available
+                        value: thirdSubValue,
+                        label: `${third.ThirdSubLocation} (${third.ThirdLocation})`,
+                        level: 5
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+
+  return options;
     };
 
     const handleFollowUpSubmit = async () => {
@@ -234,7 +321,7 @@ const OshaInvite = () => {
                 Status: '',
                 Department: '',
                 ActionBy: '',
-                DaedLine: '',
+                Deadline: '',
                 Remarks: ''
             });
             fetchData();
@@ -289,6 +376,24 @@ const OshaInvite = () => {
         return <Badge bg={option.color}>{option.label}</Badge>;
     };
 
+const formatVenue = (venue) => {
+    if (!venue) return 'No Venue';
+    
+    // If venue is a string (like in your API response)
+    if (typeof venue === 'string') {
+        return venue;
+    }
+    
+    // If venue is an object (like your code expects)
+    let parts = [];
+    if (venue.PrimaryLocation) parts.push(venue.PrimaryLocation);
+    if (venue.SubLocation) parts.push(venue.SubLocation);
+    if (venue.SecondaryLocation) parts.push(venue.SecondaryLocation);
+    if (venue.ThirdLocation) parts.push(venue.ThirdLocation);
+    
+    return parts.join(', ');
+};
+
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -336,12 +441,7 @@ const OshaInvite = () => {
                                 <td>{i + 1}</td>
                                 <td>{item.MeetingTitle}</td>
                                 <td>{new Date(item?.Date).toLocaleDateString()} - {item.Time}</td>
-                               <td>
-  {item.Venue
-    ? `${item.Venue.PrimaryLocation || ''}, ${item.Venue.SubLocation || ''}, ${item.Venue.SecondaryLocation || ''},${item.Venue.ThirdLocation || ''},${item.Venue.SubLocation || ''}`
-    : 'No Venue'}
-</td>
-
+                                <td>{formatVenue(item.Venue)}</td>
                                 <td>
                                     <Button
                                         size="sm"
@@ -397,7 +497,7 @@ const OshaInvite = () => {
                                         onClick={() => {
                                             setViewData(item);
                                             setShowFollowUp(true);
-                                            setShowView(false); // Close the view offcanvas if open
+                                            setShowView(false);
                                         }}
                                     >
                                         <i className="bi bi-bell-fill"></i> Follow Up
@@ -440,10 +540,7 @@ const OshaInvite = () => {
                                 <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
                                 <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
                                 <p><strong>Time:</strong> {viewData.Time}</p>
-                                <p><strong>Venue:</strong>{viewData.Venue
-    ? `${viewData.Venue.PrimaryLocation || ''}, ${viewData.Venue.SubLocation || ''}, ${viewData.Venue.SecondaryLocation || ''},${viewData.Venue.ThirdLocation || ''},${viewData.Venue.SubLocation || ''}`
-    : 'No Venue'}
-</p>
+                                <p><strong>Venue:</strong> {viewData.Venue}</p>
                             </div>
 
                             <div className="mb-4">
@@ -526,9 +623,9 @@ const OshaInvite = () => {
                                         <Form.Label>Deadline</Form.Label>
                                         <Form.Control
                                             type="date"
-                                            name="DaedLine"
-                                            value={followUpForm.DaedLine}
-                                            onChange={(e) => setFollowUpForm({...followUpForm, DaedLine: e.target.value})}
+                                            name="Deadline"
+                                            value={followUpForm.Deadline}
+                                            onChange={(e) => setFollowUpForm({...followUpForm, Deadline: e.target.value})}
                                         />
                                     </Form.Group>
 
@@ -564,7 +661,7 @@ const OshaInvite = () => {
                                                         <p>Status: {getStatusBadge(desc.Status)}</p>
                                                         <p>Department: {departments.find(d => d.value === desc.Department)?.label || desc.Department}</p>
                                                         <p>Action By: {users.find(u => u.value === desc.ActionBy)?.label || desc.ActionBy}</p>
-                                                        <p>Deadline: {desc.DaedLine}</p>
+                                                        <p>Deadline: {desc.Deadline}</p>
                                                         <p>Remarks: {desc.Remarks}</p>
                                                     </div>
                                                     {desc.Status === 'Pending' && (
@@ -604,7 +701,7 @@ const OshaInvite = () => {
                                                         <p>Status: {getStatusBadge(disc.Status)}</p>
                                                         <p>Department: {departments.find(d => d.value === disc.Department)?.label || disc.Department}</p>
                                                         <p>Action By: {users.find(u => u.value === disc.ActionBy)?.label || disc.ActionBy}</p>
-                                                        <p>Deadline: {disc.DaedLine}</p>
+                                                        <p>Deadline: {disc.Deadline}</p>
                                                         <p>Remarks: {disc.Remarks}</p>
                                                     </div>
                                                     {disc.Status === 'Pending' && (
@@ -689,9 +786,7 @@ const OshaInvite = () => {
                                 <p><strong>Meeting Title:</strong> {viewData.MeetingTitle}</p>
                                 <p><strong>Date:</strong> {new Date(viewData.Date).toLocaleDateString()}</p>
                                 <p><strong>Time:</strong> {viewData.Time}</p>
-                                <p><strong>Venue:</strong> {viewData.Venue
-    ? `${viewData.Venue.PrimaryLocation || ''}, ${viewData.Venue.SubLocation || ''}, ${viewData.Venue.SecondaryLocation || ''},${viewData.Venue.ThirdLocation || ''},${viewData.Venue.SubLocation || ''}`
-    : 'No Venue'}</p>
+                                <p><strong>Venue:</strong> {formatVenue(viewData.Venue)}</p>
                             </div>
 
                             <div className="mb-4">
@@ -724,7 +819,7 @@ const OshaInvite = () => {
                                                         <p>Status: {getStatusBadge(desc.Status)}</p>
                                                         <p>Department: {departments.find(d => d.value === desc.Department)?.label || desc.Department}</p>
                                                         <p>Action By: {users.find(u => u.value === desc.ActionBy)?.label || desc.ActionBy}</p>
-                                                        <p>Deadline: {desc.DaedLine}</p>
+                                                        <p>Deadline: {desc.Deadline}</p>
                                                         <p>Remarks: {desc.Remarks}</p>
                                                     </div>
                                                     {desc.Status === 'Pending' && (
@@ -764,7 +859,7 @@ const OshaInvite = () => {
                                                         <p>Status: {getStatusBadge(disc.Status)}</p>
                                                         <p>Department: {departments.find(d => d.value === disc.Department)?.label || disc.Department}</p>
                                                         <p>Action By: {users.find(u => u.value === disc.ActionBy)?.label || disc.ActionBy}</p>
-                                                        <p>Deadline: {disc.DaedLine}</p>
+                                                        <p>Deadline: {disc.Deadline}</p>
                                                         <p>Remarks: {disc.Remarks}</p>
                                                     </div>
                                                     {disc.Status === 'Pending' && (
@@ -841,16 +936,23 @@ const OshaInvite = () => {
                                     ) : field === "Venue" ? (
                                         <Select
                                             options={getLocationOptions()}
-                                            value={getLocationOptions().find(opt => opt.value === form["Venue"])}
+                                            value={getLocationOptions().find(opt => opt.value === selectedLocation)}
                                             onChange={(selected) => {
-                                                setForm(prev => ({
-                                                    ...prev,
-                                                    Venue: selected?.value || ''
-                                                }));
+                                                setSelectedLocation(selected?.value || '');
                                             }}
-                                            placeholder="Select location"
+                                            placeholder="Search or select location..."
+                                            isSearchable
                                             isClearable
-                                            className="w-100"
+                                            className="border-primary"
+                                            styles={{
+                                                control: (provided) => ({
+                                                    ...provided,
+                                                    borderColor: '#0d6efd',
+                                                    '&:hover': {
+                                                        borderColor: '#0d6efd'
+                                                    }
+                                                })
+                                            }}
                                         />
                                     ) : (
                                         <Form.Control

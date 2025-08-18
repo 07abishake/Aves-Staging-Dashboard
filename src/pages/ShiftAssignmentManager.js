@@ -224,44 +224,85 @@ const ShiftAssignmentManager = () => {
     }
   };
 
-  const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate) => {
-    if (!userId || !startDate || !endDate) return false;
+  // const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate) => {
+  //   if (!userId || !startDate || !endDate) return false;
     
-    try {
-      const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
-        headers: { Authorization: `Bearer ${token}` }
+  //   try {
+  //     const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+  //       headers: { Authorization: `Bearer ${token}` }
+  //     });
+
+  //     if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
+  //       const existingAssignment = res.data.Shift.find(shift => {
+  //         return shift.DepartmentUser.some(userShift => {
+  //           const isSameUser = userShift.userId === userId || userShift.userId?._id === userId;
+            
+  //           if (!isSameUser) return false;
+            
+  //           const existingStart = new Date(userShift.StartDate);
+  //           const existingEnd = new Date(userShift.EndDate);
+  //           const newStart = new Date(startDate);
+  //           const newEnd = new Date(endDate);
+            
+  //           return dateRangesOverlap(
+  //             newStart, 
+  //             newEnd,
+  //             existingStart,
+  //             existingEnd
+  //           );
+  //         });
+  //       });
+
+  //       return !!existingAssignment;
+  //     }
+  //     return false;
+  //   } catch (error) {
+  //     console.error("Error checking existing shifts:", error);
+  //     return false;
+  //   }
+  // };
+
+const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate) => {
+  if (!userId || !startDate || !endDate) return false;
+  
+  try {
+    const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
+      const existingAssignment = res.data.Shift.find(shift => {
+        return shift.DepartmentUser.some(userShift => {
+          // Check if this is the same user
+          const userShiftId = userShift.userId?._id || userShift.userId;
+          if (userShiftId !== userId) return false;
+          
+          // Only check if there's an actual shift assignment
+          if (!userShift.ActualShift) return false;
+          
+          // Check if dates overlap
+          const existingStart = new Date(userShift.StartDate);
+          const existingEnd = new Date(userShift.EndDate);
+          const newStart = new Date(startDate);
+          const newEnd = new Date(endDate);
+          
+          return dateRangesOverlap(
+            newStart, 
+            newEnd,
+            existingStart,
+            existingEnd
+          );
+        });
       });
 
-      if (res.data && res.data.message === "Shift found" && Array.isArray(res.data.Shift)) {
-        const existingAssignment = res.data.Shift.find(shift => {
-          return shift.DepartmentUser.some(userShift => {
-            const isSameUser = userShift.userId === userId || userShift.userId?._id === userId;
-            
-            if (!isSameUser) return false;
-            
-            const existingStart = new Date(userShift.StartDate);
-            const existingEnd = new Date(userShift.EndDate);
-            const newStart = new Date(startDate);
-            const newEnd = new Date(endDate);
-            
-            return dateRangesOverlap(
-              newStart, 
-              newEnd,
-              existingStart,
-              existingEnd
-            );
-          });
-        });
-
-        return !!existingAssignment;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error checking existing shifts:", error);
-      return false;
+      return !!existingAssignment;
     }
-  };
-
+    return false;
+  } catch (error) {
+    console.error("Error checking existing shifts:", error);
+    return false;
+  }
+};
   const handleUpdateShift = async () => {
     if (!selectedShift) {
       alert("Please select shift first");

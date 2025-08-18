@@ -328,60 +328,81 @@ const InventoryManager = () => {
   };
 
   // Flatten the location hierarchy for display and search
-  const getFlattenedLocations = () => {
-    const flattened = [];
+const getFlattenedLocations = () => {
+  const flattened = [];
+  
+  allLocations.forEach(primary => {
+    if (!primary) return; // Skip if primary location is undefined
     
-    allLocations.forEach(primary => {
+    // Safely access primary location properties
+    const primaryName = primary.PrimaryLocation || 'Unknown Primary Location';
+    flattened.push({
+      id: primary._id,
+      name: primaryName,
+      type: 'PrimaryLocation',
+      path: primaryName
+    });
+
+    (primary.SubLocation || []).forEach(sub => {
+      if (!sub) return; // Skip if sublocation is undefined
+      
+      const subName = sub.PrimarySubLocation || 'Unknown Sub Location';
       flattened.push({
-        id: primary._id,
-        name: primary.PrimaryLocation,
-        type: 'PrimaryLocation',
-        path: primary.PrimaryLocation
+        id: sub._id,
+        name: subName,
+        type: 'PrimarySubLocation',
+        path: `${primaryName},${subName}`
       });
 
-      primary.SubLocation?.forEach(sub => {
+      (sub.SecondaryLocation || []).forEach(secondary => {
+        if (!secondary) return;
+        
+        const secondaryName = secondary.SecondaryLocation || 'Unknown Secondary Location';
         flattened.push({
-          id: sub._id,
-          name: sub.PrimarySubLocation,
-          type: 'PrimarySubLocation',
-          path: `${primary.PrimaryLocation},${sub.PrimarySubLocation}`
+          id: secondary._id,
+          name: secondaryName,
+          type: 'SecondaryLocation',
+          path: `${primaryName},${subName},${secondaryName}`
         });
 
-        sub.SecondaryLocation?.forEach(secondary => {
+        (secondary.SecondarySubLocation || []).forEach(subSecondary => {
+          if (!subSecondary) return;
+          
+          const subSecondaryName = subSecondary.SecondarySubLocation || 'Unknown Secondary Sub Location';
           flattened.push({
-            id: secondary._id,
-            name: secondary.SecondaryLocation,
-            type: 'SecondaryLocation',
-            path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation}`
+            id: subSecondary._id,
+            name: subSecondaryName,
+            type: 'SecondarySubLocation',
+            path: `${primaryName},${subName},${secondaryName},${subSecondaryName}`
           });
 
-          secondary.SecondarySubLocation?.forEach(subSecondary => {
+          (subSecondary.ThirdLocation || []).forEach(third => {
+            if (!third) return;
+            
+            const thirdName = third.ThirdLocation || third.ThirdSubLocation || 'Unknown Third Location';
             flattened.push({
-              id: subSecondary._id,
-              name: subSecondary.SecondarySubLocation,
-              type: 'SecondarySubLocation',
-              path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation}`
-            });
-
-            subSecondary.ThirdLocation?.forEach(third => {
-              flattened.push({
-                id: third._id,
-                name: third.ThirdLocation || third.ThirdSubLocation,
-                type: 'ThirdLocation',
-                path: `${primary.PrimaryLocation},${sub.PrimarySubLocation},${secondary.SecondaryLocation},${subSecondary.SecondarySubLocation},${third.ThirdLocation || ''}${third.ThirdSubLocation ? ',' + third.ThirdSubLocation : ''}`
-              });
+              id: third._id,
+              name: thirdName,
+              type: 'ThirdLocation',
+              path: `${primaryName},${subName},${secondaryName},${subSecondaryName},${thirdName}`
             });
           });
         });
       });
     });
+  });
 
-    return flattened.filter(loc => 
-      loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loc.path.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
-
+  // Safely filter locations
+  return flattened.filter(loc => {
+    if (!loc) return false;
+    const name = loc.name || '';
+    const path = loc.path || '';
+    const term = searchTerm || '';
+    
+    return name.toLowerCase().includes(term.toLowerCase()) ||
+           path.toLowerCase().includes(term.toLowerCase());
+  });
+};
   // Render the location hierarchy table
   const renderLocationTable = () => {
     const filteredLocations = getFlattenedLocations();

@@ -165,39 +165,100 @@ const CCTvRequest = () => {
   };
 
   // Process nested location data
-  const processLocations = (locations) => {
-    const allLocations = [];
-    
-    locations.forEach(location => {
-      allLocations.push({
-        id: location._id,
-        value: `${location.PrimaryLocation} > ${location.SubLocation}`,
-        label: `${location.PrimaryLocation} - ${location.SubLocation}`
-      });
+const processLocations = (locations) => {
+  if (!locations || locations.length === 0) return [];
 
-      if (location.SecondaryLocation && location.SecondaryLocation.length > 0) {
-        location.SecondaryLocation.forEach(secondary => {
-          allLocations.push({
-            id: secondary._id,
-            value: `${location.PrimaryLocation} > ${location.SubLocation} > ${secondary.SecondaryLocation} > ${secondary.SubLocation}`,
-            label: `${secondary.SecondaryLocation} - ${secondary.SubLocation} (${location.PrimaryLocation})`
-          });
+  const options = [];
 
-          if (secondary.ThirdLocation && secondary.ThirdLocation.length > 0) {
-            secondary.ThirdLocation.forEach(tertiary => {
-              allLocations.push({
-                id: tertiary._id,
-                value: `${location.PrimaryLocation} > ${location.SubLocation} > ${secondary.SecondaryLocation} > ${secondary.SubLocation} > ${tertiary.ThirdLocation} > ${tertiary.SubLocation}`,
-                label: `${tertiary.ThirdLocation} - ${tertiary.SubLocation} (${secondary.SecondaryLocation})`
-              });
-            });
-          }
-        });
-      }
+  locations.forEach(location => {
+    if (!location.PrimaryLocation) return;
+
+    // Add primary location
+    options.push({
+      id: location._id,
+      value: location.PrimaryLocation,
+      label: location.PrimaryLocation,
+      level: 0
     });
-    
-    return allLocations;
-  };
+
+    // Process SubLocations
+    if (location.SubLocation?.length > 0) {
+      location.SubLocation.forEach(subLoc => {
+        if (!subLoc.PrimarySubLocation) return;
+
+        // Add SubLocation (level 1)
+        const subLocValue = `${location.PrimaryLocation} > ${subLoc.PrimarySubLocation}`;
+        options.push({
+          id: subLoc._id,
+          value: subLocValue,
+          label: `${subLoc.PrimarySubLocation} (${location.PrimaryLocation})`,
+          level: 1
+        });
+
+        // Process Secondary Locations
+        if (subLoc.SecondaryLocation?.length > 0) {
+          subLoc.SecondaryLocation.forEach(secondary => {
+            if (!secondary.SecondaryLocation) return;
+
+            // Add Secondary Location (level 2)
+            const secondaryValue = `${subLocValue} > ${secondary.SecondaryLocation}`;
+            options.push({
+              id: secondary._id,
+              value: secondaryValue,
+              label: `${secondary.SecondaryLocation} (${subLoc.PrimarySubLocation})`,
+              level: 2
+            });
+
+            // Process Secondary SubLocations
+            if (secondary.SecondarySubLocation?.length > 0) {
+              secondary.SecondarySubLocation.forEach(secondarySub => {
+                if (!secondarySub.SecondarySubLocation) return;
+                
+                // Add Secondary SubLocation (level 3)
+                const secondarySubValue = `${secondaryValue} > ${secondarySub.SecondarySubLocation}`;
+                options.push({
+                  id: secondarySub._id,
+                  value: secondarySubValue,
+                  label: `${secondarySub.SecondarySubLocation} (${secondary.SecondaryLocation})`,
+                  level: 3
+                });
+
+                // Process Third Locations
+                if (secondarySub.ThirdLocation?.length > 0) {
+                  secondarySub.ThirdLocation.forEach(third => {
+                    if (!third.ThirdLocation) return;
+
+                    // Add Third Location (level 4)
+                    const thirdValue = `${secondarySubValue} > ${third.ThirdLocation}`;
+                    options.push({
+                      id: third._id,
+                      value: thirdValue,
+                      label: `${third.ThirdLocation} (${secondarySub.SecondarySubLocation})`,
+                      level: 4
+                    });
+
+                    // Add Third SubLocation if exists (level 5)
+                    if (third.ThirdSubLocation) {
+                      const thirdSubValue = `${thirdValue} > ${third.ThirdSubLocation}`;
+                      options.push({
+                        id: third._id, // Might need a different ID if available
+                        value: thirdSubValue,
+                        label: `${third.ThirdSubLocation} (${third.ThirdLocation})`,
+                        level: 5
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+
+  return options;
+};
 
   // API functions
   const fetchRequests = async () => {

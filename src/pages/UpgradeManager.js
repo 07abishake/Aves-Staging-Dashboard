@@ -98,8 +98,8 @@ const UpgradeManager = () => {
     PictureOfTheNewproduct: [],
     PictureOfTheExistingProduct: []
   });
-  const [newProductImages, setNewProductImages] = useState([]);
-  const [existingProductImages, setExistingProductImages] = useState([]);
+  const [newProductImages, setNewProductImages] = useState([]); // Array of { file: File, preview: string } or { url: string }
+  const [existingProductImages, setExistingProductImages] = useState([]); // Same as above
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
@@ -109,6 +109,20 @@ const UpgradeManager = () => {
 
   useEffect(() => {
     fetchUpgrades();
+    
+    // Cleanup function to revoke object URLs
+    return () => {
+      newProductImages.forEach(img => {
+        if (img.preview && img.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
+      existingProductImages.forEach(img => {
+        if (img.preview && img.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
+    };
   }, []);
 
   const fetchUpgrades = async () => {
@@ -147,8 +161,21 @@ const UpgradeManager = () => {
         SubmittedDate: upgrade.SubmittedDate ? moment(upgrade.SubmittedDate).format('YYYY-MM-DD') : '',
         SubmittedTime: upgrade.SubmittedTime || ''
       });
-      setNewProductImages(upgrade.PictureOfTheNewproduct ? upgrade.PictureOfTheNewproduct.map(img => `https://api.avessecurity.com/${img}`) : []);
-      setExistingProductImages(upgrade.PictureOfTheExistingProduct ? upgrade.PictureOfTheExistingProduct.map(img => `https://api.avessecurity.com/${img}`) : []);
+      
+      // For existing images, store them with their URLs
+      setNewProductImages(upgrade.PictureOfTheNewproduct 
+        ? upgrade.PictureOfTheNewproduct.map(img => ({
+            url: `https://api.avessecurity.com/${img}`,
+            preview: `https://api.avessecurity.com/${img}`
+          }))
+        : []);
+        
+      setExistingProductImages(upgrade.PictureOfTheExistingProduct 
+        ? upgrade.PictureOfTheExistingProduct.map(img => ({
+            url: `https://api.avessecurity.com/${img}`,
+            preview: `https://api.avessecurity.com/${img}`
+          }))
+        : []);
     } else {
       setEditMode(false);
       setCurrentId(null);
@@ -189,45 +216,34 @@ const UpgradeManager = () => {
     }));
   };
 
-  const handleImageUpload = async (e, type) => {
+  const handleImageUpload = (e, type) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    try {
-      setLoading(true);
-      const uploadPromises = files.map(async (file) => {
-        const formData = new FormData();
-        formData.append('images', file);
+    // Create object URLs for preview and store File objects
+    const newImages = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
 
-        const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-
-        return res.data.urls[0]; // Assuming the API returns an array of URLs
-      });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
-
-      if (type === 'new') {
-        setNewProductImages(prev => [...prev, ...uploadedUrls]);
-      } else {
-        setExistingProductImages(prev => [...prev, ...uploadedUrls]);
-      }
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to upload images');
-      console.error('Upload error:', error);
-    } finally {
-      setLoading(false);
+    if (type === 'new') {
+      setNewProductImages(prev => [...prev, ...newImages]);
+    } else {
+      setExistingProductImages(prev => [...prev, ...newImages]);
     }
   };
 
   const removeImage = (index, type) => {
     if (type === 'new') {
+      // Revoke the object URL to prevent memory leaks if it's a blob URL
+      if (newProductImages[index].preview && newProductImages[index].preview.startsWith('blob:')) {
+        URL.revokeObjectURL(newProductImages[index].preview);
+      }
       setNewProductImages(prev => prev.filter((_, i) => i !== index));
     } else {
+      if (existingProductImages[index].preview && existingProductImages[index].preview.startsWith('blob:')) {
+        URL.revokeObjectURL(existingProductImages[index].preview);
+      }
       setExistingProductImages(prev => prev.filter((_, i) => i !== index));
     }
   };
@@ -237,10 +253,52 @@ const UpgradeManager = () => {
     try {
       setLoading(true);
       
+      // Upload new product images (only new files, not existing URLs)
+      const newProductUploads = await Promise.all(
+        newProductImages.map(async (img) => {
+          if (img.url) {
+            // This is an existing image (from edit mode), just return the URL
+            return img.url.replace('https://api.avessecurity.com/', '');
+          } else {
+            // This is a new file, upload it
+            const formData = new FormData();
+            formData.append('images', img.file);
+            const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+            return res.data.urls[0];
+          }
+        })
+      );
+
+      // Upload existing product images (only new files, not existing URLs)
+      const existingProductUploads = await Promise.all(
+        existingProductImages.map(async (img) => {
+          if (img.url) {
+            // This is an existing image (from edit mode), just return the URL
+            return img.url.replace('https://api.avessecurity.com/', '');
+          } else {
+            // This is a new file, upload it
+            const formData = new FormData();
+            formData.append('images', img.file);
+            const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+            return res.data.urls[0];
+          }
+        })
+      );
+
       const payload = {
         ...formData,
-        PictureOfTheNewproduct: newProductImages.map(img => img.replace('https://api.avessecurity.com/', '')),
-        PictureOfTheExistingProduct: existingProductImages.map(img => img.replace('https://api.avessecurity.com/', '')),
+        PictureOfTheNewproduct: newProductUploads,
+        PictureOfTheExistingProduct: existingProductUploads,
         SubmittedBy: user?.username || '',
         SubmittedDate: moment().toDate(),
         SubmittedTime: moment().format('HH:mm'),
@@ -391,7 +449,7 @@ const UpgradeManager = () => {
                 <p className="text-muted">Submitted by: {currentUpgrade.SubmittedBy || 'N/A'}</p>
               </div>
 
-              <Table borderless className="mb-4">
+              <Table className="mb-4">
                 <tbody>
                   <tr>
                     <td className="fw-bold" style={{ width: '40%' }}>Original Product:</td>
@@ -622,7 +680,11 @@ const UpgradeManager = () => {
               <div className="d-flex flex-wrap mt-2">
                 {newProductImages.map((img, index) => (
                   <div key={index} className="position-relative me-2 mb-2" style={{ width: '100px' }}>
-                    <Image src={img} thumbnail style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
+                    <Image 
+                      src={img.preview || img.url} 
+                      thumbnail 
+                      style={{ width: '100%', height: '100px', objectFit: 'cover' }} 
+                    />
                     <Button
                       variant="danger"
                       size="sm"
@@ -650,7 +712,11 @@ const UpgradeManager = () => {
               <div className="d-flex flex-wrap mt-2">
                 {existingProductImages.map((img, index) => (
                   <div key={index} className="position-relative me-2 mb-2" style={{ width: '100px' }}>
-                    <Image src={img} thumbnail style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
+                    <Image 
+                      src={img.preview || img.url} 
+                      thumbnail 
+                      style={{ width: '100%', height: '100px', objectFit: 'cover' }} 
+                    />
                     <Button
                       variant="danger"
                       size="sm"

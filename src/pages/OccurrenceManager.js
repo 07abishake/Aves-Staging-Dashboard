@@ -48,7 +48,7 @@ const OccurrenceManager = () => {
   const handleCreate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post('https://api.avessecurity.com/api/DailyOccurance/create', form, {
+      await axios.post('http://localhost:6378/api/DailyOccurance/create', form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowCreate(false);
