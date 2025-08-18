@@ -323,7 +323,7 @@ const EventInchargeDropdown = ({ value, onChange }) => {
 // Event Service Functions
 const fetchEvents = async () => {
   try {
-    const response = await axios.get('https://api.avessecurity.com/api/event', {
+    const response = await axios.get('https://api.avessecurity.com/api/event/get', {
       headers: { Authorization: `Bearer ${token}` }
     });
     
