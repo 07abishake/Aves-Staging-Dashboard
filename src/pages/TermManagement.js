@@ -142,12 +142,15 @@ const DepartmentDropdown = ({ value, onChange }) => {
 
 // Location Dropdown Component
 const LocationDropdown = ({ value, onChange }) => {
-  const [locations, setLocations] = useState([]);
+ const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPrimary, setSelectedPrimary] = useState('');
+  const [selectedSubPrimary, setSelectedSubPrimary] = useState('');
   const [selectedSecondary, setSelectedSecondary] = useState('');
+  const [selectedSubSecondary, setSelectedSubSecondary] = useState('');
   const [selectedTertiary, setSelectedTertiary] = useState('');
+  const [selectedSubTertiary, setSelectedSubTertiary] = useState('');
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -170,35 +173,83 @@ const LocationDropdown = ({ value, onChange }) => {
   const handlePrimaryChange = (e) => {
     const primaryId = e.target.value;
     setSelectedPrimary(primaryId);
+    setSelectedSubPrimary('');
     setSelectedSecondary('');
+    setSelectedSubSecondary('');
     setSelectedTertiary('');
+    setSelectedSubTertiary('');
     onChange({ target: { name: 'Location', value: primaryId } });
+  };
+
+  const handleSubPrimaryChange = (e) => {
+    const subPrimaryId = e.target.value;
+    setSelectedSubPrimary(subPrimaryId);
+    setSelectedSecondary('');
+    setSelectedSubSecondary('');
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    onChange({ target: { name: 'Location', value: subPrimaryId } });
   };
 
   const handleSecondaryChange = (e) => {
     const secondaryId = e.target.value;
     setSelectedSecondary(secondaryId);
+    setSelectedSubSecondary('');
     setSelectedTertiary('');
+    setSelectedSubTertiary('');
     onChange({ target: { name: 'Location', value: secondaryId } });
+  };
+
+  const handleSubSecondaryChange = (e) => {
+    const subSecondaryId = e.target.value;
+    setSelectedSubSecondary(subSecondaryId);
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    onChange({ target: { name: 'Location', value: subSecondaryId } });
   };
 
   const handleTertiaryChange = (e) => {
     const tertiaryId = e.target.value;
     setSelectedTertiary(tertiaryId);
+    setSelectedSubTertiary('');
     onChange({ target: { name: 'Location', value: tertiaryId } });
+  };
+
+  const handleSubTertiaryChange = (e) => {
+    const subTertiaryId = e.target.value;
+    setSelectedSubTertiary(subTertiaryId);
+    onChange({ target: { name: 'Location', value: subTertiaryId } });
   };
 
   const getSelectedPrimary = () => {
     return locations.find(loc => loc._id === selectedPrimary);
   };
 
-  const getSelectedSecondary = () => {
+  const getSelectedSubPrimary = () => {
     const primary = getSelectedPrimary();
     if (!primary) return null;
-    return primary.SecondaryLocation.find(sec => sec._id === selectedSecondary);
+    return primary.SubLocation.find(sub => sub._id === selectedSubPrimary);
   };
 
-  if (loading) {
+  const getSelectedSecondary = () => {
+    const subPrimary = getSelectedSubPrimary();
+    if (!subPrimary) return null;
+    return subPrimary.SecondaryLocation.find(sec => sec._id === selectedSecondary);
+  };
+
+  const getSelectedSubSecondary = () => {
+    const secondary = getSelectedSecondary();
+    if (!secondary) return null;
+    return secondary.SecondarySubLocation.find(subSec => subSec._id === selectedSubSecondary);
+  };
+
+  const getSelectedTertiary = () => {
+    const subSecondary = getSelectedSubSecondary();
+    if (!subSecondary) return null;
+    return subSecondary.ThirdLocation.find(ter => ter._id === selectedTertiary);
+  };
+
+if (loading) {
     return (
       <Form.Group controlId="Location">
         <Form.Label>Location</Form.Label>
@@ -234,39 +285,87 @@ const LocationDropdown = ({ value, onChange }) => {
         <option value="">Select Primary Location</option>
         {locations.map(loc => (
           <option key={loc._id} value={loc._id}>
-            {loc.PrimaryLocation} - {loc.SubLocation}
+            {loc.PrimaryLocation}
           </option>
         ))}
       </Form.Select>
 
-      {/* Secondary Location Dropdown */}
+      {/* Sub-Primary Location Dropdown */}
       {selectedPrimary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedSubPrimary}
+          onChange={handleSubPrimaryChange}
+        >
+          <option value="">Select Sub-Primary Location</option>
+          {getSelectedPrimary()?.SubLocation?.map(sub => (
+            <option key={sub._id} value={sub._id}>
+              {sub.PrimarySubLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Secondary Location Dropdown */}
+      {selectedSubPrimary && (
         <Form.Select
           className="mb-2"
           value={selectedSecondary}
           onChange={handleSecondaryChange}
         >
           <option value="">Select Secondary Location</option>
-          {getSelectedPrimary()?.SecondaryLocation?.map(sec => (
+          {getSelectedSubPrimary()?.SecondaryLocation?.map(sec => (
             <option key={sec._id} value={sec._id}>
-              {sec.SecondaryLocation} - {sec.SubLocation}
+              {sec.SecondaryLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Sub-Secondary Location Dropdown */}
+      {selectedSecondary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedSubSecondary}
+          onChange={handleSubSecondaryChange}
+        >
+          <option value="">Select Sub-Secondary Location</option>
+          {getSelectedSecondary()?.SecondarySubLocation?.map(subSec => (
+            <option key={subSec._id} value={subSec._id}>
+              {subSec.SecondarySubLocation}
             </option>
           ))}
         </Form.Select>
       )}
 
       {/* Tertiary Location Dropdown */}
-      {selectedSecondary && (
+      {selectedSubSecondary && (
         <Form.Select
+          className="mb-2"
           value={selectedTertiary}
           onChange={handleTertiaryChange}
         >
           <option value="">Select Tertiary Location</option>
-          {getSelectedSecondary()?.ThirdLocation?.map(ter => (
+          {getSelectedSubSecondary()?.ThirdLocation?.map(ter => (
             <option key={ter._id} value={ter._id}>
-              {ter.ThirdLocation} - {ter.SubLocation}
+              {ter.ThirdLocation}
             </option>
           ))}
+        </Form.Select>
+      )}
+
+      {/* Sub-Tertiary Location Dropdown */}
+      {selectedTertiary && (
+        <Form.Select
+          value={selectedSubTertiary}
+          onChange={handleSubTertiaryChange}
+        >
+          <option value="">Select Sub-Tertiary Location</option>
+          {getSelectedTertiary() && (
+            <option value={getSelectedTertiary()._id}>
+              {getSelectedTertiary().ThirdSubLocation}
+            </option>
+          )}
         </Form.Select>
       )}
     </Form.Group>
