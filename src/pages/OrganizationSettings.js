@@ -91,7 +91,7 @@ function OrganizationSettings() {
             </div>
           </div>
 
-          <div className="card">
+          {/* <div className="card">
             <div className="card-body">
               <h5 className="card-title">Members</h5>
               {organization.members && organization.members.length > 0 ? (
@@ -104,7 +104,7 @@ function OrganizationSettings() {
                 <p>No members listed.</p>
               )}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

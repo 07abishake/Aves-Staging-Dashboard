@@ -7,6 +7,75 @@ import {
 import axios from 'axios';
 import moment from 'moment';
 
+const DepartmentDropdown = ({ value, onChange }) => {
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setDepartments(response.data);
+      } catch (err) {
+        setError(err.message || 'Failed to load departments');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
+
+  if (loading) {
+    return (
+      <Form.Group className="mb-3">
+        <Form.Label className="fw-medium">Department*</Form.Label>
+        <div className="d-flex align-items-center">
+          <Spinner animation="border" size="sm" className="me-2" />
+          <span>Loading departments...</span>
+        </div>
+      </Form.Group>
+    );
+  }
+
+  if (error) {
+    return (
+      <Form.Group className="mb-3">
+        <Form.Label className="fw-medium">Department*</Form.Label>
+        <Alert variant="danger" className="py-1">
+          {error}
+        </Alert>
+      </Form.Group>
+    );
+  }
+
+  return (
+    <Form.Group className="mb-3">
+      <Form.Label className="fw-medium">Department*</Form.Label>
+      <Form.Select
+        name="Department"
+        value={value}
+        onChange={onChange}
+        required
+        className="py-2"
+      >
+        <option value="">Select Department</option>
+        {departments.map((dept) => (
+          <option key={dept._id} value={dept.name}>
+            {dept.name}
+          </option>
+        ))}
+      </Form.Select>
+    </Form.Group>
+  );
+};
+
 const UpgradeManager = () => {
   const [upgrades, setUpgrades] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +126,7 @@ const UpgradeManager = () => {
         setError('No upgrades found');
       }
     } catch (error) {
-      setError('Failed to fetch upgrades');
+      setError(error.response?.data?.message || 'Failed to fetch upgrades');
       console.error('Error:', error);
     } finally {
       setLoading(false);
@@ -78,8 +147,8 @@ const UpgradeManager = () => {
         SubmittedDate: upgrade.SubmittedDate ? moment(upgrade.SubmittedDate).format('YYYY-MM-DD') : '',
         SubmittedTime: upgrade.SubmittedTime || ''
       });
-      setNewProductImages(upgrade.PictureOfTheNewproduct || []);
-      setExistingProductImages(upgrade.PictureOfTheExistingProduct || []);
+      setNewProductImages(upgrade.PictureOfTheNewproduct ? upgrade.PictureOfTheNewproduct.map(img => `https://api.avessecurity.com/${img}`) : []);
+      setExistingProductImages(upgrade.PictureOfTheExistingProduct ? upgrade.PictureOfTheExistingProduct.map(img => `https://api.avessecurity.com/${img}`) : []);
     } else {
       setEditMode(false);
       setCurrentId(null);
@@ -126,23 +195,29 @@ const UpgradeManager = () => {
 
     try {
       setLoading(true);
-      const formData = new FormData();
-      files.forEach(file => formData.append('images', file));
+      const uploadPromises = files.map(async (file) => {
+        const formData = new FormData();
+        formData.append('images', file);
 
-      const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+        const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        return res.data.urls[0]; // Assuming the API returns an array of URLs
       });
 
+      const uploadedUrls = await Promise.all(uploadPromises);
+
       if (type === 'new') {
-        setNewProductImages(prev => [...prev, ...res.data.urls]);
+        setNewProductImages(prev => [...prev, ...uploadedUrls]);
       } else {
-        setExistingProductImages(prev => [...prev, ...res.data.urls]);
+        setExistingProductImages(prev => [...prev, ...uploadedUrls]);
       }
     } catch (error) {
-      setError('Failed to upload images');
+      setError(error.response?.data?.message || 'Failed to upload images');
       console.error('Upload error:', error);
     } finally {
       setLoading(false);
@@ -164,8 +239,8 @@ const UpgradeManager = () => {
       
       const payload = {
         ...formData,
-        PictureOfTheNewproduct: newProductImages,
-        PictureOfTheExistingProduct: existingProductImages,
+        PictureOfTheNewproduct: newProductImages.map(img => img.replace('https://api.avessecurity.com/', '')),
+        PictureOfTheExistingProduct: existingProductImages.map(img => img.replace('https://api.avessecurity.com/', '')),
         SubmittedBy: user?.username || '',
         SubmittedDate: moment().toDate(),
         SubmittedTime: moment().format('HH:mm'),
@@ -206,7 +281,7 @@ const UpgradeManager = () => {
       fetchUpgrades();
       setShowDeleteModal(false);
     } catch (error) {
-      setError('Failed to delete upgrade');
+      setError(error.response?.data?.message || 'Failed to delete upgrade');
       console.error('Delete error:', error);
     } finally {
       setLoading(false);
@@ -222,11 +297,11 @@ const UpgradeManager = () => {
           onClick={() => handleOpenForm()}
           className="shadow-sm"
         >
-          <i className=" me-2"></i>Add Upgrade
+          <i className="bi bi-plus me-2"></i>Add Upgrade
         </Button>
       </div>
 
-      {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+      {error && <Alert variant="danger" className="mb-4" onClose={() => setError(null)} dismissible>{error}</Alert>}
 
       {loading && upgrades.length === 0 ? (
         <div className="text-center py-5">
@@ -241,7 +316,7 @@ const UpgradeManager = () => {
         </div>
       ) : (
         <div className="bg-white rounded shadow-sm p-3">
-          <Table striped  responsive>
+          <Table striped bordered hover responsive>
             <thead>
               <tr>
                 <th>S.No</th>
@@ -313,7 +388,7 @@ const UpgradeManager = () => {
             <>
               <div className="mb-4">
                 <h5>{currentUpgrade.OEItems || 'N/A'}</h5>
-                <p className="text-muted">Report #: {currentUpgrade.ReportNo || 'N/A'}</p>
+                <p className="text-muted">Submitted by: {currentUpgrade.SubmittedBy || 'N/A'}</p>
               </div>
 
               <Table borderless className="mb-4">
@@ -347,10 +422,6 @@ const UpgradeManager = () => {
                     <td>{currentUpgrade.Department || 'N/A'}</td>
                   </tr>
                   <tr>
-                    <td className="fw-bold">Submitted By:</td>
-                    <td>{currentUpgrade.SubmittedBy || 'N/A'}</td>
-                  </tr>
-                  <tr>
                     <td className="fw-bold">Submitted On:</td>
                     <td>
                       {moment(currentUpgrade.SubmittedDate).format('MMM D, YYYY')} at {currentUpgrade.SubmittedTime || 'N/A'}
@@ -371,7 +442,9 @@ const UpgradeManager = () => {
                   <h6>New Product Images</h6>
                   <div className="d-flex flex-wrap gap-2">
                     {currentUpgrade.PictureOfTheNewproduct.map((img, index) => (
-                      <Image key={index} src={img} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
+                      <a key={index} href={`https://api.avessecurity.com/${img}`} target="_blank" rel="noopener noreferrer">
+                        <Image src={`https://api.avessecurity.com/${img}`} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
+                      </a>
                     ))}
                   </div>
                 </div>
@@ -382,7 +455,9 @@ const UpgradeManager = () => {
                   <h6>Existing Product Images</h6>
                   <div className="d-flex flex-wrap gap-2">
                     {currentUpgrade.PictureOfTheExistingProduct.map((img, index) => (
-                      <Image key={index} src={img} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
+                      <a key={index} href={`https://api.avessecurity.com/${img}`} target="_blank" rel="noopener noreferrer">
+                        <Image src={`https://api.avessecurity.com/${img}`} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
+                      </a>
                     ))}
                   </div>
                 </div>
@@ -414,7 +489,7 @@ const UpgradeManager = () => {
       <Offcanvas show={showForm} onHide={handleCloseAll} placement="end" style={{ width: '600px' }}>
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title>
-            <i className={editMode ? 'bi bi-pencil me-2' : ' me-2'}></i>
+            <i className={editMode ? 'bi bi-pencil me-2' : 'bi bi-plus me-2'}></i>
             {editMode ? 'Edit' : 'Create'} Upgrade
           </Offcanvas.Title>
         </Offcanvas.Header>
@@ -517,17 +592,10 @@ const UpgradeManager = () => {
               </Col>
             </Row>
 
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-medium">Department*</Form.Label>
-              <Form.Control
-                type="text"
-                name="Department"
-                value={formData.Department}
-                onChange={handleChange}
-                required
-                className="py-2"
-              />
-            </Form.Group>
+            <DepartmentDropdown 
+              value={formData.Department} 
+              onChange={handleChange} 
+            />
 
             <Form.Group className="mb-3">
               <Form.Label className="fw-medium">Description</Form.Label>
@@ -600,7 +668,7 @@ const UpgradeManager = () => {
             <div className="d-grid gap-2">
               <Button 
                 type="submit" 
-                variant={editMode ? 'primary' : 'primary'} 
+                variant={editMode ? 'primary' : 'success'} 
                 size="lg"
                 disabled={loading}
               >
@@ -611,7 +679,7 @@ const UpgradeManager = () => {
                   </>
                 ) : (
                   <>
-                    <i className={editMode ? 'bi bi-save me-2' : ' me-2'}></i>
+                    <i className={editMode ? 'bi bi-save me-2' : 'bi bi-plus-circle me-2'}></i>
                     {editMode ? 'Update Upgrade' : 'Create Upgrade'}
                   </>
                 )}
