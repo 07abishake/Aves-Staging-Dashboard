@@ -82,6 +82,22 @@ const FirstAidReport = () => {
     });
   };
 
+
+  const generateReportNumber = () => {
+  const date = new Date();
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  
+  // Find highest existing report number
+  const maxNum = reports.reduce((max, report) => {
+    const num = parseInt(report.ReportNo?.match(/FR(\d+)/)?.[1] || 0);
+    return num > max ? num : max;
+  }, 0);
+  
+  return `FR${String(maxNum + 1).padStart(2, '0')}-${day}-${month}-${year}`;
+};
+
   // API functions
   const fetchReports = async () => {
     setLoading(prev => ({ ...prev, reports: true }));
@@ -121,6 +137,10 @@ const FirstAidReport = () => {
     e.preventDefault();
     setLoading(prev => ({ ...prev, form: true }));
     setError(null);
+      const payload = {
+    ...formData,
+    ReportNo: editData ? formData.ReportNo : generateReportNumber()
+  };
 
     try {
       const config = {
@@ -135,8 +155,7 @@ const FirstAidReport = () => {
         );
       } else {
         await axios.post(
-          'https://api.avessecurity.com/api/firstaidreport/FirstAid/create',
-          formData,
+          'https://api.avessecurity.com/api/firstaidreport/FirstAid/create',payload,
           config
         );
       }
