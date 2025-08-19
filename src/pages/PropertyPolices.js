@@ -23,22 +23,22 @@ const PropertyPolices = () => {
   // Form state
   const [formData, setFormData] = useState({
     Title: '',
-    OnwardsDate: null,
-    OnwardsTime: null,
+    OnwardsDate: '',
+    OnwardsTime: '',
     Department: '',
     Policy: '',
     NotifyTeam: '',
     Accept: false
   });
 
-const timeOptions = [
-  "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM",
-  "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM",
-  "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
-  "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
-  "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM",
-  "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
-];
+  const timeOptions = [
+    "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM",
+    "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM",
+    "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+    "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
+    "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM",
+    "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
+  ];
 
   const token = localStorage.getItem('access_token');
 
@@ -59,32 +59,30 @@ const timeOptions = [
   };
 
   // Fetch policies
- const fetchPolicies = async () => {
-  try {
-    const response = await axios.get('https://api.avessecurity.com/api/hotelPolicy/get', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  const fetchPolicies = async () => {
+    try {
+      const response = await axios.get('https://api.avessecurity.com/api/hotelPolicy/get', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Correctly access HotelPolicy from the response
-    let policiesData = [];
-    if (Array.isArray(response.data)) {
-      policiesData = response.data;
-    } else if (response.data?.HotelPolicy && Array.isArray(response.data.HotelPolicy)) {
-      policiesData = response.data.HotelPolicy;
-    } else if (response.data?.policies && Array.isArray(response.data.policies)) {
-      policiesData = response.data.policies;
-    } else if (response.data?.data && Array.isArray(response.data.data)) {
-      policiesData = response.data.data;
+      let policiesData = [];
+      if (Array.isArray(response.data)) {
+        policiesData = response.data;
+      } else if (response.data?.HotelPolicy && Array.isArray(response.data.HotelPolicy)) {
+        policiesData = response.data.HotelPolicy;
+      } else if (response.data?.policies && Array.isArray(response.data.policies)) {
+        policiesData = response.data.policies;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        policiesData = response.data.data;
+      }
+
+      setPolicies(policiesData);
+    } catch (error) {
+      console.error('Error fetching policies:', error);
     }
-
-    setPolicies(policiesData);
-    console.log('Fetched policies:', policiesData);
-  } catch (error) {
-    console.error('Error fetching policies:', error);
-  }
-};
+  };
 
   // Fetch teams
   const fetchTeams = async () => {
@@ -137,6 +135,25 @@ const timeOptions = [
     setFormData(prev => ({ ...prev, OnwardsTime: time }));
   };
 
+  // Reset form to initial state
+  const resetForm = () => {
+    setFormData({
+      Title: '',
+      OnwardsDate: null,
+      OnwardsTime: null,
+      Department: '',
+      Policy: '',
+      NotifyTeam: '',
+      Accept: false
+    });
+  };
+
+  // Open create modal with empty form
+  const handleCreateClick = () => {
+    resetForm();
+    setShowCreateModal(true);
+  };
+
   // Create new policy
   const handleCreate = async () => {
     try {
@@ -145,7 +162,8 @@ const timeOptions = [
       // Prepare payload with proper date format
       const payload = {
         ...formData,
-        OnwardsDate: formData.OnwardsDate.toISOString()
+        OnwardsDate: formData.OnwardsDate.toISOString(),
+        Accept: formData.Accept // This will be false by default
       };
 
       const response = await axios.post(
@@ -157,8 +175,6 @@ const timeOptions = [
           },
         }
       );
-
-      console.log('Create response:', response.data);
 
       // Send notification if team is selected
       if (formData.NotifyTeam) {
@@ -181,7 +197,6 @@ const timeOptions = [
       
       setShowCreateModal(false);
       await fetchPolicies();
-      resetForm();
     } catch (error) {
       console.error('Error creating policy:', error.response?.data || error.message);
     } finally {
@@ -217,7 +232,8 @@ const timeOptions = [
       
       const payload = {
         ...formData,
-        OnwardsDate: formData.OnwardsDate.toISOString()
+        OnwardsDate: formData.OnwardsDate.toISOString(),
+        Accept: formData.Accept // Use the checkbox value
       };
 
       await axios.put(
@@ -232,7 +248,6 @@ const timeOptions = [
       
       setShowEditModal(false);
       await fetchPolicies();
-      resetForm();
     } catch (error) {
       console.error('Error updating policy:', error.response?.data || error.message);
     } finally {
@@ -261,19 +276,6 @@ const timeOptions = [
     }
   };
 
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      Title: '',
-      OnwardsDate: new Date(),
-      OnwardsTime: '12:00',
-      Department: '',
-      Policy: '',
-      NotifyTeam: '',
-      Accept: false
-    });
-  };
-
   // Get department name by ID
   const getDepartmentName = (departmentId) => {
     const department = departments.find(d => d._id === departmentId);
@@ -292,7 +294,7 @@ const timeOptions = [
         <h2>Hotel Policies</h2>
         <Button 
           variant="primary" 
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleCreateClick}
           disabled={loading}
         >
           {loading ? 'Loading...' : 'Create New Policy'}
@@ -313,7 +315,7 @@ const timeOptions = [
               No policies found. Create your first policy.
             </div>
           ) : (
-            <Table striped  responsive>
+            <Table striped responsive>
               <thead>
                 <tr>
                   <th>S.No</th>
@@ -347,7 +349,7 @@ const timeOptions = [
                         onClick={() => handleView(policy)} 
                         className="me-2"
                       >
-                         <i className="bi bi-eye"></i>
+                        <i className="bi bi-eye"></i>
                       </Button>
                       <Button 
                         variant="outline-secondary" 
@@ -397,30 +399,33 @@ const timeOptions = [
 
             <Form.Group className="mb-3">
               <Form.Label>Date *</Form.Label>
-              <DatePicker
-                selected={formData.OnwardsDate}
-                onChange={handleDateChange}
-                className="form-control"
-                dateFormat="yyyy-MM-dd"
-                minDate={new Date()}
-                required
-              />
+            <DatePicker
+  selected={formData.OnwardsDate}
+  onChange={handleDateChange}
+  className="form-control"
+  dateFormat="yyyy-MM-dd"
+  minDate={new Date()}
+  required
+  placeholderText="Select date"  // Add this
+  isClearable                   // Add this to allow clearing the field
+/>
+
             </Form.Group>
 
-           <Form.Group className="mb-3">
-  <Form.Label>Time *</Form.Label>
-  <Form.Select
-    name="OnwardsTime"
-    value={formData.OnwardsTime}
-    onChange={handleInputChange}
-    required
-  >
-    <option value="">Select Time</option>
-    {timeOptions.map((time, index) => (
-      <option key={index} value={time}>{time}</option>
-    ))}
-  </Form.Select>
-</Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Time *</Form.Label>
+              <Form.Select
+                name="OnwardsTime"
+                value={formData.OnwardsTime}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Time</option>
+                {timeOptions.map((time, index) => (
+                  <option key={index} value={time}>{time}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Department *</Form.Label>
@@ -465,6 +470,16 @@ const timeOptions = [
                   </option>
                 ))}
               </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                label="Approved"
+                name="Accept"
+                checked={formData.Accept}
+                onChange={(e) => setFormData(prev => ({ ...prev, Accept: e.target.checked }))}
+              />
             </Form.Group>
 
             <div className="d-grid gap-2">
@@ -550,20 +565,20 @@ const timeOptions = [
               />
             </Form.Group>
 
-       <Form.Group className="mb-3">
-  <Form.Label>Time *</Form.Label>
-  <Form.Select
-    name="OnwardsTime"
-    value={formData.OnwardsTime}
-    onChange={handleInputChange}
-    required
-  >
-    <option value="">Select Time</option>
-    {timeOptions.map((time, index) => (
-      <option key={index} value={time}>{time}</option>
-    ))}
-  </Form.Select>
-</Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Time *</Form.Label>
+              <Form.Select
+                name="OnwardsTime"
+                value={formData.OnwardsTime}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Time</option>
+                {timeOptions.map((time, index) => (
+                  <option key={index} value={time}>{time}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Department *</Form.Label>
