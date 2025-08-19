@@ -78,42 +78,95 @@ const handleSearch = debounce((value) => {
     }
   };
 
+// const flattenLocations = (data) => {
+//   const result = [];
+
+//   data.forEach((primary) => {
+//     // Primary
+//     result.push({
+//       label: primary.PrimaryLocation,
+//       id: primary._id,
+//     });
+
+//     primary.SubLocation?.forEach((primarySub) => {
+//       // Primary Sub
+//       result.push({
+//         label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation}`,
+//         id: primarySub._id,
+//       });
+
+//       primarySub.SecondaryLocation?.forEach((secondary) => {
+//         // Secondary
+//         result.push({
+//           label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation}`,
+//           id: secondary._id,
+//         });
+
+//         secondary.SecondarySubLocation?.forEach((secondarySub) => {
+//           // Secondary Sub
+//           result.push({
+//             label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`,
+//             id: secondarySub._id,
+//           });
+
+//           secondarySub.ThirdLocation?.forEach((third) => {
+//             // Third
+//             result.push({
+//               label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation} (${third.ThirdSubLocation})`,
+//               id: third._id,
+//             });
+//           });
+//         });
+//       });
+//     });
+//   });
+
+//   return result;
+// };
+
+
+
 const flattenLocations = (data) => {
   const result = [];
 
   data.forEach((primary) => {
-    // Primary
+    // Level 1 - Primary
     result.push({
       label: primary.PrimaryLocation,
       id: primary._id,
+      level: 1
     });
 
     primary.SubLocation?.forEach((primarySub) => {
-      // Primary Sub
+      // Level 2 - Primary Sub
       result.push({
         label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation}`,
         id: primarySub._id,
+        level: 2
       });
 
       primarySub.SecondaryLocation?.forEach((secondary) => {
-        // Secondary
+        // Level 3 - Secondary
         result.push({
           label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation}`,
           id: secondary._id,
+          level: 3
         });
 
         secondary.SecondarySubLocation?.forEach((secondarySub) => {
-          // Secondary Sub
+          // Level 4 - Secondary Sub
           result.push({
             label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation}`,
             id: secondarySub._id,
+            level: 4
           });
 
           secondarySub.ThirdLocation?.forEach((third) => {
-            // Third
+            // Level 5 - Third
             result.push({
-              label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation} (${third.ThirdSubLocation})`,
+              label: `${primary.PrimaryLocation},${primarySub.PrimarySubLocation},${secondary.SecondaryLocation},${secondarySub.SecondarySubLocation},${third.ThirdLocation}`,
               id: third._id,
+              level: 5
             });
           });
         });
@@ -123,7 +176,6 @@ const flattenLocations = (data) => {
 
   return result;
 };
-
 
 
   const fetchPasses = async () => {
@@ -141,38 +193,96 @@ const flattenLocations = (data) => {
     }
   };
 
-  const handleCreate = async () => {
-    if (!selectedLocation) {
-      setError('Please select a location');
+//   const handleCreate = async () => {
+//     if (!selectedLocation) {
+//       setError('Please select a location');
+//       return;
+//     }
+
+//     setLoading(true);
+//     setError(null);
+//     try {
+//       const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
+      
+//       // await axios.post(
+//       //   'https://api.avessecurity.com/api/Color/create',
+//       //   {
+//       //     title: selectedLabel,
+//       //     CustomColor: color,
+//       //     Hexa: color.replace('#', ''),
+//       //     LocationId: selectedLocation,
+//       //   },
+//       //   {
+//       //     headers: { Authorization: `Bearer ${token}` },
+//       //   }
+//       // );
+
+//       await axios.post(
+//   'https://api.avessecurity.com/api/Color/create',
+//   {
+//     title: selectedLoc.label,
+//     CustomColor: color,
+//     Hexa: color.replace('#', ''),
+//     Location: selectedLoc.label,  // Send full location path
+//     level: selectedLoc.level      // Send hierarchy level
+//   },
+//   { headers: { Authorization: `Bearer ${token}` } }
+// );
+      
+//       setSuccess('Pass created successfully!');
+//       setSelectedLocation('');
+//       setColor('#ff0000');
+//       fetchPasses();
+//     } catch (error) {
+//     console.error('Failed to create color pass:', error);
+    
+//     // ✅ Catch and show specific backend message
+//     if (error.response?.status === 400 && error.response.data?.message) {
+//       setError(error.response.data.message);
+//     } else {
+//       setError('Failed to create pass. Please try again.');
+//     }
+//   } finally {
+//     setLoading(false);
+//   }
+//   };
+
+const handleCreate = async () => {
+  if (!selectedLocation) {
+    setError('Please select a location');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+  try {
+    const selectedLoc = locations.find(loc => loc.id === selectedLocation);
+    if (!selectedLoc) {
+      setError('Selected location not found');
       return;
     }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
-      
-      await axios.post(
-        'https://api.avessecurity.com/api/Color/create',
-        {
-          title: selectedLabel,
-          CustomColor: color,
-          Hexa: color.replace('#', ''),
-          LocationId: selectedLocation,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      
-      setSuccess('Pass created successfully!');
-      setSelectedLocation('');
-      setColor('#ff0000');
-      fetchPasses();
-    } catch (error) {
+    
+    await axios.post(
+      'https://api.avessecurity.com/api/Color/create',
+      {
+        title: selectedLoc.label,
+        CustomColor: color,
+        Hexa: color.replace('#', ''),
+        Location: selectedLoc.label,
+        level: selectedLoc.level
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    
+    setSuccess('Pass created successfully!');
+    setSelectedLocation('');
+    setColor('#ff0000');
+    fetchPasses();
+  } catch (error) {
     console.error('Failed to create color pass:', error);
     
-    // ✅ Catch and show specific backend message
     if (error.response?.status === 400 && error.response.data?.message) {
       setError(error.response.data.message);
     } else {
@@ -181,7 +291,7 @@ const flattenLocations = (data) => {
   } finally {
     setLoading(false);
   }
-  };
+};
 
   const confirmDelete = (pass) => {
     setPassToDelete(pass);
@@ -217,40 +327,93 @@ const flattenLocations = (data) => {
     setShowEditModal(true);
   };
 
-  const handleUpdate = async () => {
-    if (!editPass) return;
+//   const handleUpdate = async () => {
+//     if (!editPass) return;
     
-    setLoading(true);
-    setError(null);
-    try {
-      const selectedLabel = locations.find(loc => loc.id === editLocation)?.label || editPass.title;
+//     setLoading(true);
+//     setError(null);
+//     try {
+//       const selectedLabel = locations.find(loc => loc.id === editLocation)?.label || editPass.title;
       
-      await axios.put(
-        `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
-        {
-          title: selectedLabel,
-          CustomColor: color,
-          Hexa: color.replace('#', ''),
-          LocationId: selectedLocation,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+//       // await axios.put(
+//       //   `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+//       //   {
+//       //     title: selectedLabel,
+//       //     CustomColor: color,
+//       //     Hexa: color.replace('#', ''),
+//       //     LocationId: selectedLocation,
+//       //   },
+//       //   {
+//       //     headers: { Authorization: `Bearer ${token}` },
+//       //   }
+//       // );
+
+//       await axios.put(
+//   `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+//   {
+//     title: selectedLoc.label,
+//     CustomColor: color,
+//     Hexa: color.replace('#', ''),
+//     Location: selectedLoc.label,  // Send full location path
+//     level: selectedLoc.level      // Send hierarchy level
+//   },
+//   { headers: { Authorization: `Bearer ${token}` } }
+// );
       
-      setSuccess('Pass updated successfully!');
-      setEditPass(null);
-      setColor('#ff0000');
-      setEditLocation('');
-      setShowEditModal(false);
-      fetchPasses();
-    } catch (error) {
-      console.error('Failed to update pass:', error);
-      setError('Failed to update pass. Please try again.');
-    } finally {
-      setLoading(false);
+//       setSuccess('Pass updated successfully!');
+//       setEditPass(null);
+//       setColor('#ff0000');
+//       setEditLocation('');
+//       setShowEditModal(false);
+//       fetchPasses();
+//     } catch (error) {
+//       console.error('Failed to update pass:', error);
+//       setError('Failed to update pass. Please try again.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+const handleUpdate = async () => {
+  if (!editPass) return;
+  
+  setLoading(true);
+  setError(null);
+  try {
+    const selectedLoc = locations.find(loc => loc.id === editLocation);
+    if (!selectedLoc) {
+      setError('Selected location not found');
+      return;
     }
-  };
+    
+    await axios.put(
+      `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+      {
+        title: selectedLoc.label,
+        CustomColor: color,
+        Hexa: color.replace('#', ''),
+        Location: selectedLoc.label,
+        level: selectedLoc.level
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    
+    setSuccess('Pass updated successfully!');
+    setEditPass(null);
+    setColor('#ff0000');
+    setEditLocation('');
+    setShowEditModal(false);
+    fetchPasses();
+  } catch (error) {
+    console.error('Failed to update pass:', error);
+    setError('Failed to update pass. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const toggleCanvas = () => setShowCanvas(!showCanvas);
 
