@@ -98,8 +98,8 @@ const UpgradeManager = () => {
     PictureOfTheNewproduct: [],
     PictureOfTheExistingProduct: []
   });
-  const [newProductImages, setNewProductImages] = useState([]); // Array of { file: File, preview: string } or { url: string }
-  const [existingProductImages, setExistingProductImages] = useState([]); // Same as above
+  const [newProductImages, setNewProductImages] = useState([]);
+  const [existingProductImages, setExistingProductImages] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
@@ -110,7 +110,6 @@ const UpgradeManager = () => {
   useEffect(() => {
     fetchUpgrades();
     
-    // Cleanup function to revoke object URLs
     return () => {
       newProductImages.forEach(img => {
         if (img.preview && img.preview.startsWith('blob:')) {
@@ -134,7 +133,15 @@ const UpgradeManager = () => {
       });
       
       if (res.data && Array.isArray(res.data.Upgrade)) {
-        setUpgrades(res.data.Upgrade);
+        // Process images to ensure they have full URLs
+        const processedUpgrades = res.data.Upgrade.map(upgrade => ({
+          ...upgrade,
+          PictureOfTheNewproduct: upgrade.PictureOfTheNewproduct?.map(img => 
+            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || [],
+          PictureOfTheExistingProduct: upgrade.PictureOfTheExistingProduct?.map(img => 
+            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
+        }));
+        setUpgrades(processedUpgrades);
       } else {
         setUpgrades([]);
         setError('No upgrades found');
@@ -162,20 +169,18 @@ const UpgradeManager = () => {
         SubmittedTime: upgrade.SubmittedTime || ''
       });
       
-      // For existing images, store them with their URLs
-      setNewProductImages(upgrade.PictureOfTheNewproduct 
-        ? upgrade.PictureOfTheNewproduct.map(img => ({
-            url: `https://api.avessecurity.com/${img}`,
-            preview: `https://api.avessecurity.com/${img}`
-          }))
-        : []);
+      // For existing images, store them with their URLs and paths
+      setNewProductImages(upgrade.PictureOfTheNewproduct?.map(img => ({
+        url: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`,
+        path: img.startsWith('http') ? img.replace('https://api.avessecurity.com/', '') : img,
+        preview: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`
+      })) || []);
         
-      setExistingProductImages(upgrade.PictureOfTheExistingProduct 
-        ? upgrade.PictureOfTheExistingProduct.map(img => ({
-            url: `https://api.avessecurity.com/${img}`,
-            preview: `https://api.avessecurity.com/${img}`
-          }))
-        : []);
+      setExistingProductImages(upgrade.PictureOfTheExistingProduct?.map(img => ({
+        url: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`,
+        path: img.startsWith('http') ? img.replace('https://api.avessecurity.com/', '') : img,
+        preview: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`
+      })) || []);
     } else {
       setEditMode(false);
       setCurrentId(null);
@@ -235,7 +240,6 @@ const UpgradeManager = () => {
 
   const removeImage = (index, type) => {
     if (type === 'new') {
-      // Revoke the object URL to prevent memory leaks if it's a blob URL
       if (newProductImages[index].preview && newProductImages[index].preview.startsWith('blob:')) {
         URL.revokeObjectURL(newProductImages[index].preview);
       }
@@ -248,84 +252,130 @@ const UpgradeManager = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      
-      // Upload new product images (only new files, not existing URLs)
-      const newProductUploads = await Promise.all(
-        newProductImages.map(async (img) => {
-          if (img.url) {
-            // This is an existing image (from edit mode), just return the URL
-            return img.url.replace('https://api.avessecurity.com/', '');
-          } else {
-            // This is a new file, upload it
-            const formData = new FormData();
-            formData.append('images', img.file);
-            const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
-              headers: { 
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data'
-              }
-            });
-            return res.data.urls[0];
-          }
-        })
-      );
+// const handleSubmit = async (e) => {
+//   e.preventDefault();
+//   try {
+//     setLoading(true);
+//     setError(null);
+    
+//     // For new product images - we'll just store the file names
+//     const newProductFiles = newProductImages.map(img => {
+//       return img.file ? img.file.name : img.path; // Use file name for new, path for existing
+//     });
 
-      // Upload existing product images (only new files, not existing URLs)
-      const existingProductUploads = await Promise.all(
-        existingProductImages.map(async (img) => {
-          if (img.url) {
-            // This is an existing image (from edit mode), just return the URL
-            return img.url.replace('https://api.avessecurity.com/', '');
-          } else {
-            // This is a new file, upload it
-            const formData = new FormData();
-            formData.append('images', img.file);
-            const res = await axios.post('https://api.avessecurity.com/api/upload', formData, {
-              headers: { 
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data'
-              }
-            });
-            return res.data.urls[0];
-          }
-        })
-      );
+//     // For existing product images - same approach
+//     const existingProductFiles = existingProductImages.map(img => {
+//       return img.file ? img.file.name : img.path;
+//     });
 
-      const payload = {
-        ...formData,
-        PictureOfTheNewproduct: newProductUploads,
-        PictureOfTheExistingProduct: existingProductUploads,
-        SubmittedBy: user?.username || '',
-        SubmittedDate: moment().toDate(),
-        SubmittedTime: moment().format('HH:mm'),
-        OrganizationId: user?.organizationId
-      };
+//     // Prepare the payload
+//     const payload = {
+//       ...formData,
+//       PictureOfTheNewproduct: newProductFiles,
+//       PictureOfTheExistingProduct: existingProductFiles,
+//       SubmittedBy: user?.username || '',
+//       SubmittedDate: moment().toDate(),
+//       SubmittedTime: moment().format('HH:mm'),
+//       OrganizationId: user?.organizationId
+//     };
 
-      if (editMode) {
-        await axios.put(`https://api.avessecurity.com/api/upgrade/update/${currentId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } else {
-        await axios.post('https://api.avessecurity.com/api/upgrade/create', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+//     if (editMode) {
+//       await axios.put(`https://api.avessecurity.com/api/upgrade/update/${currentId}`, payload, {
+//         headers: { Authorization: `Bearer ${token}` }
+//       });
+//     } else {
+//       await axios.post('https://api.avessecurity.com/api/upgrade/create', payload, {
+//         headers: { Authorization: `Bearer ${token}` }
+//       });
+//     }
+    
+//     fetchUpgrades();
+//     handleCloseAll();
+//   } catch (error) {
+//     setError(error.response?.data?.message || 'Failed to save upgrade');
+//     console.error('Save error:', error);
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    setLoading(true);
+    setError(null);
+    
+    // Create FormData object
+    const formDataToSend = new FormData();
+    
+    // Append all regular form fields
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key !== 'PictureOfTheNewproduct' && key !== 'PictureOfTheExistingProduct') {
+        formDataToSend.append(key, value);
       }
-      
-      fetchUpgrades();
-      handleCloseAll();
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to save upgrade');
-      console.error('Save error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+    
+    // Append new product images (actual files)
+    newProductImages.forEach((img, index) => {
+      if (img.file) {
+        formDataToSend.append('PictureOfTheNewproduct', img.file);
+      } else {
+        // For existing images that weren't changed, send the path
+        formDataToSend.append('existingNewProductImages', img.path || img.url.replace('https://api.avessecurity.com/', ''));
+      }
+    });
+    
+    // Append existing product images (actual files)
+    existingProductImages.forEach((img, index) => {
+      if (img.file) {
+        formDataToSend.append('PictureOfTheExistingProduct', img.file);
+      } else {
+        // For existing images that weren't changed, send the path
+        formDataToSend.append('existingProductImages', img.path || img.url.replace('https://api.avessecurity.com/uploads/', ''));
+      }
+    });
+    
+    // Add user and organization info
+    formDataToSend.append('SubmittedBy', user?.username || '');
+    formDataToSend.append('OrganizationId', user?.organizationId || '');
 
-  const confirmDelete = (id) => {
+    if (editMode) {
+      await axios.put(
+        `https://api.avessecurity.com/api/upgrade/update/${currentId}`,
+        formDataToSend,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+    } else {
+      await axios.post(
+        'http://localhost:6378/api/upgrade/create',
+        formDataToSend,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+    }
+    
+    fetchUpgrades();
+    handleCloseAll();
+  } catch (error) {
+    setError(error.response?.data?.message || 'Failed to save upgrade');
+    console.error('Save error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+const confirmDelete = (id) => {
     setDeleteId(id);
     setShowDeleteModal(true);
   };
@@ -494,32 +544,49 @@ const UpgradeManager = () => {
                   {currentUpgrade.Description || 'No description provided'}
                 </div>
               </div>
+{currentUpgrade.PictureOfTheNewproduct?.length > 0 && (
+  <div className="mb-4">
+    <h6>New Product Images</h6>
+    <div className="d-flex flex-wrap gap-2">
+      {currentUpgrade.PictureOfTheNewproduct.map((img, index) => (
+        <a 
+          key={index} 
+          href={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          <Image 
+            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+            thumbnail 
+            style={{ width: '100px', height: '100px', objectFit: 'cover' }} 
+          />
+        </a>
+      ))}
+    </div>
+  </div>
+)}
 
-              {currentUpgrade.PictureOfTheNewproduct?.length > 0 && (
-                <div className="mb-4">
-                  <h6>New Product Images</h6>
-                  <div className="d-flex flex-wrap gap-2">
-                    {currentUpgrade.PictureOfTheNewproduct.map((img, index) => (
-                      <a key={index} href={`https://api.avessecurity.com/${img}`} target="_blank" rel="noopener noreferrer">
-                        <Image src={`https://api.avessecurity.com/${img}`} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {currentUpgrade.PictureOfTheExistingProduct?.length > 0 && (
-                <div className="mb-4">
-                  <h6>Existing Product Images</h6>
-                  <div className="d-flex flex-wrap gap-2">
-                    {currentUpgrade.PictureOfTheExistingProduct.map((img, index) => (
-                      <a key={index} href={`https://api.avessecurity.com/${img}`} target="_blank" rel="noopener noreferrer">
-                        <Image src={`https://api.avessecurity.com/${img}`} thumbnail style={{ width: '100px', height: '100px', objectFit: 'cover' }} />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+{currentUpgrade.PictureOfTheExistingProduct?.length > 0 && (
+  <div className="mb-4">
+    <h6>Existing Product Images</h6>
+    <div className="d-flex flex-wrap gap-2">
+      {currentUpgrade.PictureOfTheExistingProduct.map((img, index) => (
+        <a 
+          key={index} 
+          href={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          <Image 
+            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+            thumbnail 
+            style={{ width: '100px', height: '100px', objectFit: 'cover' }} 
+          />
+        </a>
+      ))}
+    </div>
+  </div>
+)}
 
               <div className="d-flex justify-content-end gap-2 mt-4">
                 <Button 
@@ -667,37 +734,44 @@ const UpgradeManager = () => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-medium">New Product Images</Form.Label>
-              <Form.Control
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e, 'new')}
-                className="py-2"
-                disabled={loading}
-              />
-              <div className="d-flex flex-wrap mt-2">
-                {newProductImages.map((img, index) => (
-                  <div key={index} className="position-relative me-2 mb-2" style={{ width: '100px' }}>
-                    <Image 
-                      src={img.preview || img.url} 
-                      thumbnail 
-                      style={{ width: '100%', height: '100px', objectFit: 'cover' }} 
-                    />
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      className="position-absolute top-0 end-0 p-0"
-                      style={{ width: '24px', height: '24px' }}
-                      onClick={() => removeImage(index, 'new')}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Form.Group>
+          <Form.Group className="mb-3">
+  <Form.Label className="fw-medium">New Product Images</Form.Label>
+  <Form.Control
+    type="file"
+    multiple
+    accept="image/*"
+    onChange={(e) => handleImageUpload(e, 'new')}
+    className="py-2"
+    disabled={loading}
+  />
+  <div className="d-flex flex-wrap mt-2">
+    {newProductImages.map((img, index) => (
+      <div key={index} className="position-relative me-2 mb-2" style={{ width: '100px' }}>
+        {img.preview ? (
+          <Image 
+            src={img.preview} 
+            thumbnail 
+            style={{ width: '100%', height: '100px', objectFit: 'cover' }} 
+          />
+        ) : (
+          <div className="border p-2 text-center" style={{ width: '100%', height: '100px' }}>
+            <i className="bi bi-file-image fs-3"></i>
+            <div className="small text-truncate">{img.path || img.url}</div>
+          </div>
+        )}
+        <Button
+          variant="danger"
+          size="sm"
+          className="position-absolute top-0 end-0 p-0"
+          style={{ width: '24px', height: '24px' }}
+          onClick={() => removeImage(index, 'new')}
+        >
+          ×
+        </Button>
+      </div>
+    ))}
+  </div>
+</Form.Group>
 
             <Form.Group className="mb-4">
               <Form.Label className="fw-medium">Existing Product Images</Form.Label>
