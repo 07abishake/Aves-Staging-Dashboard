@@ -71,72 +71,138 @@ function LocationManager() {
         setIsEditing(false);
     };
 
-   const openFormCanvas = (location = null) => {
-    if (location) {
-        setPrimaryLocation(location.PrimaryLocation || '');
+
+//         setPrimaryLocation(location.PrimaryLocation || '');
         
-        // Handle PrimarySubLocation - take the first one if exists
-        const firstSubLoc = Array.isArray(location.SubLocation) && location.SubLocation.length > 0 
-            ? location.SubLocation[0] 
-            : {};
-        setPrimarySubLocation(firstSubLoc.PrimarySubLocation || '');
+//         // Handle PrimarySubLocation - take the first one if exists
+//         const firstSubLoc = Array.isArray(location.SubLocation) && location.SubLocation.length > 0 
+//             ? location.SubLocation[0] 
+//             : {};
+//         setPrimarySubLocation(firstSubLoc.PrimarySubLocation || '');
         
-        // Transform SecondaryLocation data to match form structure
-        const transformedSecondary = [];
+//         // Transform SecondaryLocation data to match form structure
+//         const transformedSecondary = [];
         
-        // Process each SubLocation
-        if (Array.isArray(location.SubLocation)) {
-            location.SubLocation.forEach(subLoc => {
-                // Process each SecondaryLocation within SubLocation
-                if (Array.isArray(subLoc.SecondaryLocation)) {
-                    subLoc.SecondaryLocation.forEach(sec => {
-                        // Process each SecondarySubLocation within SecondaryLocation
-                        if (Array.isArray(sec.SecondarySubLocation)) {
-                            sec.SecondarySubLocation.forEach(subSec => {
-                                // Create a form entry for each SecondarySubLocation
-                                const entry = {
-                                    SecondaryLocation: sec.SecondaryLocation || '',
-                                    SecondarySubLocation: subSec.SecondarySubLocation || '',
-                                    ThirdLocations: []
-                                };
+//         // Process each SubLocation
+//         if (Array.isArray(location.SubLocation)) {
+//             location.SubLocation.forEach(subLoc => {
+//                 // Process each SecondaryLocation within SubLocation
+//                 if (Array.isArray(subLoc.SecondaryLocation)) {
+//                     subLoc.SecondaryLocation.forEach(sec => {
+//                         // Process each SecondarySubLocation within SecondaryLocation
+//                         if (Array.isArray(sec.SecondarySubLocation)) {
+//                             sec.SecondarySubLocation.forEach(subSec => {
+//                                 // Create a form entry for each SecondarySubLocation
+//                                 const entry = {
+//                                     SecondaryLocation: sec.SecondaryLocation || '',
+//                                     SecondarySubLocation: subSec.SecondarySubLocation || '',
+//                                     ThirdLocations: []
+//                                 };
                                 
-                                // Add ThirdLocations if they exist
-                                if (Array.isArray(subSec.ThirdLocation)) {
-                                    entry.ThirdLocations = subSec.ThirdLocation.map(third => ({
-                                        ThirdLocation: third.ThirdLocation || '',
-                                        ThirdSubLocation: third.ThirdSubLocation || ''
-                                    }));
-                                } else {
-                                    entry.ThirdLocations = [{ ThirdLocation: '', ThirdSubLocation: '' }];
-                                }
+//                                 // Add ThirdLocations if they exist
+//                                 if (Array.isArray(subSec.ThirdLocation)) {
+//                                     entry.ThirdLocations = subSec.ThirdLocation.map(third => ({
+//                                         ThirdLocation: third.ThirdLocation || '',
+//                                         ThirdSubLocation: third.ThirdSubLocation || ''
+//                                     }));
+//                                 } else {
+//                                     entry.ThirdLocations = [{ ThirdLocation: '', ThirdSubLocation: '' }];
+//                                 }
                                 
-                                transformedSecondary.push(entry);
-                            });
-                        } else {
-                            // If no SecondarySubLocation, create an empty entry
-                            transformedSecondary.push({
-                                SecondaryLocation: sec.SecondaryLocation || '',
-                                SecondarySubLocation: '',
-                                ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }]
-                            });
-                        }
-                    });
+//                                 transformedSecondary.push(entry);
+//                             });
+//                         } else {
+//                             // If no SecondarySubLocation, create an empty entry
+//                             transformedSecondary.push({
+//                                 SecondaryLocation: sec.SecondaryLocation || '',
+//                                 SecondarySubLocation: '',
+//                                 ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }]
+//                             });
+//                         }
+//                     });
+//                 }
+//             });
+//         }
+        
+//         // Set the transformed secondary locations
+//         setSecondaryLocations(transformedSecondary.length > 0 
+//             ? transformedSecondary 
+//             : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }] }]
+//         );
+        
+//         setEditId(location._id);
+//         setIsEditing(true);
+//     } else {
+//         resetForm();
+//     }
+//     setShowFormCanvas(true);
+// };
+const openFormCanvas = (location = null) => {
+  if (location) {
+    setPrimaryLocation(location.PrimaryLocation || '');
+    
+    // Handle PrimarySubLocation - take the first one if exists
+    const firstSubLoc = Array.isArray(location.SubLocation) && location.SubLocation.length > 0 
+      ? location.SubLocation[0] 
+      : {};
+    setPrimarySubLocation(firstSubLoc.PrimarySubLocation || '');
+    
+    // Transform data for editing (nested structure to flat structure)
+    const transformedSecondary = [];
+    
+    // Process each SubLocation
+    if (Array.isArray(location.SubLocation)) {
+      location.SubLocation.forEach(subLoc => {
+        // Process each SecondaryLocation within SubLocation
+        if (Array.isArray(subLoc.SecondaryLocation)) {
+          subLoc.SecondaryLocation.forEach(sec => {
+            // Process each SecondarySubLocation within SecondaryLocation
+            if (Array.isArray(sec.SecondarySubLocation)) {
+              sec.SecondarySubLocation.forEach(subSec => {
+                // Create a form entry for each SecondarySubLocation
+                const entry = {
+                  SecondaryLocation: sec.SecondaryLocation || '',
+                  SecondarySubLocation: subSec.SecondarySubLocation || '',
+                  ThirdLocations: []
+                };
+                
+                // Add ThirdLocations if they exist
+                if (Array.isArray(subSec.ThirdLocation)) {
+                  entry.ThirdLocations = subSec.ThirdLocation.map(third => ({
+                    ThirdLocation: third.ThirdLocation || '',
+                    ThirdSubLocation: third.ThirdSubLocation || ''
+                  }));
+                } else {
+                  entry.ThirdLocations = [{ ThirdLocation: '', ThirdSubLocation: '' }];
                 }
-            });
+                
+                transformedSecondary.push(entry);
+              });
+            } else {
+              // If no SecondarySubLocation, create an empty entry
+              transformedSecondary.push({
+                SecondaryLocation: sec.SecondaryLocation || '',
+                SecondarySubLocation: '',
+                ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }]
+              });
+            }
+          });
         }
-        
-        // Set the transformed secondary locations
-        setSecondaryLocations(transformedSecondary.length > 0 
-            ? transformedSecondary 
-            : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }] }]
-        );
-        
-        setEditId(location._id);
-        setIsEditing(true);
-    } else {
-        resetForm();
+      });
     }
-    setShowFormCanvas(true);
+    
+    // Set the transformed secondary locations
+    setSecondaryLocations(transformedSecondary.length > 0 
+      ? transformedSecondary 
+      : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }] }]
+    );
+    
+    setEditId(location._id);
+    setIsEditing(true);
+  } else {
+    resetForm();
+  }
+  setShowFormCanvas(true);
 };
 
     const openViewCanvas = (location) => {
@@ -166,58 +232,6 @@ function LocationManager() {
         }
     };
 
-
-// const handleSubmit = async (e) => {
-//     e.preventDefault();
-    
-//     if (!primaryLocation) {
-//         alert('Primary Location is required');
-//         return;
-//     }
-
-//     // Prepare the payload in the correct format
-//     const payload = {
-//         PrimaryLocation: primaryLocation.trim(),
-//         PrimarySubLocation: primarySubLocation.trim(),
-//         SecondaryLocations: secondaryLocations.map(sec => ({
-//             SecondaryLocation: sec.SecondaryLocation.trim(),
-//             SecondarySubLocation: sec.SecondarySubLocation.trim(),
-//             ThirdLocations: sec.ThirdLocations.map(third => ({
-//                 ThirdLocation: third.ThirdLocation.trim(),
-//                 ThirdSubLocation: third.ThirdSubLocation.trim()
-//             }))
-//         }))
-//     };
-
-//     console.log('Payload being sent:', payload); // For debugging
-
-//     try {
-//         setIsLoading(true);
-//         const token = localStorage.getItem('access_token');
-//         const url = isEditing 
-//             ? `https://api.avessecurity.com/api/updateLocation/${editId}`
-//             : 'https://api.avessecurity.com/api/Location/createLocation';
-        
-//         const response = await axios[isEditing ? 'put' : 'post'](url, payload, {
-//             headers: { Authorization: `Bearer ${token}` },
-//         });
-        
-//         console.log('Response from server:', response.data); // For debugging
-        
-//         alert(`Location ${isEditing ? 'updated' : 'created'} successfully`);
-//         setShowFormCanvas(false);
-//         fetchLocations();
-//         resetForm();
-//     } catch (err) {
-//         console.error('Error details:', err.response?.data || err.message); // More detailed error logging
-//         alert(`Error ${isEditing ? 'updating' : 'creating'} location: ${err.response?.data?.message || err.message}`);
-//     } finally {
-//         setIsLoading(false);
-//     }
-// };
-
-    // Input change handlers
-
 const handleSubmit = async (e) => {
   e.preventDefault();
   
@@ -226,33 +240,66 @@ const handleSubmit = async (e) => {
     return;
   }
 
-  // Prepare the payload in the correct format for backend
-  const payload = {
-    PrimaryLocation: primaryLocation.trim(),
-    SubLocation: [{
-      PrimarySubLocation: primarySubLocation.trim(),
-      SecondaryLocation: secondaryLocations.map(sec => ({
-        SecondaryLocation: sec.SecondaryLocation.trim(),
-        SecondarySubLocation: [{
-          SecondarySubLocation: sec.SecondarySubLocation.trim(),
-          ThirdLocation: sec.ThirdLocations.map(third => ({
-            ThirdLocation: third.ThirdLocation.trim(),
-            ThirdSubLocation: third.ThirdSubLocation.trim()
-          }))
-        }]
-      }))
-    }]
-  };
-
   try {
     setIsLoading(true);
     const token = localStorage.getItem('access_token');
-    const url = isEditing 
-      ? `https://api.avessecurity.com/api/Location/updateLocation/${editId}`
-      : 'https://api.avessecurity.com/api/Location/createLocation';
+    
+    // Prepare payload based on whether we're creating or editing
+    let payload;
+    let url;
+    
+    if (isEditing) {
+      // Payload for editing (nested structure)
+      payload = {
+        PrimaryLocation: primaryLocation.trim(),
+        SubLocation: [{
+          PrimarySubLocation: primarySubLocation.trim(),
+          SecondaryLocation: secondaryLocations.map(sec => ({
+            SecondaryLocation: sec.SecondaryLocation.trim(),
+            SecondarySubLocation: [{
+              SecondarySubLocation: sec.SecondarySubLocation.trim(),
+              ThirdLocation: sec.ThirdLocations.map(third => ({
+                ThirdLocation: third.ThirdLocation.trim(),
+                ThirdSubLocation: third.ThirdSubLocation.trim()
+              }))
+            }]
+          }))
+        }]
+      };
+      
+      url = `https://api.avessecurity.com/api/Location/updateLocation/${editId}`;
+    } else {
+      // Payload for creating (flat structure)
+      payload = {
+        PrimaryLocation: primaryLocation.trim(),
+        PrimarySubLocation: primarySubLocation.trim(),
+        SecondaryLocations: secondaryLocations.map(sec => ({
+          SecondaryLocation: sec.SecondaryLocation.trim(),
+          SecondarySubLocation: sec.SecondarySubLocation.trim(),
+          ThirdLocations: sec.ThirdLocations.filter(third => 
+            third.ThirdLocation.trim() || third.ThirdSubLocation.trim()
+          ).map(third => ({
+            ThirdLocation: third.ThirdLocation.trim(),
+            ThirdSubLocation: third.ThirdSubLocation.trim()
+          }))
+        })).filter(sec => 
+          sec.SecondaryLocation || 
+          sec.SecondarySubLocation ||
+          (sec.ThirdLocations && sec.ThirdLocations.length > 0)
+        )
+      };
+      
+      // Remove empty SecondaryLocations array if no valid entries
+      if (payload.SecondaryLocations.length === 0) {
+        delete payload.SecondaryLocations;
+      }
+      
+      url = 'https://api.avessecurity.com/api/Location/createLocation';
+    }
+    
+    console.log('Sending payload:', JSON.stringify(payload, null, 2)); // For debugging
     
     const method = isEditing ? 'put' : 'post';
-    
     const response = await axios[method](url, payload, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -268,7 +315,6 @@ const handleSubmit = async (e) => {
     setIsLoading(false);
   }
 };
-
     const handlePrimaryLocationChange = (value) => {
         setPrimaryLocation(value);
         const newSuggestions = generateSuggestions('primary', value);
