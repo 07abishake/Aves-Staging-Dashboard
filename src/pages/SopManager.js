@@ -5,6 +5,7 @@ const API_BASE = 'https://api.avessecurity.com/api/Sop';
 
 const SopManager = () => {
   const [sops, setSops] = useState([]);
+  const [filteredSops, setFilteredSops] = useState([]);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [formData, setFormData] = useState({
@@ -14,6 +15,8 @@ const SopManager = () => {
   });
   const [file, setFile] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('all'); // 'all', 'user', 'department', 'filename'
   const token = localStorage.getItem('access_token');
 
   useEffect(() => {
@@ -24,6 +27,10 @@ const SopManager = () => {
       fetchDropdowns();
     }
   }, []);
+
+  useEffect(() => {
+    filterSops();
+  }, [searchTerm, searchField, sops]);
 
   const fetchSops = async () => {
     try {
@@ -55,6 +62,36 @@ const SopManager = () => {
     }
   };
 
+  const filterSops = () => {
+    if (!searchTerm) {
+      setFilteredSops(sops);
+      return;
+    }
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    const filtered = sops.filter(sop => {
+      const userName = getUserName(sop.userId).toLowerCase();
+      const deptName = getDepartmentName(sop.DepartMent).toLowerCase();
+      const fileName = sop.FileName.toLowerCase();
+      
+      switch(searchField) {
+        case 'user':
+          return userName.includes(lowerSearchTerm);
+        case 'department':
+          return deptName.includes(lowerSearchTerm);
+        case 'filename':
+          return fileName.includes(lowerSearchTerm);
+        default: // 'all'
+          return userName.includes(lowerSearchTerm) || 
+                 deptName.includes(lowerSearchTerm) || 
+                 fileName.includes(lowerSearchTerm);
+      }
+    });
+    
+    setFilteredSops(filtered);
+  };
+
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -64,6 +101,14 @@ const SopManager = () => {
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleSearchFieldChange = (e) => {
+    setSearchField(e.target.value);
   };
 
   const handleSubmit = async (e) => {
@@ -136,8 +181,38 @@ const SopManager = () => {
         data-bs-toggle="offcanvas"
         data-bs-target="#sopCanvas"
       >
-        <i className="bi bi-plus-circle me-2"></i> Add SOP
+        Add SOP
       </button>
+    </div>
+
+    {/* Search Section */}
+    <div className="row mb-4">
+      <div className="col-md-8">
+        <div className="input-group">
+          <span className="input-group-text">
+            <i className="bi bi-search"></i>
+          </span>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search SOPs..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
+      </div>
+      <div className="col-md-4">
+        <select
+          className="form-select"
+          value={searchField}
+          onChange={handleSearchFieldChange}
+        >
+          <option value="all">All Fields</option>
+          <option value="user">User</option>
+          <option value="department">Department</option>
+          <option value="filename">File Name</option>
+        </select>
+      </div>
     </div>
 
     <div className="table-responsive">
@@ -152,39 +227,47 @@ const SopManager = () => {
           </tr>
         </thead>
         <tbody>
-          {sops.map((sop) => (
-            <tr key={sop._id}>
-              <td>{getUserName(sop.userId)}</td>
-              <td>{getDepartmentName(sop.DepartMent)}</td>
-              <td>{sop.FileName}</td>
-              <td>
-                {sop.UploadFile?.[0] && (
-                  <a
-                    href={`https://api.avessecurity.com/${sop.UploadFile[0]}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-outline-info"
+          {filteredSops.length > 0 ? (
+            filteredSops.map((sop) => (
+              <tr key={sop._id}>
+                <td>{getUserName(sop.userId)}</td>
+                <td>{getDepartmentName(sop.DepartMent)}</td>
+                <td>{sop.FileName}</td>
+                <td>
+                  {sop.UploadFile?.[0] && (
+                    <a
+                      href={`https://api.avessecurity.com/${sop.UploadFile[0]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-info"
+                    >
+                      <i className="bi bi-eye me-1"></i> View
+                    </a>
+                  )}
+                </td>
+                <td>
+                  <button
+                    className="btn btn-sm btn-outline-warning me-2"
+                    onClick={() => handleEdit(sop)}
                   >
-                    <i className="bi bi-eye me-1"></i> View
-                  </a>
-                )}
-              </td>
-              <td>
-                <button
-                  className="btn btn-sm btn-outline-warning me-2"
-                  onClick={() => handleEdit(sop)}
-                >
-                  <i className="bi bi-pencil-square"></i>
-                </button>
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => handleDelete(sop._id)}
-                >
-                  <i className="bi bi-trash"></i>
-                </button>
+                    <i className="bi bi-pencil-square"></i>
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => handleDelete(sop._id)}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="5" className="text-center py-4">
+                {searchTerm ? 'No matching SOPs found' : 'No SOPs available'}
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>
