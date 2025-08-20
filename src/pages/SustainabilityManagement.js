@@ -79,18 +79,19 @@ const SustainabilityBuilder = () => {
   };
 
   const fieldMap = {
-  country: 'Country',
-  hotel: 'HotelName',
-  module: 'AddModule',
-  subModule: 'AddSubModule',
-  class: 'Addclass',
-  input: 'AddInput'
-};
+    country: 'Country',
+    hotel: 'HotelName',
+    module: 'AddModule',
+    subModule: 'AddSubModule',
+    class: 'Addclass',
+    input: 'AddInput'
+  };
+  
   // Handle create/update
   const handleSubmit = async () => {
     const { type, parentId, item } = offcanvasData;
     const body = {};
-  const fieldName = fieldMap[type];
+    const fieldName = fieldMap[type];
     body[fieldName] = formValue;
 
     try {
@@ -145,80 +146,90 @@ const SustainabilityBuilder = () => {
   };
 
   // Handle delete
- const handleDelete = async (type, id) => {
-  if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
+  const handleDelete = async (type, id) => {
+    if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
 
-  try {
-    let endpoint = '';
+    try {
+      let endpoint = '';
 
-    if (type === 'country') {
-      endpoint = `/delete/${id}`;
-    } else if (type === 'hotel') {
-      const country = sustainabilityData.find(c =>
-        c.Hotel?.some(h => h._id === id)
-      );
-      if (!country) throw new Error("Parent country not found");
-      endpoint = `/delete/${country._id}/Hotel/${id}`;
-    } else if (type === 'module') {
-      const country = sustainabilityData.find(c =>
-        c.Hotel?.some(h => h.Module?.some(m => m._id === id))
-      );
-      const hotel = country?.Hotel.find(h =>
-        h.Module?.some(m => m._id === id)
-      );
-      if (!country || !hotel) throw new Error("Parent country/hotel not found");
-      const module = hotel.Module.find(m => m._id === id);
-      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}`;
-    } else if (type === 'subModule') {
-      const country = sustainabilityData.find(c =>
-        c.Hotel?.some(h =>
+      if (type === 'country') {
+        endpoint = `/delete/${id}`;
+      } else if (type === 'hotel') {
+        const country = sustainabilityData.find(c =>
+          c.Hotel?.some(h => h._id === id)
+        );
+        if (!country) throw new Error("Parent country not found");
+        endpoint = `/delete/${country._id}/Hotel/${id}`;
+      } else if (type === 'module') {
+        const country = sustainabilityData.find(c =>
+          c.Hotel?.some(h => h.Module?.some(m => m._id === id))
+        );
+        const hotel = country?.Hotel.find(h =>
+          h.Module?.some(m => m._id === id)
+        );
+        if (!country || !hotel) throw new Error("Parent country/hotel not found");
+        const module = hotel.Module.find(m => m._id === id);
+        endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}`;
+      } else if (type === 'subModule') {
+        const country = sustainabilityData.find(c =>
+          c.Hotel?.some(h =>
+            h.Module?.some(m =>
+              m.SubModule?.some(sm => sm._id === id)
+            )
+          )
+        );
+        const hotel = country?.Hotel.find(h =>
           h.Module?.some(m =>
             m.SubModule?.some(sm => sm._id === id)
           )
-        )
-      );
-      const hotel = country?.Hotel.find(h =>
-        h.Module?.some(m =>
+        );
+        const module = hotel?.Module.find(m =>
           m.SubModule?.some(sm => sm._id === id)
-        )
-      );
-      const module = hotel?.Module.find(m =>
-        m.SubModule?.some(sm => sm._id === id)
-      );
-      const subModule = module?.SubModule.find(sm => sm._id === id);
-      if (!country || !hotel || !module || !subModule) throw new Error("Parent hierarchy not found");
-      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}`;
-    } else if (type === 'class') {
-      const country = sustainabilityData.find(c =>
-        c.Hotel?.some(h =>
+        );
+        const subModule = module?.SubModule.find(sm => sm._id === id);
+        if (!country || !hotel || !module || !subModule) throw new Error("Parent hierarchy not found");
+        endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}`;
+      } else if (type === 'class') {
+        const country = sustainabilityData.find(c =>
+          c.Hotel?.some(h =>
+            h.Module?.some(m =>
+              m.SubModule?.some(sm =>
+                sm.Class?.some(cls => cls._id === id)
+              )
+            )
+          )
+        );
+        const hotel = country?.Hotel.find(h =>
           h.Module?.some(m =>
             m.SubModule?.some(sm =>
               sm.Class?.some(cls => cls._id === id)
             )
           )
-        )
-      );
-      const hotel = country?.Hotel.find(h =>
-        h.Module?.some(m =>
+        );
+        const module = hotel?.Module.find(m =>
           m.SubModule?.some(sm =>
             sm.Class?.some(cls => cls._id === id)
           )
-        )
-      );
-      const module = hotel?.Module.find(m =>
-        m.SubModule?.some(sm =>
+        );
+        const subModule = module?.SubModule.find(sm =>
           sm.Class?.some(cls => cls._id === id)
-        )
-      );
-      const subModule = module?.SubModule.find(sm =>
-        sm.Class?.some(cls => cls._id === id)
-      );
-      const cls = subModule?.Class.find(c => c._id === id);
-      if (!country || !hotel || !module || !subModule || !cls) throw new Error("Parent hierarchy not found");
-      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}`;
-    } else if (type === 'input') {
-      const country = sustainabilityData.find(c =>
-        c.Hotel?.some(h =>
+        );
+        const cls = subModule?.Class.find(c => c._id === id);
+        if (!country || !hotel || !module || !subModule || !cls) throw new Error("Parent hierarchy not found");
+        endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}`;
+      } else if (type === 'input') {
+        const country = sustainabilityData.find(c =>
+          c.Hotel?.some(h =>
+            h.Module?.some(m =>
+              m.SubModule?.some(sm =>
+                sm.Class?.some(cls =>
+                  cls.Input?.some(input => input._id === id)
+                )
+              )
+            )
+          )
+        );
+        const hotel = country?.Hotel.find(h =>
           h.Module?.some(m =>
             m.SubModule?.some(sm =>
               sm.Class?.some(cls =>
@@ -226,53 +237,42 @@ const SustainabilityBuilder = () => {
               )
             )
           )
-        )
-      );
-      const hotel = country?.Hotel.find(h =>
-        h.Module?.some(m =>
+        );
+        const module = hotel?.Module.find(m =>
           m.SubModule?.some(sm =>
             sm.Class?.some(cls =>
               cls.Input?.some(input => input._id === id)
             )
           )
-        )
-      );
-      const module = hotel?.Module.find(m =>
-        m.SubModule?.some(sm =>
+        );
+        const subModule = module?.SubModule.find(sm =>
           sm.Class?.some(cls =>
             cls.Input?.some(input => input._id === id)
           )
-        )
-      );
-      const subModule = module?.SubModule.find(sm =>
-        sm.Class?.some(cls =>
-          cls.Input?.some(input => input._id === id)
-        )
-      );
-      const cls = subModule?.Class.find(c =>
-        c.Input?.some(input => input._id === id)
-      );
-      const input = cls?.Input.find(i => i._id === id);
-      if (!country || !hotel || !module || !subModule || !cls || !input) throw new Error("Parent hierarchy not found");
-      endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}/Input/${id}`;
-    }
+        );
+        const cls = subModule?.Class.find(c =>
+          c.Input?.some(input => input._id === id)
+        );
+        const input = cls?.Input.find(i => i._id === id);
+        if (!country || !hotel || !module || !subModule || !cls || !input) throw new Error("Parent hierarchy not found");
+        endpoint = `/delete/${country._id}/Hotel/${hotel._id}/Module/${module._id}/SubModule/${subModule._id}/Class/${cls._id}/Input/${id}`;
+      }
 
-    await axios.delete(`${BASE_API}${endpoint}`, config);
-    fetchSustainabilityData();
-  } catch (err) {
-    console.error('Delete error:', err);
-    setError(err.message || `Failed to delete ${type}`);
-  }
-};
+      await axios.delete(`${BASE_API}${endpoint}`, config);
+      fetchSustainabilityData();
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError(err.message || `Failed to delete ${type}`);
+    }
+  };
 
   // Toggle expand/collapse
-const toggleExpand = (type, id) => {
-  setExpandedItems(prev => ({
-    ...prev,
-    [`${type}-${id}`]: !prev[`${type}-${id}`]
-  }));
-};
-
+  const toggleExpand = (type, id) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [`${type}-${id}`]: !prev[`${type}-${id}`]
+    }));
+  };
 
   const isExpanded = (type, id) => expandedItems[`${type}-${id}`];
 
@@ -303,6 +303,13 @@ const toggleExpand = (type, id) => {
     return item[`Add${type.charAt(0).toUpperCase() + type.slice(1)}`] || 
            item[`${type.charAt(0).toUpperCase() + type.slice(1)}Name`] || 
            item.Country || '';
+  };
+
+  // Get display name for type
+  const getDisplayName = (type) => {
+    if (type === 'country') return 'Location';
+    if (type === 'hotel') return 'Property';
+    return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
   useEffect(() => {
@@ -341,7 +348,7 @@ const toggleExpand = (type, id) => {
                     onClick={() => handleOpenOffcanvas('country')}
                     className="d-flex align-items-center"
                   >
-               Location
+                    Location
                   </Button>
                 </div>
                 
@@ -390,7 +397,7 @@ const toggleExpand = (type, id) => {
                               size="sm" 
                               onClick={() => handleOpenOffcanvas('hotel', country._id)}
                             >
-                            Property
+                              Property
                             </Button>
                           </td>
                         </tr>
@@ -445,7 +452,7 @@ const toggleExpand = (type, id) => {
                                 handleOpenOffcanvas('module', hotel._id);
                               }}
                             >
-                             Module
+                              Module
                             </Button>
                           </td>
                         </tr>
@@ -479,7 +486,6 @@ const toggleExpand = (type, id) => {
                                 onClick={() => toggleExpand('module', module._id)}
                               >
                                 {getItemName(module, 'module')}
-                        
                               </div>
                             </td>
                             <td className="text-end">
@@ -514,7 +520,7 @@ const toggleExpand = (type, id) => {
                                   handleOpenOffcanvas('subModule', module._id);
                                 }}
                               > 
-                              SubModule
+                                SubModule
                               </Button>
                             </td>
                           </tr>
@@ -552,7 +558,6 @@ const toggleExpand = (type, id) => {
                                   onClick={() => toggleExpand('subModule', subModule._id)}
                                 >
                                   {getItemName(subModule, 'subModule')}
-                                 
                                 </div>
                               </td>
                               <td className="text-end">
@@ -593,7 +598,7 @@ const toggleExpand = (type, id) => {
                                     handleOpenOffcanvas('class', subModule._id);
                                   }}
                                 >
-                                 Class
+                                  Class
                                 </Button>
                               </td>
                             </tr>
@@ -604,14 +609,14 @@ const toggleExpand = (type, id) => {
                   </tbody>
                 </Table>
               </Tab>
-{/*Class Tab*/}
-              {/* <Tab eventKey="class" title="Classes">
+
+              <Tab eventKey="class" title="Classes">
                 <h4 className="mb-3"></h4>
                 <Table striped responsive>
                   <thead>
                     <tr>
-                      <th>Country</th>
-                      <th>Hotel</th>
+                      <th>Location</th>
+                      <th>Property</th>
                       <th>Module</th>
                       <th>SubModule</th>
                       <th>Class Name</th>
@@ -623,19 +628,19 @@ const toggleExpand = (type, id) => {
                       country.Hotel?.flatMap(hotel => 
                         hotel.Module?.flatMap(module => 
                           module.SubModule?.flatMap(subModule => 
-                            subModule.Class?.map(cls => (
+                            (subModule.Class || []).map(cls => (
                               <tr key={cls._id}>
                                 <td>{getItemName(country, 'country')}</td>
                                 <td>{getItemName(hotel, 'hotel')}</td>
                                 <td>{getItemName(module, 'module')}</td>
                                 <td>{getItemName(subModule, 'subModule')}</td>
+                                <td>{cls.Addclass}</td>
                                 <td>
-                                  <div 
-                                    className="d-flex align-items-center cursor-pointer" 
+                                  <div
+                                    className="d-flex align-items-center cursor-pointer"
                                     onClick={() => toggleExpand('class', cls._id)}
                                   >
                                     {getItemName(cls, 'class')}
-                                   
                                   </div>
                                 </td>
                                 <td className="text-end">
@@ -678,7 +683,7 @@ const toggleExpand = (type, id) => {
                                       handleOpenOffcanvas('input', cls._id);
                                     }}
                                   >
-                                Input
+                                    Input
                                   </Button>
                                 </td>
                               </tr>
@@ -689,93 +694,7 @@ const toggleExpand = (type, id) => {
                     )}
                   </tbody>
                 </Table>
-              </Tab> */}
-              <Tab eventKey="class" title="Classes">
-  <h4 className="mb-3"></h4>
-  <Table striped responsive>
-    <thead>
-      <tr>
-        <th>Location</th>
-        <th>Property</th>
-        <th>Module</th>
-        <th>SubModule</th>
-        <th>Class Name</th>
-        <th className="text-end">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {sustainabilityData.flatMap(country =>
-        country.Hotel?.flatMap(hotel =>
-          hotel.Module?.flatMap(module =>
-            module.SubModule?.flatMap(subModule =>
-              (subModule.Class || []).map(cls => (
-                <tr key={cls._id}>
-                  <td>{getItemName(country, 'country')}</td>
-                  <td>{getItemName(hotel, 'hotel')}</td>
-                  <td>{getItemName(module, 'module')}</td>
-                  <td>{getItemName(subModule, 'subModule')}</td>
-                  <td>{cls.Addclass}</td>
-                  <td>
-                    <div
-                      className="d-flex align-items-center cursor-pointer"
-                      onClick={() => toggleExpand('class', cls._id)}
-                    >
-                      {getItemName(cls, 'class')}
-                    </div>
-                  </td>
-                  <td className="text-end">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => {
-                        setIds(prev => ({
-                          ...prev,
-                          countryId: country._id,
-                          hotelId: hotel._id,
-                          moduleId: module._id,
-                          subModuleId: subModule._id
-                        }));
-                        handleOpenOffcanvas('class', subModule._id, cls);
-                      }}
-                      className="me-2"
-                    >
-                      <PencilSquare size={14} className="me-1" /> Edit
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDelete('class', cls._id)}
-                      className="me-2"
-                    >
-                      <Trash size={14} className="me-1" /> Delete
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setIds(prev => ({
-                          ...prev,
-                          countryId: country._id,
-                          hotelId: hotel._id,
-                          moduleId: module._id,
-                          subModuleId: subModule._id
-                        }));
-                        handleOpenOffcanvas('input', cls._id);
-                      }}
-                    >
-                      Input
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )
-          )
-        )
-      )}
-    </tbody>
-  </Table>
-</Tab>
-
+              </Tab>
 
               <Tab eventKey="input" title="Inputs">
                 <h4 className="mb-3"></h4>
@@ -855,9 +774,9 @@ const toggleExpand = (type, id) => {
               placement="end"
               className="w-50"
             >
-              <Offcanvas.Header className={offcanvasData.item }>
+              <Offcanvas.Header className={offcanvasData.item}>
                 <Offcanvas.Title>
-                  {offcanvasData.item ? 'Edit' : 'Add'} {offcanvasData.type.charAt(0).toUpperCase() + offcanvasData.type.slice(1)}
+                  {offcanvasData.item ? 'Edit' : 'Add'} {getDisplayName(offcanvasData.type)}
                 </Offcanvas.Title>
                 <Button 
                   variant={offcanvasData.item ? 'outline-dark' : 'outline-light'} 
@@ -870,13 +789,13 @@ const toggleExpand = (type, id) => {
               <Offcanvas.Body>
                 <Form.Group className="mb-3">
                   <Form.Label>
-                    <strong>{offcanvasData.type} Name</strong>
+                    <strong>{getDisplayName(offcanvasData.type)} Name</strong>
                   </Form.Label>
                   <Form.Control
                     type="text"
                     value={formValue}
                     onChange={(e) => setFormValue(e.target.value)}
-                    placeholder={`Enter ${offcanvasData.type} name`}
+                    placeholder={`Enter ${getDisplayName(offcanvasData.type)} name`}
                     autoFocus
                   />
                 </Form.Group>

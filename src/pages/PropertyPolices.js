@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Form, Modal, Offcanvas, Badge, Spinner } from 'react-bootstrap';
+import { Button, Table, Form, Modal, Offcanvas, Badge, Spinner, Alert, Image } from 'react-bootstrap';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import axios from 'axios';
@@ -10,6 +10,8 @@ const PropertyPolices = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -28,8 +30,12 @@ const PropertyPolices = () => {
     Department: '',
     Policy: '',
     NotifyTeam: '',
-    Accept: false
+    Accept: false,
+    UploadDoc: []
   });
+
+  // Document preview state
+  const [docPreview, setDocPreview] = useState([]);
 
   const timeOptions = [
     "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM",
@@ -53,6 +59,7 @@ const PropertyPolices = () => {
       ]);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setError('Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -78,9 +85,19 @@ const PropertyPolices = () => {
         policiesData = response.data.data;
       }
 
-      setPolicies(policiesData);
+      // Process documents to include full URLs
+      const processedPolicies = policiesData.map(policy => ({
+        ...policy,
+        UploadDoc: Array.isArray(policy.UploadDoc) 
+          ? policy.UploadDoc.map(doc => 
+              doc.startsWith('http') ? doc : `https://api.avessecurity.com/${doc}`)
+          : []
+      }));
+
+      setPolicies(processedPolicies);
     } catch (error) {
       console.error('Error fetching policies:', error);
+      setError('Failed to fetch policies');
     }
   };
 
@@ -135,6 +152,14 @@ const PropertyPolices = () => {
     setFormData(prev => ({ ...prev, OnwardsTime: time }));
   };
 
+  // Handle document upload
+  const handleDocUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const previews = files.map(file => URL.createObjectURL(file));
+    setDocPreview(previews);
+    setFormData(prev => ({ ...prev, UploadDoc: files }));
+  };
+
   // Reset form to initial state
   const resetForm = () => {
     setFormData({
@@ -144,8 +169,10 @@ const PropertyPolices = () => {
       Department: '',
       Policy: '',
       NotifyTeam: '',
-      Accept: false
+      Accept: false,
+      UploadDoc: []
     });
+    setDocPreview([]);
   };
 
   // Open create modal with empty form
@@ -158,20 +185,37 @@ const PropertyPolices = () => {
   const handleCreate = async () => {
     try {
       setIsSubmitting(true);
+      setError(null);
       
-      // Prepare payload with proper date format
-      const payload = {
-        ...formData,
-        OnwardsDate: formData.OnwardsDate.toISOString(),
-        Accept: formData.Accept // This will be false by default
-      };
+      // Prepare form data for file upload
+      const formDataToSend = new FormData();
+      
+      // Append all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'UploadDoc' && key !== 'OnwardsDate') {
+          formDataToSend.append(key, value);
+        }
+      });
+      
+      // Append date in proper format
+      if (formData.OnwardsDate) {
+        formDataToSend.append('OnwardsDate', formData.OnwardsDate.toISOString());
+      }
+      
+      // Append each document file
+      if (formData.UploadDoc && formData.UploadDoc.length > 0) {
+        formData.UploadDoc.forEach(file => {
+          formDataToSend.append('UploadDoc', file);
+        });
+      }
 
       const response = await axios.post(
         'https://api.avessecurity.com/api/hotelPolicy/create', 
-        payload,
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
           },
         }
       );
@@ -196,9 +240,11 @@ const PropertyPolices = () => {
       }
       
       setShowCreateModal(false);
+      setSuccess('Policy created successfully');
       await fetchPolicies();
     } catch (error) {
       console.error('Error creating policy:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to create policy');
     } finally {
       setIsSubmitting(false);
     }
@@ -220,8 +266,10 @@ const PropertyPolices = () => {
       Department: policy.Department,
       Policy: policy.Policy,
       NotifyTeam: policy.NotifyTeam,
-      Accept: policy.Accept
+      Accept: policy.Accept,
+      UploadDoc: []
     });
+    setDocPreview(policy.UploadDoc || []);
     setShowEditModal(true);
   };
 
@@ -229,27 +277,47 @@ const PropertyPolices = () => {
   const handleUpdate = async () => {
     try {
       setIsSubmitting(true);
+      setError(null);
       
-      const payload = {
-        ...formData,
-        OnwardsDate: formData.OnwardsDate.toISOString(),
-        Accept: formData.Accept // Use the checkbox value
-      };
+      // Prepare form data for file upload
+      const formDataToSend = new FormData();
+      
+      // Append all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'UploadDoc' && key !== 'OnwardsDate') {
+          formDataToSend.append(key, value);
+        }
+      });
+      
+      // Append date in proper format
+      if (formData.OnwardsDate) {
+        formDataToSend.append('OnwardsDate', formData.OnwardsDate.toISOString());
+      }
+      
+      // Append each document file
+      if (formData.UploadDoc && formData.UploadDoc.length > 0) {
+        formData.UploadDoc.forEach(file => {
+          formDataToSend.append('UploadDoc', file);
+        });
+      }
 
       await axios.put(
         `https://api.avessecurity.com/api/hotelPolicy/update/${selectedPolicy._id}`, 
-        payload,
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
           },
         }
       );
       
       setShowEditModal(false);
+      setSuccess('Policy updated successfully');
       await fetchPolicies();
     } catch (error) {
       console.error('Error updating policy:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to update policy');
     } finally {
       setIsSubmitting(false);
     }
@@ -259,6 +327,8 @@ const PropertyPolices = () => {
   const handleDelete = async () => {
     try {
       setIsSubmitting(true);
+      setError(null);
+      
       await axios.delete(
         `https://api.avessecurity.com/api/hotelPolicy/delete/${selectedPolicy._id}`,
         {
@@ -267,10 +337,13 @@ const PropertyPolices = () => {
           },
         }
       );
+      
       setShowDeleteModal(false);
+      setSuccess('Policy deleted successfully');
       await fetchPolicies();
     } catch (error) {
       console.error('Error deleting policy:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to delete policy');
     } finally {
       setIsSubmitting(false);
     }
@@ -288,10 +361,16 @@ const PropertyPolices = () => {
     return team ? team.TeamName : teamId;
   };
 
+  // Check if file is an image
+  const isImageFile = (fileName) => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    return imageExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  };
+
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between mb-4">
-        <h2>Hotel Policies</h2>
+        <h2>Policy</h2>
         <Button 
           variant="primary" 
           onClick={handleCreateClick}
@@ -300,6 +379,9 @@ const PropertyPolices = () => {
           {loading ? 'Loading...' : 'Create New Policy'}
         </Button>
       </div>
+
+      {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
+      {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
 
       {loading ? (
         <div className="text-center">
@@ -323,6 +405,7 @@ const PropertyPolices = () => {
                   <th>Date</th>
                   <th>Time</th>
                   <th>Department</th>
+                  <th>Documents</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -335,6 +418,13 @@ const PropertyPolices = () => {
                     <td>{new Date(policy.OnwardsDate).toLocaleDateString()}</td>
                     <td>{policy.OnwardsTime}</td>
                     <td>{getDepartmentName(policy.Department)}</td>
+                    <td>
+                      {policy.UploadDoc && policy.UploadDoc.length > 0 ? (
+                        <Badge bg="info">{policy.UploadDoc.length} files</Badge>
+                      ) : (
+                        <Badge bg="secondary">No files</Badge>
+                      )}
+                    </td>
                     <td>
                       {policy.Accept ? (
                         <Badge bg="success">Approved</Badge>
@@ -399,17 +489,16 @@ const PropertyPolices = () => {
 
             <Form.Group className="mb-3">
               <Form.Label>Date *</Form.Label>
-            <DatePicker
-  selected={formData.OnwardsDate}
-  onChange={handleDateChange}
-  className="form-control"
-  dateFormat="yyyy-MM-dd"
-  minDate={new Date()}
-  required
-  placeholderText="Select date"  // Add this
-  isClearable                   // Add this to allow clearing the field
-/>
-
+              <DatePicker
+                selected={formData.OnwardsDate}
+                onChange={handleDateChange}
+                className="form-control"
+                dateFormat="yyyy-MM-dd"
+                minDate={new Date()}
+                required
+                placeholderText="Select date"
+                isClearable
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -457,6 +546,43 @@ const PropertyPolices = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
+              <Form.Label>Upload Documents</Form.Label>
+              <Form.Control
+                type="file"
+                multiple
+                onChange={handleDocUpload}
+                accept="image/*,.pdf,.doc,.docx"
+              />
+            </Form.Group>
+
+            {docPreview.length > 0 && (
+              <Form.Group className="mb-3">
+                <Form.Label>Document Previews</Form.Label>
+                <div className="d-flex flex-wrap gap-2">
+                  {docPreview.map((preview, index) => (
+                    <div key={index} className="position-relative">
+                      {isImageFile(formData.UploadDoc[index]?.name || preview) ? (
+                        <Image
+                          src={preview}
+                          alt="Preview"
+                          thumbnail
+                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div className="border p-2 text-center" style={{ width: '80px', height: '80px' }}>
+                          <i className="bi bi-file-earmark fs-3"></i>
+                          <small className="d-block text-truncate" style={{ maxWidth: '70px' }}>
+                            {formData.UploadDoc[index]?.name || 'Document'}
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Form.Group>
+            )}
+
+            <Form.Group className="mb-3">
               <Form.Label>Notify Team</Form.Label>
               <Form.Select
                 name="NotifyTeam"
@@ -501,7 +627,7 @@ const PropertyPolices = () => {
       </Offcanvas>
 
       {/* View Policy Offcanvas */}
-      <Offcanvas show={showViewModal} onHide={() => setShowViewModal(false)} placement="end">
+      <Offcanvas show={showViewModal} onHide={() => setShowViewModal(false)} placement="end" size="lg">
         <Offcanvas.Header closeButton>
           <Offcanvas.Title>Policy Details</Offcanvas.Title>
         </Offcanvas.Header>
@@ -523,6 +649,41 @@ const PropertyPolices = () => {
               {selectedPolicy.NotifyTeam && (
                 <p><strong>Notified Team:</strong> {getTeamName(selectedPolicy.NotifyTeam)}</p>
               )}
+              
+              {selectedPolicy.UploadDoc && selectedPolicy.UploadDoc.length > 0 && (
+                <>
+                  <p><strong>Attached Documents:</strong></p>
+                  <div className="d-flex flex-wrap gap-2 mb-3">
+                    {selectedPolicy.UploadDoc.map((doc, index) => (
+                      <div key={index} className="position-relative">
+                        {isImageFile(doc) ? (
+                          <Image
+                            src={doc}
+                            alt="Document"
+                            thumbnail
+                            style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div className="border p-2 text-center" style={{ width: '100px', height: '100px' }}>
+                            <i className="bi bi-file-earmark fs-3"></i>
+                            <small className="d-block">Document {index + 1}</small>
+                          </div>
+                        )}
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm" 
+                          className="position-absolute top-0 end-0 mt-1 me-1 p-0"
+                          style={{ width: '24px', height: '24px' }}
+                          onClick={() => window.open(doc, '_blank')}
+                        >
+                          <i className="bi bi-download"></i>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              
               <p><strong>Policy Content:</strong></p>
               <div className="border p-3 bg-light">
                 {selectedPolicy.Policy}
@@ -608,6 +769,66 @@ const PropertyPolices = () => {
                 required
               />
             </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Upload Documents</Form.Label>
+              <Form.Control
+                type="file"
+                multiple
+                onChange={handleDocUpload}
+                accept="image/*,.pdf,.doc,.docx"
+              />
+              <Form.Text className="text-muted">
+                Select new files to replace existing documents
+              </Form.Text>
+            </Form.Group>
+
+            {(docPreview.length > 0 || (selectedPolicy?.UploadDoc?.length > 0)) && (
+              <Form.Group className="mb-3">
+                <Form.Label>Document Previews</Form.Label>
+                <div className="d-flex flex-wrap gap-2">
+                  {docPreview.length > 0 ? (
+                    docPreview.map((preview, index) => (
+                      <div key={index} className="position-relative">
+                        {isImageFile(formData.UploadDoc[index]?.name || preview) ? (
+                          <Image
+                            src={preview}
+                            alt="Preview"
+                            thumbnail
+                            style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div className="border p-2 text-center" style={{ width: '80px', height: '80px' }}>
+                            <i className="bi bi-file-earmark fs-3"></i>
+                            <small className="d-block text-truncate" style={{ maxWidth: '70px' }}>
+                              {formData.UploadDoc[index]?.name || 'Document'}
+                            </small>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    selectedPolicy?.UploadDoc?.map((doc, index) => (
+                      <div key={index} className="position-relative">
+                        {isImageFile(doc) ? (
+                          <Image
+                            src={doc}
+                            alt="Current document"
+                            thumbnail
+                            style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div className="border p-2 text-center" style={{ width: '80px', height: '80px' }}>
+                            <i className="bi bi-file-earmark fs-3"></i>
+                            <small className="d-block">Document {index + 1}</small>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Form.Group>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Label>Notify Team</Form.Label>

@@ -195,7 +195,7 @@ function Sidebar() {
                                     </li>
                                     <li className="nav-item">
                                         <NavLink to="/osha-invite" className="nav-link">
-                                            <i className="bi bi-envelope-open me-2"></i> OSHA Invite
+                                            <i className="bi bi-envelope-open me-2"></i> OSH Invite
                                         </NavLink>
                                     </li>
                                     <li className="nav-item">
