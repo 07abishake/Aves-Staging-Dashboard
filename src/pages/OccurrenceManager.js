@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Button, Form, Table, Offcanvas } from 'react-bootstrap';
- 
+import { Button, Form, Table, Offcanvas, Modal } from 'react-bootstrap';
+
 const OccurrenceManager = () => {
   const [data, setData] = useState([]);
   const [form, setForm] = useState({});
@@ -11,7 +11,10 @@ const OccurrenceManager = () => {
   const [showView, setShowView] = useState(false);
   const [editId, setEditId] = useState(null);
   const [viewData, setViewData] = useState(null);
- 
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printData, setPrintData] = useState(null);
+  const printRef = useRef();
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -23,7 +26,7 @@ const OccurrenceManager = () => {
       console.error("Error fetching data", error);
     }
   };
- 
+
   const fetchLocations = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -35,16 +38,16 @@ const OccurrenceManager = () => {
       console.error("Error fetching locations:", error);
     }
   };
- 
+
   useEffect(() => {
     fetchData();
     fetchLocations();
   }, []);
- 
+
   const handleInputChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
- 
+
   const handleCreate = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -58,18 +61,18 @@ const OccurrenceManager = () => {
       console.error("Error creating occurrence", error);
     }
   };
- 
+
   const handleEdit = (item) => {
     setForm(item);
     setEditId(item._id);
     setShowEdit(true);
   };
- 
+
   const handleView = (item) => {
     setViewData(item);
     setShowView(true);
   };
- 
+
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -83,7 +86,7 @@ const OccurrenceManager = () => {
       console.error("Error updating occurrence", error);
     }
   };
- 
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this record?')) {
       try {
@@ -97,7 +100,45 @@ const OccurrenceManager = () => {
       }
     }
   };
- 
+
+  const handlePrint = (item) => {
+    setPrintData(item);
+    setShowPrintModal(true);
+  };
+
+  const executePrint = () => {
+    setShowPrintModal(false);
+    setTimeout(() => {
+      const printContent = printRef.current;
+      const printWindow = window.open('', '_blank');
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Occurrence Report</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .print-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+              .print-footer { text-align: center; margin-top: 30px; border-top: 1px solid #333; padding-top: 10px; font-size: 12px; }
+              .detail-row { margin-bottom: 10px; }
+              .detail-label { font-weight: bold; }
+              @media print {
+                body { padding: 0; margin: 0; }
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body onload="window.print(); window.onafterprint = function() { window.close(); }">
+            ${printContent.innerHTML}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+    }, 100);
+  };
+
   const getLocationOptions = () => {
     const options = [];
     locations.forEach(location => {
@@ -120,14 +161,14 @@ const OccurrenceManager = () => {
     });
     return options;
   };
- 
+
   return (
     <div className="container mt-5">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4 className="fw-bold">Daily Occurrence Log</h4>
         <Button variant="primary" onClick={() => setShowCreate(true)}>Add Occurrence</Button>
       </div>
- 
+
       <div className="p-3 bg-white rounded shadow-sm" style={{ boxShadow: '0 6px 16px rgba(0, 0, 0, 0.1)' }}>
         <Table hover responsive className="mb-0">
           <thead className="table-light">
@@ -166,6 +207,9 @@ const OccurrenceManager = () => {
                   <Button size="sm" variant="outline-primary" onClick={() => handleEdit(item)} className="me-1">
                     <i className="bi bi-pencil-square"></i>
                   </Button>
+                  <Button size="sm" variant="outline-info" onClick={() => handlePrint(item)} className="me-1">
+                    <i className="bi bi-printer"></i>
+                  </Button>
                   <Button size="sm" variant="outline-danger" onClick={() => handleDelete(item._id)}>
                     <i className="bi bi-trash"></i>
                   </Button>
@@ -175,7 +219,7 @@ const OccurrenceManager = () => {
           </tbody>
         </Table>
       </div>
- 
+
       {/* View Offcanvas */}
       <Offcanvas show={showView} onHide={() => setShowView(false)} placement="end">
         <Offcanvas.Header closeButton>
@@ -194,11 +238,89 @@ const OccurrenceManager = () => {
               <p><strong>Action Taken:</strong> {viewData?.ActionTaken}</p>
               <p><strong>Follow-up Required:</strong> {viewData?.FollowupRequired}</p>
               <p><strong>Supervisor Remarks:</strong> {viewData?.SupervisorNameRemark}</p>
+              <Button variant="outline-info" onClick={() => handlePrint(viewData)} className="mt-3">
+                <i className="bi bi-printer me-2"></i>Print
+              </Button>
             </>
           )}
         </Offcanvas.Body>
       </Offcanvas>
- 
+
+      {/* Print Modal */}
+      <Modal show={showPrintModal} onHide={() => setShowPrintModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Print Occurrence Report</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Click the print button below to generate a printable report of this occurrence.</p>
+          <div ref={printRef} className="d-none">
+            <div className="print-header">
+              {/* <h2>AVES Security</h2> */}
+              <h4>Occurrence Report</h4>
+              <p>Generated on: {new Date().toLocaleDateString()}</p>
+            </div>
+            
+            {printData && (
+              <div className="print-content">
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Recording Date:</div>
+                  <div className="col-8">{new Date(printData?.RecordingDate).toLocaleDateString()}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Recording Time:</div>
+                  <div className="col-8">{printData?.RecordingTime}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Occurring Time:</div>
+                  <div className="col-8">{printData?.OccurringTime}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Location:</div>
+                  <div className="col-8">{printData?.Location}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Reported By:</div>
+                  <div className="col-8">{printData?.ReportedBy}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Nature of Incident:</div>
+                  <div className="col-8">{printData?.NatureOfIncident}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Description:</div>
+                  <div className="col-8">{printData?.Description}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Action Taken:</div>
+                  <div className="col-8">{printData?.ActionTaken}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Follow-up Required:</div>
+                  <div className="col-8">{printData?.FollowupRequired}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Supervisor Remarks:</div>
+                  <div className="col-8">{printData?.SupervisorNameRemark}</div>
+                </div>
+              </div>
+            )}
+            
+            <div className="print-footer">
+              <p>AVES Security - Confidential Document</p>
+              <p>Page 1 of 1</p>
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowPrintModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={executePrint}>
+            Print
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {[showCreate, showEdit].map((show, idx) => (
         <Offcanvas
           key={idx}
@@ -258,7 +380,5 @@ const OccurrenceManager = () => {
     </div>
   );
 };
- 
+
 export default OccurrenceManager;
- 
- 
