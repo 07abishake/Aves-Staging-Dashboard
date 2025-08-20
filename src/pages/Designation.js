@@ -136,10 +136,10 @@ function Designation() {
 const handleEditSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editDesignationName || editSelectedUsers.length === 0) {
-        alert("Please fill in all fields");
-        return;
-    }
+    // if (!editDesignationName || editSelectedUsers.length === 0) {
+    //     alert("Please fill in all fields");
+    //     return;
+    // }
 
     const payload = {
         Name: editDesignationName,
