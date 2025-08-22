@@ -70,73 +70,6 @@ function LocationManager() {
         setEditId(null);
         setIsEditing(false);
     };
-
-
-//         setPrimaryLocation(location.PrimaryLocation || '');
-        
-//         // Handle PrimarySubLocation - take the first one if exists
-//         const firstSubLoc = Array.isArray(location.SubLocation) && location.SubLocation.length > 0 
-//             ? location.SubLocation[0] 
-//             : {};
-//         setPrimarySubLocation(firstSubLoc.PrimarySubLocation || '');
-        
-//         // Transform SecondaryLocation data to match form structure
-//         const transformedSecondary = [];
-        
-//         // Process each SubLocation
-//         if (Array.isArray(location.SubLocation)) {
-//             location.SubLocation.forEach(subLoc => {
-//                 // Process each SecondaryLocation within SubLocation
-//                 if (Array.isArray(subLoc.SecondaryLocation)) {
-//                     subLoc.SecondaryLocation.forEach(sec => {
-//                         // Process each SecondarySubLocation within SecondaryLocation
-//                         if (Array.isArray(sec.SecondarySubLocation)) {
-//                             sec.SecondarySubLocation.forEach(subSec => {
-//                                 // Create a form entry for each SecondarySubLocation
-//                                 const entry = {
-//                                     SecondaryLocation: sec.SecondaryLocation || '',
-//                                     SecondarySubLocation: subSec.SecondarySubLocation || '',
-//                                     ThirdLocations: []
-//                                 };
-                                
-//                                 // Add ThirdLocations if they exist
-//                                 if (Array.isArray(subSec.ThirdLocation)) {
-//                                     entry.ThirdLocations = subSec.ThirdLocation.map(third => ({
-//                                         ThirdLocation: third.ThirdLocation || '',
-//                                         ThirdSubLocation: third.ThirdSubLocation || ''
-//                                     }));
-//                                 } else {
-//                                     entry.ThirdLocations = [{ ThirdLocation: '', ThirdSubLocation: '' }];
-//                                 }
-                                
-//                                 transformedSecondary.push(entry);
-//                             });
-//                         } else {
-//                             // If no SecondarySubLocation, create an empty entry
-//                             transformedSecondary.push({
-//                                 SecondaryLocation: sec.SecondaryLocation || '',
-//                                 SecondarySubLocation: '',
-//                                 ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }]
-//                             });
-//                         }
-//                     });
-//                 }
-//             });
-//         }
-        
-//         // Set the transformed secondary locations
-//         setSecondaryLocations(transformedSecondary.length > 0 
-//             ? transformedSecondary 
-//             : [{ SecondaryLocation: '', SecondarySubLocation: '', ThirdLocations: [{ ThirdLocation: '', ThirdSubLocation: '' }] }]
-//         );
-        
-//         setEditId(location._id);
-//         setIsEditing(true);
-//     } else {
-//         resetForm();
-//     }
-//     setShowFormCanvas(true);
-// };
 const openFormCanvas = (location = null) => {
   if (location) {
     setPrimaryLocation(location.PrimaryLocation || '');
@@ -983,88 +916,173 @@ const handleSubmit = async (e) => {
             </div>
 
             {/* View Location Off-Canvas */}
-            <div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} 
-                 style={{ visibility: showViewCanvas ? 'visible' : 'hidden', width: '500px' }}>
-                <div className="offcanvas-header text-black">
-                    <h5 className="offcanvas-title">Location Details</h5>
-                    <button type="button" 
-                            className="btn-close" 
-                            onClick={closeViewCanvas} 
-                            aria-label="Close"></button>
-                </div>
-                <div className="offcanvas-body">
-                    {selectedLocation && (
-                        <div className="location-details">
-                            <div className="mb-4">
-                                <h6 className="text-muted">Primary Location</h6>
-                                <h4>{selectedLocation.PrimaryLocation}</h4>
+<div className={`offcanvas offcanvas-end ${showViewCanvas ? 'show' : ''}`} 
+     style={{ visibility: showViewCanvas ? 'visible' : 'hidden', width: '500px' }}>
+    <div className="offcanvas-header bg-light">
+        <h5 className="offcanvas-title text-primary">
+            <i className="bi bi-geo-alt-fill me-2"></i>
+            Location Details
+        </h5>
+        <button type="button" 
+                className="btn-close" 
+                onClick={closeViewCanvas} 
+                aria-label="Close"></button>
+    </div>
+    <div className="offcanvas-body p-0">
+        {selectedLocation && (
+            <div className="location-details">
+                {/* Primary Location Card */}
+                <div className="card border-0 rounded-0 bg-dark text-white">
+                    <div className="card-body">
+                        <div className="d-flex align-items-center">
+                            <div className="flex-grow-1">
+                                <h6 className="card-subtitle mb-1 opacity-75">Primary Location</h6>
+                                <h4 className="card-title mb-0">
+                                    <i className="bi bi-geo me-2"></i>
+                                    {selectedLocation.PrimaryLocation || "Not specified"}
+                                </h4>
                             </div>
+                            <div className="flex-shrink-0">
+                                <i className="bi bi-buildings-fill display-6 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            {Array.isArray(selectedLocation.SubLocation) && selectedLocation.SubLocation.map((subLoc, subIdx) => (
-                                <div key={subIdx} className="mb-4">
-                                    <h6 className="text-muted">Primary Sub Location</h6>
-                                    <p>{subLoc.PrimarySubLocation}</p>
+                {/* Sub Locations */}
+                {Array.isArray(selectedLocation.SubLocation) && selectedLocation.SubLocation.map((subLoc, subIdx) => (
+                    <div key={subIdx} className="p-4 border-bottom">
+                        {/* Primary Sub Location */}
+                        {subLoc.PrimarySubLocation && (
+                            <div className="mb-4">
+                                <h6 className="text-muted text-uppercase small fw-bold mb-2">
+                                    <i className="bi bi-geo-alt me-1"></i>
+                                    Primary Sub Location
+                                </h6>
+                                <div className="d-flex align-items-center bg-light p-3 rounded">
+                                    <i className="bi bi-signpost-fill text-primary me-2"></i>
+                                    <span className="fw-medium">{subLoc.PrimarySubLocation}</span>
+                                </div>
+                            </div>
+                        )}
 
-                                    {Array.isArray(subLoc.SecondaryLocation) && subLoc.SecondaryLocation.length > 0 && (
-                                        <div className="mt-3">
-                                            <h6 className="text-muted mb-3">Secondary Locations</h6>
-                                            <div className="accordion" id={`secondaryAccordion-${subIdx}`}>
-                                                {subLoc.SecondaryLocation.map((sec, secIdx) => (
-                                                    <div key={secIdx} className="accordion-item mb-2">
-                                                        <h2 className="accordion-header">
-                                                            <button className="accordion-button collapsed" 
-                                                                    type="button" 
-                                                                    data-bs-toggle="collapse" 
-                                                                    data-bs-target={`#collapseSec-${subIdx}-${secIdx}`}>
-                                                                {sec.SecondaryLocation || 'Unnamed Secondary Location'}
-                                                            </button>
-                                                        </h2>
-                                                        <div id={`collapseSec-${subIdx}-${secIdx}`} 
-                                                             className="accordion-collapse collapse" 
-                                                             data-bs-parent={`#secondaryAccordion-${subIdx}`}>
-                                                            <div className="accordion-body">
-                                                                {/* Secondary Sub Location */}
-                                                                {Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 && (
-                                                                    <div className="mb-3">
-                                                                        <h6 className="text-muted">Secondary Sub Locations</h6>
+                        {/* Secondary Locations */}
+                        {Array.isArray(subLoc.SecondaryLocation) && subLoc.SecondaryLocation.length > 0 && (
+                            <div className="mt-4">
+                                <h6 className="text-muted text-uppercase small fw-bold mb-3">
+                                    <i className="bi bi-diagram-2 me-1"></i>
+                                    Secondary Locations
+                                </h6>
+                                
+                                {subLoc.SecondaryLocation.map((sec, secIdx) => (
+                                    <div key={secIdx} className="card mb-3 shadow-sm">
+                                        <div className="card-header bg-white py-3">
+                                            <h6 className="mb-0 d-flex align-items-center">
+                                                <i className="bi bi-pin-map-fill text-warning me-2"></i>
+                                                {sec.SecondaryLocation || 'Unnamed Secondary Location'}
+                                            </h6>
+                                        </div>
+                                        
+                                        <div className="card-body">
+                                            {/* Secondary Sub Locations */}
+                                            {Array.isArray(sec.SecondarySubLocation) && sec.SecondarySubLocation.length > 0 && (
+                                                <div className="mb-3">
+                                                    <h6 className="text-muted small fw-bold mb-2">
+                                                        <i className="bi bi-signpost me-1"></i>
+                                                        Secondary Sub Locations
+                                                    </h6>
+                                                    <ul className="list-group list-group-flush">
+                                                        {sec.SecondarySubLocation.map((subSec, subSecIdx) => (
+                                                            <li key={subSecIdx} className="list-group-item px-0 py-2">
+                                                                <div className="d-flex align-items-center">
+                                                                    <i className="bi bi-dot text-secondary me-2"></i>
+                                                                    <span>{subSec.SecondarySubLocation || "No sublocation specified"}</span>
+                                                                </div>
+                                                                
+                                                                {/* Third Locations */}
+                                                                {Array.isArray(subSec.ThirdLocation) && subSec.ThirdLocation.length > 0 && (
+                                                                    <div className="mt-2 ms-3">
+                                                                        <h6 className="text-muted small fw-bold mb-2">
+                                                                            <i className="bi bi-pin me-1"></i>
+                                                                            Third Locations
+                                                                        </h6>
                                                                         <ul className="list-group list-group-flush">
-                                                                            {sec.SecondarySubLocation.map((subSec, subSecIdx) => (
-                                                                                <li key={subSecIdx} className="list-group-item">
-                                                                                    <p>{subSec.SecondarySubLocation}</p>
-                                                                                    
-                                                                                    {/* Third Locations */}
-                                                                                    {Array.isArray(subSec.ThirdLocation) && subSec.ThirdLocation.length > 0 && (
-                                                                                        <div className="mt-3">
-                                                                                            <h6 className="text-muted">Third Locations</h6>
-                                                                                            <ul className="list-group list-group-flush">
-                                                                                                {subSec.ThirdLocation.map((third, thirdIdx) => (
-                                                                                                    <li key={thirdIdx} className="list-group-item">
-                                                                                                        <p><strong>Location:</strong> {third.ThirdLocation}</p>
-                                                                                                        <p><strong>Sub Location:</strong> {third.ThirdSubLocation}</p>
-                                                                                                    </li>
-                                                                                                ))}
-                                                                                            </ul>
+                                                                            {subSec.ThirdLocation.map((third, thirdIdx) => (
+                                                                                <li key={thirdIdx} className="list-group-item px-0 py-2 bg-light rounded mb-1">
+                                                                                    <div className="d-flex justify-content-between align-items-start">
+                                                                                        <div>
+                                                                                            <div className="fw-medium">
+                                                                                                <i className="bi bi-geo me-1 text-info"></i>
+                                                                                                {third.ThirdLocation || "No location specified"}
+                                                                                            </div>
+                                                                                            {third.ThirdSubLocation && (
+                                                                                                <div className="text-muted small ms-3">
+                                                                                                    <i className="bi bi-arrow-return-right me-1"></i>
+                                                                                                    {third.ThirdSubLocation}
+                                                                                                </div>
+                                                                                            )}
                                                                                         </div>
-                                                                                    )}
+                                                                                    </div>
                                                                                 </li>
                                                                             ))}
                                                                         </ul>
                                                                     </div>
                                                                 )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Direct Third Locations (if any) */}
+                                            {Array.isArray(sec.ThirdLocation) && sec.ThirdLocation.length > 0 && (
+                                                <div className="mt-3">
+                                                    <h6 className="text-muted small fw-bold mb-2">
+                                                        <i className="bi bi-pin me-1"></i>
+                                                        Third Locations
+                                                    </h6>
+                                                    <ul className="list-group list-group-flush">
+                                                        {sec.ThirdLocation.map((third, thirdIdx) => (
+                                                            <li key={thirdIdx} className="list-group-item px-0 py-2 bg-light rounded mb-1">
+                                                                <div className="d-flex justify-content-between align-items-start">
+                                                                    <div>
+                                                                        <div className="fw-medium">
+                                                                            <i className="bi bi-geo me-1 text-info"></i>
+                                                                            {third.ThirdLocation || "No location specified"}
+                                                                        </div>
+                                                                        {third.ThirdSubLocation && (
+                                                                            <div className="text-muted small ms-3">
+                                                                                <i className="bi bi-arrow-return-right me-1"></i>
+                                                                                {third.ThirdSubLocation}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+                
+                {/* Empty State */}
+                {(!selectedLocation.SubLocation || selectedLocation.SubLocation.length === 0) && (
+                    <div className="text-center py-5">
+                        <i className="bi bi-inbox display-4 text-muted"></i>
+                        <p className="text-muted mt-3">No sub-locations defined for this location</p>
+                    </div>
+                )}
             </div>
-        </div>
+        )}
+    </div>
+</div>
+</div>
     );
 }
 

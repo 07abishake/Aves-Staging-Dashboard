@@ -122,34 +122,70 @@ const InventoryManager = () => {
   }, [error, success]);
 
   // Fetch inventory by product
-  const fetchInventoryByProduct = async (productId) => {
-    setIsLoading(true);
-    try {
-      const { data } = await axios.get(
-        `https://api.avessecurity.com/api/inventory/product/${productId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  // const fetchInventoryByProduct = async (productId) => {
+  //   console.log(`Fetching inventory for product ${productId}`)
+  //   setIsLoading(true);
+  //   try {
+  //     const { data } = await axios.get(
+  //       `https://api.avessecurity.com/api/inventory/product/${productId}`,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
 
-      // Handle both array and object responses
-      if (Array.isArray(data?.data)) {
+  //     // Handle both array and object responses
+  //     if (Array.isArray(data?.data)) {
+  //       setInventory(data.data);
+  //     } else if (data?.data) {
+  //       setInventory([data.data]);
+  //     } else {
+  //       setInventory([]);
+  //     }
+
+  //     setCurrentItem(products.find(p => p._id === productId));
+  //     setShowInventoryView(true);
+  //     setError(null);
+  //   } catch (err) {
+  //     setError(err.response?.data?.message || 'Failed to fetch inventory');
+  //     setInventory([]);
+  //   } finally {
+  //     setIsLoading(false);
+  //     setRefreshInventory(false);
+  //   }
+  // };
+
+
+  // Fetch inventory by product
+const fetchInventoryByProduct = async (productId) => {
+  console.log(`Fetching inventory for product ${productId}`)
+  setIsLoading(true);
+  try {
+    const { data } = await axios.get(
+      `https://api.avessecurity.com/api/inventory/product/${productId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // Handle the response format correctly
+    if (data.success && data.data) {
+      // If the data is an object (single inventory item), wrap it in an array
+      if (Array.isArray(data.data)) {
         setInventory(data.data);
-      } else if (data?.data) {
-        setInventory([data.data]);
       } else {
-        setInventory([]);
+        setInventory([data.data]);
       }
-
-      setCurrentItem(products.find(p => p._id === productId));
-      setShowInventoryView(true);
-      setError(null);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch inventory');
+    } else {
       setInventory([]);
-    } finally {
-      setIsLoading(false);
-      setRefreshInventory(false);
     }
-  };
+
+    setCurrentItem(products.find(p => p._id === productId));
+    setShowInventoryView(true);
+    setError(null);
+  } catch (err) {
+    setError(err.response?.data?.message || 'Failed to fetch inventory');
+    setInventory([]);
+  } finally {
+    setIsLoading(false);
+    setRefreshInventory(false);
+  }
+}; 
 
   // Fetch stock for a specific location
   const fetchLocationStock = async (locationId) => {
@@ -765,6 +801,76 @@ const renderProductTable = () => {
   //   );
   // };
 // Render product inventory view
+// const renderProductInventory = () => {
+//   if (isLoading) {
+//     return (
+//       <div className="text-center py-5">
+//         <Spinner animation="border" role="status">
+//           <span className="visually-hidden">Loading...</span>
+//         </Spinner>
+//       </div>
+//     );
+//   }
+
+//   if (!Array.isArray(inventory) || inventory.length === 0) {
+//     return <Alert variant="info">No inventory records found for this product</Alert>;
+//   }
+
+//   const imageUrl = currentItem?.ProductImage?.[0] 
+//     ? `https://api.avessecurity.com/${currentItem.ProductImage[0]}`
+//     : null;
+
+//   return (
+//     <div>
+//       {imageUrl && (
+//         <div className="text-center mb-3">
+//           <img 
+//             src={imageUrl} 
+//             alt={currentItem.ItemName} 
+//             style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain' }}
+//             className="img-thumbnail"
+//           />
+//         </div>
+//       )}
+//       <Table striped hover responsive>
+//         <thead>
+//           <tr>
+//             <th>Location</th>
+//             <th>Total Stock</th>
+//             <th>In Use</th>
+//             <th>Reserved</th>
+//             <th>Available</th>
+//             <th>Last Updated</th>
+//           </tr>
+//         </thead>
+//         <tbody>
+//           {inventory.flatMap((item) => {
+//             // Handle both array and object status
+//             const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
+//             return statuses.map((status, sIdx) => (
+//               <tr key={generateUniqueKey(item._id, `status-${sIdx}`)}>
+//                 <td>{findLocationDetails(status?.locationId)?.path || 'Unknown Location'}</td>
+//                 <td>{status?.totalStock || 0}</td>
+//                 <td>{status?.inUse || 0}</td>
+//                 <td>{status?.reserved || 0}</td>
+//                 <td>{status?.available || 0}</td>
+//                 <td>
+//                   {status?.lastUpdated ? 
+//                     new Date(status.lastUpdated).toLocaleString() : 
+//                     'N/A'}
+//                 </td>
+//               </tr>
+//             ));
+//           })}
+//         </tbody>
+//       </Table>
+//     </div>
+//   );
+// };
+
+
+
+// Render product inventory view
 const renderProductInventory = () => {
   if (isLoading) {
     return (
@@ -808,7 +914,7 @@ const renderProductInventory = () => {
           </tr>
         </thead>
         <tbody>
-          {inventory.flatMap((item) => {
+          {inventory.map((item) => {
             // Handle both array and object status
             const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
             return statuses.map((status, sIdx) => (
