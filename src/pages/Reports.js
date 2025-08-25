@@ -16,16 +16,20 @@ function Reports() {
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-    const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-
   const [error, setError] = useState('');
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Dropdown options state
   const [departments, setDepartments] = useState([]);
   const [locations, setLocations] = useState([]);
   const [users, setUsers] = useState([]);
   const [userInput, setUserInput] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [locationInput, setLocationInput] = useState('');
   
   const statusOptions = [
     { value: '', label: 'All Statuses' },
@@ -59,7 +63,6 @@ function Reports() {
           value: item.value,
           label: item.label
         }));
-            setUsers(formattedModules);
         setModules(formattedModules);
       }
     } catch (error) {
@@ -101,24 +104,184 @@ function Reports() {
   const fetchLocations = async () => {
     try {
       const response = await axios.get(
-        "https://api.avessecurity.com/api/Location/getLocations",
+        'https://api.avessecurity.com/api/Location/getLocations',
         {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
+      
       if (response.data && response.data.Location) {
-        const locationOptions = response.data.Location.map(loc => ({
-          value: loc._id,
-          label: loc.name
-        }));
+        const locationOptions = [];
+        
+        // Process each location in the response
+        response.data.Location.forEach(location => {
+          if (!location.PrimaryLocation) return;
+          
+          // Add primary location
+          locationOptions.push({
+            value: location._id,
+            label: location.PrimaryLocation
+          });
+
+          // Process sublocations
+          if (location.SubLocation && location.SubLocation.length > 0) {
+            location.SubLocation.forEach(subLoc => {
+              // State level (PrimarySubLocation)
+              const state = subLoc.PrimarySubLocation;
+              if (state) {
+                locationOptions.push({
+                  value: `${location._id}-${subLoc._id}`,
+                  label: `${location.PrimaryLocation}, ${state}`
+                });
+              }
+
+              // Process cities (SecondaryLocation)
+              if (subLoc.SecondaryLocation && subLoc.SecondaryLocation.length > 0) {
+                subLoc.SecondaryLocation.forEach(city => {
+                  const cityName = city.SecondaryLocation;
+                  if (cityName) {
+                    locationOptions.push({
+                      value: `${location._id}-${subLoc._id}-${city._id}`,
+                      label: `${location.PrimaryLocation}, ${state}, ${cityName}`
+                    });
+                  }
+
+                  // Process areas (SecondarySubLocation)
+                  if (city.SecondarySubLocation && city.SecondarySubLocation.length > 0) {
+                    city.SecondarySubLocation.forEach(area => {
+                      const areaName = area.SecondarySubLocation;
+                      if (areaName) {
+                        locationOptions.push({
+                          value: `${location._id}-${subLoc._id}-${city._id}-${area._id}`,
+                          label: `${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}`
+                        });
+                      }
+
+                      // Process buildings (ThirdLocation)
+                      if (area.ThirdLocation && area.ThirdLocation.length > 0) {
+                        area.ThirdLocation.forEach(building => {
+                          const buildingName = building.ThirdLocation;
+                          if (buildingName) {
+                            locationOptions.push({
+                              value: `${location._id}-${subLoc._id}-${city._id}-${area._id}-${building._id}`,
+                              label: `${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}`
+                            });
+                          }
+
+                          // Process floors (ThirdSubLocation)
+                          const floorName = building.ThirdSubLocation;
+                          if (floorName) {
+                            locationOptions.push({
+                              value: `${location._id}-${subLoc._id}-${city._id}-${area._id}-${building._id}-floor`,
+                              label: `${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}, ${floorName}`
+                            });
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+        
         setLocations(locationOptions);
       }
     } catch (error) {
-      console.error("Error fetching locations:", error);
+      console.error('Error fetching locations:', error);
     }
   };
+
+  const fetchLocationSuggestions = debounce(async (query) => {
+    if (!query) {
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+      return;
+    }
+    
+    try {
+      const response = await axios.get(
+        'https://api.avessecurity.com/api/Location/getLocations',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.data && response.data.Location) {
+        const suggestions = new Set();
+        
+        // Process each location in the response
+        response.data.Location.forEach(location => {
+          if (!location.PrimaryLocation) return;
+          
+          // Add primary location if it matches
+          if (location.PrimaryLocation.toLowerCase().includes(query.toLowerCase())) {
+            suggestions.add(location.PrimaryLocation);
+          }
+
+          // Process sublocations
+          if (location.SubLocation && location.SubLocation.length > 0) {
+            location.SubLocation.forEach(subLoc => {
+              // State level (PrimarySubLocation)
+              const state = subLoc.PrimarySubLocation;
+              if (state && state.toLowerCase().includes(query.toLowerCase())) {
+                suggestions.add(`${location.PrimaryLocation}, ${state}`);
+              }
+
+              // Process cities (SecondaryLocation)
+              if (subLoc.SecondaryLocation && subLoc.SecondaryLocation.length > 0) {
+                subLoc.SecondaryLocation.forEach(city => {
+                  const cityName = city.SecondaryLocation;
+                  if (cityName && cityName.toLowerCase().includes(query.toLowerCase())) {
+                    suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}`);
+                  }
+
+                  // Process areas (SecondarySubLocation)
+                  if (city.SecondarySubLocation && city.SecondarySubLocation.length > 0) {
+                    city.SecondarySubLocation.forEach(area => {
+                      const areaName = area.SecondarySubLocation;
+                      if (areaName && areaName.toLowerCase().includes(query.toLowerCase())) {
+                        suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}`);
+                      }
+
+                      // Process buildings (ThirdLocation)
+                      if (area.ThirdLocation && area.ThirdLocation.length > 0) {
+                        area.ThirdLocation.forEach(building => {
+                          const buildingName = building.ThirdLocation;
+                          if (buildingName && buildingName.toLowerCase().includes(query.toLowerCase())) {
+                            suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}`);
+                          }
+
+                          // Process floors (ThirdSubLocation)
+                          const floorName = building.ThirdSubLocation;
+                          if (floorName && floorName.toLowerCase().includes(query.toLowerCase())) {
+                            suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}, ${floorName}`);
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+        
+        // Convert Set to array and sort
+        const sortedSuggestions = Array.from(suggestions).sort();
+        setLocationSuggestions(sortedSuggestions);
+        setShowLocationSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Error fetching location suggestions:', error);
+      setLocationSuggestions([]);
+    }
+  }, 300);
 
   const fetchAllUsers = async () => {
     try {
@@ -208,7 +371,7 @@ function Reports() {
       );
 
       setPreviewHtml(response.data);
-        setReportData(response.data);
+      setReportData(response.data);
       setShowPreview(true);
     } catch (error) {
       console.error("Error previewing report:", error);
@@ -217,17 +380,6 @@ function Reports() {
       setLoading(false);
     }
   };
-    const filteredReports = selectedUser
-  ? reportData.filter(report =>
-      report.userId === selectedUser.value ||
-      report.SubmittedUserId === selectedUser.value ||
-      report.CreatedBy === selectedUser.value ||
-      report.StaffId === selectedUser.value ||
-      report.UserId === selectedUser.value ||
-      report.LocationId === selectedUser.value ||
-      report.DepartmentId === selectedUser.value
-    )
-  : reportData;
 
   const handleGeneratePdf = async () => {
     if (!validateDates()) return;
@@ -272,6 +424,69 @@ function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to handle location input change
+  const handleLocationInputChange = (inputValue, { action }) => {
+    if (action === "input-change") {
+      setLocationInput(inputValue);
+      fetchLocationSuggestions(inputValue);
+    }
+  };
+
+  // Function to handle location selection from suggestions
+  const handleLocationSelect = (selectedOption) => {
+    setLocationId(selectedOption);
+    setShowLocationSuggestions(false);
+  };
+
+  // Function to handle row click and show detailed view
+  const handleRowClick = (record) => {
+    setSelectedRecord(record);
+    setShowDetailModal(true);
+  };
+
+  // Function to render images in the detail view
+  const renderImages = (images) => {
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return <div>No Images Available</div>;
+    }
+
+    return images.map((src, index) => {
+      // Remove any leading "uploads/" from src to avoid duplication
+      const cleanSrc = src.replace(/^uploads\//, '');
+      const imgSrc = src.startsWith('http') ? src : `https://api.avessecurity.com/uploads/${cleanSrc}`;
+      
+      return (
+        <div key={index} className="mb-2 me-2 d-inline-block">
+          <img 
+            src={imgSrc} 
+            alt={`Evidence ${index + 1}`} 
+            style={{ 
+              maxWidth: '200px', 
+              maxHeight: '150px', 
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }} 
+            className="img-thumbnail"
+          />
+        </div>
+      );
+    });
+  };
+
+  // Function to format date
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    return !isNaN(d) ? d.toLocaleDateString() : 'N/A';
+  };
+
+  // Function to format time
+  const formatTime = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    return !isNaN(d) ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
   };
 
   return (
@@ -359,11 +574,26 @@ function Reports() {
               <Select
                 options={locations}
                 value={LocationId}
-                onChange={setLocationId}
-                placeholder="Select location..."
+                onChange={handleLocationSelect}
+                onInputChange={handleLocationInputChange}
+                placeholder="Search location..."
                 isClearable
                 isSearchable
               />
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <div className="mt-1 p-2 border rounded bg-white" style={{ position: 'absolute', zIndex: 10, width: '100%' }}>
+                  {locationSuggestions.map((suggestion, index) => (
+                    <div 
+                      key={index} 
+                      className="p-1 cursor-pointer hover-bg-light"
+                      onClick={() => handleLocationSelect({ value: suggestion, label: suggestion })}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="col-md-4">
@@ -411,7 +641,7 @@ function Reports() {
         </div>
       </div>
 
-      <Modal show={showPreview} onHide={() => setShowPreview(false)} size="xl" centered>
+      <Modal show={showPreview} onHide={() => setShowPreview(false)} size="xl" centered scrollable>
         <Modal.Header closeButton className="bg-light">
           <Modal.Title>
             <i className="bi bi-file-earmark-text me-2"></i>
@@ -423,6 +653,110 @@ function Reports() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowPreview(false)}>
+            <i className="bi bi-x-circle me-1"></i> Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Detail View Modal */}
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>
+            <i className="bi bi-info-circle me-2"></i>
+            Report Details
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
+          {selectedRecord ? (
+            <div className="container-fluid">
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <h6 className="text-muted">Location</h6>
+                  <p>{selectedRecord.Location || 'N/A'}</p>
+                </div>
+                <div className="col-md-6">
+                  <h6 className="text-muted">Status</h6>
+                  <p>
+                    <span className={`badge ${
+                      selectedRecord.Status === 'Good' ? 'bg-success' : 
+                      selectedRecord.Status === 'Faulty' ? 'bg-danger' : 'bg-secondary'
+                    }`}>
+                      {selectedRecord.Status || 'N/A'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <h6 className="text-muted">Reported By</h6>
+                  <p>{selectedRecord.ReportedBy || 'N/A'}</p>
+                </div>
+                <div className="col-md-6">
+                  <h6 className="text-muted">Reported Date & Time</h6>
+                  <p>{formatDate(selectedRecord.ReportedDate)} {selectedRecord.ReportedTime || ''}</p>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <h6 className="text-muted">Reported To</h6>
+                  <p>{selectedRecord.ReportedTo || 'N/A'}</p>
+                </div>
+                <div className="col-md-6">
+                  <h6 className="text-muted">Action Reason</h6>
+                  <p>{selectedRecord.ActionReason || 'N/A'}</p>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-12">
+                  <h6 className="text-muted">Fault Images</h6>
+                  <div className="d-flex flex-wrap">
+                    {renderImages(selectedRecord.FaultImage)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <h6 className="text-muted">Action By</h6>
+                  <p>{selectedRecord.ActionBy || 'N/A'}</p>
+                </div>
+                <div className="col-md-6">
+                  <h6 className="text-muted">Action Date & Time</h6>
+                  <p>{formatDate(selectedRecord.ActionDate)} {selectedRecord.ActionTime || ''}</p>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-12">
+                  <h6 className="text-muted">Acknowledged Images</h6>
+                  <div className="d-flex flex-wrap">
+                    {renderImages(selectedRecord.AcknowledgedImage)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <h6 className="text-muted">Reviewed By</h6>
+                  <p>{selectedRecord.ReviewedBy || 'N/A'}</p>
+                </div>
+                <div className="col-md-6">
+                  <h6 className="text-muted">Reviewed Date & Time</h6>
+                  <p>{formatDate(selectedRecord.ReviewedDate)} {selectedRecord.ReviewedTime || ''}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p>No record selected</p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailModal(false)}>
             <i className="bi bi-x-circle me-1"></i> Close
           </Button>
         </Modal.Footer>

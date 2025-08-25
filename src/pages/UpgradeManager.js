@@ -595,7 +595,7 @@ const confirmDelete = (id) => {
                 >
                   Close
                 </Button>
-                <Button 
+                {/* <Button 
                   variant="primary" 
                   onClick={() => {
                     handleCloseAll();
@@ -603,7 +603,7 @@ const confirmDelete = (id) => {
                   }}
                 >
                   <i className="bi bi-pencil me-2"></i>Edit
-                </Button>
+                </Button> */}
               </div>
             </>
           )}
