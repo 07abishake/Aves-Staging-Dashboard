@@ -9,7 +9,7 @@ function Reports() {
   const [selectedModule, setSelectedModule] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [userId, setuserId] = useState(null);
+  const [username, setusername] = useState(null);
   const [LocationId, setLocationId] = useState(null);
   const [Status, setStatus] = useState(null);
   const [DepartmentId, setDepartmentId] = useState(null);
@@ -318,7 +318,7 @@ function Reports() {
       );
       if (response.data && response.data.Report) {
         const userOptions = response.data.Report.map((user) => ({
-          value: user._id,
+          value: user.username,
           label: user.username,
         }));
         setUsers(userOptions);
@@ -353,11 +353,11 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
         {
           startDate,
           endDate,
-          userId: userId?.value || '',
+        username: username?.value || '',
           LocationId: LocationId?.value || '',
           Status: Status?.value || '',
           DepartmentId: DepartmentId?.value || ''
@@ -397,7 +397,7 @@ function Reports() {
         {
           startDate,
           endDate,
-          userId: userId?.value || '',
+          username: username?.value || '',
           LocationId: LocationId?.value || '',
           Status: Status?.value || '',
           DepartmentId: DepartmentId?.value || ''
@@ -557,8 +557,8 @@ function Reports() {
               <label className="form-label fw-bold">Checked By</label>
               <Select
                 options={users}
-                value={userId}
-                onChange={setuserId}
+                value={username}
+                onChange={setusername}
                 onInputChange={(inputValue) => {
                   setUserInput(inputValue);
                   fetchUsers(inputValue);
