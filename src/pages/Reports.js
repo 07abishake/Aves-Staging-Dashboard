@@ -53,7 +53,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`https://api.avessecurity.com/api/collection/getModule`, {
+      const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -353,7 +353,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
         {
           startDate,
           endDate,

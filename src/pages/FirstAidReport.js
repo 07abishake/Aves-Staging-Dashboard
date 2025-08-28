@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -293,7 +294,7 @@ const FirstAidReport = () => {
                   onClick={() => handleView(report)}
                   className="me-2"
                 >
-                <i className="bi bi-eye"></i>
+                  View
                 </Button>
                 <Button 
                   variant="outline-warning" 
@@ -302,7 +303,7 @@ const FirstAidReport = () => {
                   className="me-2"
                   disabled={loading.form}
                 >
-                 <i className="bi bi-pencil-square"></i>
+                  Edit
                 </Button>
                 <Button 
                   variant="outline-danger" 
@@ -310,7 +311,7 @@ const FirstAidReport = () => {
                   onClick={() => handleDeleteClick(report)}
                   disabled={loading.delete}
                 >
-                     <i className="bi bi-trash"></i>
+                  Delete
                 </Button>
               </td>
             </tr>
@@ -413,7 +414,7 @@ const FirstAidReport = () => {
 
     return (
       <Offcanvas show={showViewCanvas} onHide={() => setShowViewCanvas(false)} placement="end">
-        <Offcanvas.Header closeButton>
+        <Offcanvas.Header >
           <Offcanvas.Title>First Aid Report Details</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
@@ -441,25 +442,12 @@ const FirstAidReport = () => {
           </ListGroup>
 
           <div className="mt-3 d-flex justify-content-end">
-            {/* <Button 
-              variant="warning" 
-              onClick={() => {
-                setShowViewCanvas(false);
-                handleEdit(currentReport);
-              }}
-              className="me-2"
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowViewCanvas(false)}
             >
-              Edit Report
-            </Button> */}
-            {/* <Button 
-              variant="danger" 
-              onClick={() => {
-                setShowViewCanvas(false);
-                handleDeleteClick(currentReport);
-              }}
-            >
-              Delete Report
-            </Button> */}
+              Close
+            </Button>
           </div>
         </Offcanvas.Body>
       </Offcanvas>
@@ -527,7 +515,7 @@ const FirstAidReport = () => {
           disabled={loading.reports}
         >
           Create New Report
-        </Button>
+      </Button>
       </div>
 
       {renderTable()}

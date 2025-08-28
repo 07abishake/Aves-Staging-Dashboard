@@ -342,7 +342,7 @@ const handleSubmit = async (e) => {
 
     if (editMode) {
       await axios.put(
-        `https://api.avessecurity.com/api/upgrade/update/${currentId}`,
+        `http://localhost:6378/api/upgrade/update/${currentId}`,
         formDataToSend,
         {
           headers: { 
@@ -404,8 +404,7 @@ const confirmDelete = (id) => {
           variant="primary" 
           onClick={() => handleOpenForm()}
           className="shadow-sm"
-        >
-          <i className="bi bi-plus me-2"></i>Add Upgrade
+        >Add Upgrade
         </Button>
       </div>
 
