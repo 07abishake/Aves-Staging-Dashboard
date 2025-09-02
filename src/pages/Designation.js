@@ -22,6 +22,7 @@ function Designation() {
     const [editInputValue, setEditInputValue] = useState("");
     const [editMenuOpen, setEditMenuOpen] = useState(false);
     const [designations, setDesignations] = useState([]);
+    const [searchTerm, setSearchTerm] = useState(""); // Add sear
 
     const token = localStorage.getItem("access_token");
     
@@ -73,6 +74,11 @@ function Designation() {
             fetchUsers(inputValue);
         }
     }, [inputValue, fetchUsers]);
+
+    // Add filtered designations based on search term
+    const filteredDesignations = designations.filter(designation => 
+        designation.Name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const handleDesignationClick = (designation) => {
         setSelectedDesignation(designation);
@@ -207,6 +213,8 @@ function Designation() {
                             type="text"
                             className="form-control me-2"
                             placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button className="btn btn-primary h-50" onClick={() => setShowCreateCanvas(true)}>
@@ -227,8 +235,8 @@ function Designation() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {designations.length > 0 ? (
-                                                designations.map((designation) => (
+                                            {filteredDesignations.length > 0 ? (
+                                                filteredDesignations.map((designation) => (
                                                     <tr key={designation._id} style={{ cursor: "pointer" }}>
                                                         <td>{designation.Name}</td>
                                                         <td>
@@ -256,7 +264,7 @@ function Designation() {
                                             ) : (
                                                 <tr>
                                                     <td colSpan="2" className="text-center">
-                                                        No designations found
+                                                        {searchTerm ? "No matching designations found" : "No designations found"}
                                                     </td>
                                                 </tr>
                                             )}

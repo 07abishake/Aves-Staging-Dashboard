@@ -65,61 +65,119 @@ const InventoryManager = () => {
   };
 
   // Fetch initial data
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (!token) {
+  //     return;
+  //   }
 
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [productsRes, locationsRes] = await Promise.all([
-          axios.get('https://api.avessecurity.com/api/AddProducts/products', {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
+  //   const fetchData = async () => {
+  //     setIsLoading(true);
+  //     try {
+  //       const [productsRes, locationsRes] = await Promise.all([
+  //         axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+  //           headers: { Authorization: `Bearer ${token}` }
+  //         }),
+  //         axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+  //           headers: { Authorization: `Bearer ${token}` }
+  //         })
+  //       ]);
         
-        setProducts(productsRes.data?.Products || []);
-        setAllLocations(locationsRes.data?.Location || []);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
-      } finally {
-        setIsLoading(false);
-        setRefreshProducts(false);
-      }
-    };
+  //       setProducts(productsRes.data?.Products || []);
+  //       setAllLocations(locationsRes.data?.Location || []);
+  //       setError(null);
+  //     } catch (err) {
+  //       setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
+  //     } finally {
+  //       setIsLoading(false);
+  //       setRefreshProducts(false);
+  //     }
+  //   };
     
-    fetchData();
-  }, [token, refreshProducts]);
+  //   fetchData();
+  // }, [token, refreshProducts]);
 
-  // Auto-refresh for inventory view
-  useEffect(() => {
-    if (currentItem && refreshInventory) {
-      fetchInventoryByProduct(currentItem._id);
-    }
-  }, [refreshInventory]);
+  // // Auto-refresh for inventory view
+  // useEffect(() => {
+  //   if (currentItem && refreshInventory) {
+  //     fetchInventoryByProduct(currentItem._id);
+  //   }
+  // }, [refreshInventory]);
 
-  // Auto-refresh for location stock view
-  useEffect(() => {
-    if (selectedLocation && refreshLocationStock) {
-      fetchLocationStock(selectedLocation.id);
-    }
-  }, [refreshLocationStock]);
+  // // Auto-refresh for location stock view
+  // useEffect(() => {
+  //   if (selectedLocation && refreshLocationStock) {
+  //     fetchLocationStock(selectedLocation.id);
+  //   }
+  // }, [refreshLocationStock]);
 
-  // Reset alerts after 5 seconds
-  useEffect(() => {
-    if (error || success) {
-      const timer = setTimeout(() => {
-        setError(null);
-        setSuccess(null);
-      }, 5000);
-      return () => clearTimeout(timer);
+  // // Reset alerts after 5 seconds
+  // useEffect(() => {
+  //   if (error || success) {
+  //     const timer = setTimeout(() => {
+  //       setError(null);
+  //       setSuccess(null);
+  //     }, 5000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [error, success]);
+
+useEffect(() => {
+  if (!token) {
+    return;
+  }
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [productsRes, locationsRes] = await Promise.all([
+        axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      
+      setProducts(productsRes.data?.Products || []);
+      setAllLocations(locationsRes.data?.Location || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsLoading(false);
+      setRefreshProducts(false);
     }
-  }, [error, success]);
+  };
+  
+  fetchData();
+}, [token, refreshProducts]);
+
+// Auto-refresh for inventory view
+useEffect(() => {
+  if (currentItem && refreshInventory) {
+    fetchInventoryByProduct(currentItem._id);
+    setRefreshInventory(false); // Reset the flag after triggering refresh
+  }
+}, [refreshInventory, currentItem]);
+
+// Auto-refresh for location stock view
+useEffect(() => {
+  if (selectedLocation && refreshLocationStock) {
+    fetchLocationStock(selectedLocation.id);
+    setRefreshLocationStock(false); // Reset the flag after triggering refresh
+  }
+}, [refreshLocationStock, selectedLocation]);
+
+// Reset alerts after 5 seconds
+useEffect(() => {
+  if (error || success) {
+    const timer = setTimeout(() => {
+      setError(null);
+      setSuccess(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }
+}, [error, success]);
 
   // Fetch inventory by product
   // const fetchInventoryByProduct = async (productId) => {
@@ -154,8 +212,43 @@ const InventoryManager = () => {
 
 
   // Fetch inventory by product
+// const fetchInventoryByProduct = async (productId) => {
+//   console.log(`Fetching inventory for product ${productId}`)
+//   setIsLoading(true);
+//   try {
+//     const { data } = await axios.get(
+//       `https://api.avessecurity.com/api/inventory/product/${productId}`,
+//       { headers: { Authorization: `Bearer ${token}` } }
+//     );
+
+//     // Handle the response format correctly
+//     if (data.success && data.data) {
+//       // If the data is an object (single inventory item), wrap it in an array
+//       if (Array.isArray(data.data)) {
+//         setInventory(data.data);
+//       } else {
+//         setInventory([data.data]);
+//       }
+//     } else {
+//       setInventory([]);
+//     }
+
+//     setCurrentItem(products.find(p => p._id === productId));
+//     setShowInventoryView(true);
+//     setError(null);
+//   } catch (err) {
+//     setError(err.response?.data?.message || 'Failed to fetch inventory');
+//     setInventory([]);
+//   } finally {
+//     setIsLoading(false);
+//     setRefreshInventory(false);
+//   }
+// }; 
+
+
+// Fetch inventory by product
 const fetchInventoryByProduct = async (productId) => {
-  console.log(`Fetching inventory for product ${productId}`)
+  console.log(`Fetching inventory for product ${productId}`);
   setIsLoading(true);
   try {
     const { data } = await axios.get(
@@ -171,21 +264,39 @@ const fetchInventoryByProduct = async (productId) => {
       } else {
         setInventory([data.data]);
       }
+      setError(null);
     } else {
+      // Handle case where inventory is not found
       setInventory([]);
+      setSuccess(null);
+      // Show alert instead of error
+      setTimeout(() => {
+        alert(`No stock found for product: ${products.find(p => p._id === productId)?.ItemName || 'Unknown'}`);
+      }, 100);
     }
 
     setCurrentItem(products.find(p => p._id === productId));
     setShowInventoryView(true);
-    setError(null);
   } catch (err) {
-    setError(err.response?.data?.message || 'Failed to fetch inventory');
-    setInventory([]);
+    // Check if it's a "not found" error
+    if (err.response?.data?.message === "Inventory not found") {
+      setInventory([]);
+      setSuccess(null);
+      // Show alert instead of error
+      setTimeout(() => {
+        alert(`No stock found for product: ${products.find(p => p._id === productId)?.ItemName || 'Unknown'}`);
+      }, 100);
+    } else {
+      setError(err.response?.data?.message || 'Failed to fetch inventory');
+    }
   } finally {
     setIsLoading(false);
     setRefreshInventory(false);
   }
-}; 
+};
+
+
+
 
   // Fetch stock for a specific location
   const fetchLocationStock = async (locationId) => {
@@ -287,81 +398,182 @@ const fetchInventoryByProduct = async (productId) => {
   };
 
   // Handle add stock
-  const handleAddStock = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await axios.post(
-        'https://api.avessecurity.com/api/inventory/add-stock',
-        addStockForm,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSuccess('Stock added successfully');
-      setShowAddStock(false);
-      setAddStockForm({ productId: '', locationId: '', quantity: 0 });
+  // const handleAddStock = async (e) => {
+  //   e.preventDefault();
+  //   setIsLoading(true);
+  //   try {
+  //     await axios.post(
+  //       'https://api.avessecurity.com/api/inventory/add-stock',
+  //       addStockForm,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
+  //     setSuccess('Stock added successfully');
+  //     setShowAddStock(false);
+  //     setAddStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      setRefreshProducts(true);
-      setRefreshInventory(true);
-      setRefreshLocationStock(true);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add stock');
-    } finally {
-      setIsLoading(false);
+  //     setRefreshProducts(true);
+  //     setRefreshInventory(true);
+  //     setRefreshLocationStock(true);
+  //   } catch (err) {
+  //     setError(err.response?.data?.message || 'Failed to add stock');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+const handleAddStock = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    await axios.post(
+      'https://api.avessecurity.com/api/inventory/add-stock',
+      addStockForm,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setSuccess('Stock added successfully');
+    setShowAddStock(false);
+    setAddStockForm({ productId: '', locationId: '', quantity: 0 });
+    
+    // Force refresh all data
+    setRefreshProducts(true);
+    setRefreshInventory(true);
+    setRefreshLocationStock(true);
+    
+    // If you're currently viewing inventory, refresh it
+    if (currentItem) {
+      fetchInventoryByProduct(currentItem._id);
     }
-  };
+    if (selectedLocation) {
+      fetchLocationStock(selectedLocation.id);
+    }
+  } catch (err) {
+    setError(err.response?.data?.message || 'Failed to add stock');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Handle remove stock
-  const handleRemoveStock = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await axios.post(
-        'https://api.avessecurity.com/api/inventory/remove-stock',
-        removeStockForm,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSuccess('Stock removed successfully');
-      setShowRemoveStock(false);
-      setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
+  // const handleRemoveStock = async (e) => {
+  //   e.preventDefault();
+  //   setIsLoading(true);
+  //   try {
+  //     await axios.post(
+  //       'https://api.avessecurity.com/api/inventory/remove-stock',
+  //       removeStockForm,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
+  //     setSuccess('Stock removed successfully');
+  //     setShowRemoveStock(false);
+  //     setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
       
-      setRefreshProducts(true);
-      setRefreshInventory(true);
-      setRefreshLocationStock(true);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to remove stock');
-    } finally {
-      setIsLoading(false);
+  //     setRefreshProducts(true);
+  //     setRefreshInventory(true);
+  //     setRefreshLocationStock(true);
+  //   } catch (err) {
+  //     setError(err.response?.data?.message || 'Failed to remove stock');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  const handleRemoveStock = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    await axios.post(
+      'https://api.avessecurity.com/api/inventory/remove-stock',
+      removeStockForm,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setSuccess('Stock removed successfully');
+    setShowRemoveStock(false);
+    setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
+    
+    // Force refresh all data
+    setRefreshProducts(true);
+    setRefreshInventory(true);
+    setRefreshLocationStock(true);
+    
+    // If you're currently viewing inventory, refresh it
+    if (currentItem) {
+      fetchInventoryByProduct(currentItem._id);
     }
-  };
+    if (selectedLocation) {
+      fetchLocationStock(selectedLocation.id);
+    }
+  } catch (err) {
+    setError(err.response?.data?.message || 'Failed to remove stock');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Handle transfer stock
-  const handleTransferStock = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await axios.post(
-        'https://api.avessecurity.com/api/inventory/transfer-stock',
-        transferForm,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSuccess('Stock transferred successfully');
-      setShowTransferStock(false);
-      setTransferForm({
-        productId: '',
-        fromLocationId: '',
-        toLocationId: '',
-        quantity: 0
-      });
+  // const handleTransferStock = async (e) => {
+  //   e.preventDefault();
+  //   setIsLoading(true);
+  //   try {
+  //     await axios.post(
+  //       'https://api.avessecurity.com/api/inventory/transfer-stock',
+  //       transferForm,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
+  //     setSuccess('Stock transferred successfully');
+  //     setShowTransferStock(false);
+  //     setTransferForm({
+  //       productId: '',
+  //       fromLocationId: '',
+  //       toLocationId: '',
+  //       quantity: 0
+  //     });
       
-      setRefreshProducts(true);
-      setRefreshInventory(true);
-      setRefreshLocationStock(true);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to transfer stock');
-    } finally {
-      setIsLoading(false);
+  //     setRefreshProducts(true);
+  //     setRefreshInventory(true);
+  //     setRefreshLocationStock(true);
+  //   } catch (err) {
+  //     setError(err.response?.data?.message || 'Failed to transfer stock');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  const handleTransferStock = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    await axios.post(
+      'https://api.avessecurity.com/api/inventory/transfer-stock',
+      transferForm,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setSuccess('Stock transferred successfully');
+    setShowTransferStock(false);
+    setTransferForm({
+      productId: '',
+      fromLocationId: '',
+      toLocationId: '',
+      quantity: 0
+    });
+    
+    // Force refresh all data
+    setRefreshProducts(true);
+    setRefreshInventory(true);
+    setRefreshLocationStock(true);
+    
+    // If you're currently viewing inventory, refresh it
+    if (currentItem) {
+      fetchInventoryByProduct(currentItem._id);
     }
-  };
+    if (selectedLocation) {
+      fetchLocationStock(selectedLocation.id);
+    }
+  } catch (err) {
+    setError(err.response?.data?.message || 'Failed to transfer stock');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Flatten the location hierarchy for display and search
 const getFlattenedLocations = () => {
@@ -749,127 +961,6 @@ const renderProductTable = () => {
   );
 };
 
-  // Render product inventory view
-  // const renderProductInventory = () => {
-  //   if (isLoading) {
-  //     return (
-  //       <div className="text-center py-5">
-  //         <Spinner animation="border" role="status">
-  //           <span className="visually-hidden">Loading...</span>
-  //         </Spinner>
-  //       </div>
-  //     );
-  //   }
-
-  //   if (!Array.isArray(inventory) || inventory.length === 0) {
-  //     return <Alert variant="info">No inventory records found for this product</Alert>;
-  //   }
-
-  //   return (
-  //     <Table striped hover responsive>
-  //       <thead>
-  //         <tr>
-  //           <th>Location</th>
-  //           <th>Total Stock</th>
-  //           <th>In Use</th>
-  //           <th>Reserved</th>
-  //           <th>Available</th>
-  //           <th>Last Updated</th>
-  //         </tr>
-  //       </thead>
-  //       <tbody>
-  //         {inventory.flatMap((item) => {
-  //           // Handle both array and object status
-  //           const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
-  //           return statuses.map((status, sIdx) => (
-  //             <tr key={generateUniqueKey(item._id, `status-${sIdx}`)}>
-  //               <td>{findLocationDetails(status?.locationId)?.path || 'Unknown Location'}</td>
-  //               <td>{status?.totalStock || 0}</td>
-  //               <td>{status?.inUse || 0}</td>
-  //               <td>{status?.reserved || 0}</td>
-  //               <td>{status?.available || 0}</td>
-  //               <td>
-  //                 {status?.lastUpdated ? 
-  //                   new Date(status.lastUpdated).toLocaleString() : 
-  //                   'N/A'}
-  //               </td>
-  //             </tr>
-  //           ));
-  //         })}
-  //       </tbody>
-  //     </Table>
-  //   );
-  // };
-// Render product inventory view
-// const renderProductInventory = () => {
-//   if (isLoading) {
-//     return (
-//       <div className="text-center py-5">
-//         <Spinner animation="border" role="status">
-//           <span className="visually-hidden">Loading...</span>
-//         </Spinner>
-//       </div>
-//     );
-//   }
-
-//   if (!Array.isArray(inventory) || inventory.length === 0) {
-//     return <Alert variant="info">No inventory records found for this product</Alert>;
-//   }
-
-//   const imageUrl = currentItem?.ProductImage?.[0] 
-//     ? `https://api.avessecurity.com/${currentItem.ProductImage[0]}`
-//     : null;
-
-//   return (
-//     <div>
-//       {imageUrl && (
-//         <div className="text-center mb-3">
-//           <img 
-//             src={imageUrl} 
-//             alt={currentItem.ItemName} 
-//             style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain' }}
-//             className="img-thumbnail"
-//           />
-//         </div>
-//       )}
-//       <Table striped hover responsive>
-//         <thead>
-//           <tr>
-//             <th>Location</th>
-//             <th>Total Stock</th>
-//             <th>In Use</th>
-//             <th>Reserved</th>
-//             <th>Available</th>
-//             <th>Last Updated</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {inventory.flatMap((item) => {
-//             // Handle both array and object status
-//             const statuses = Array.isArray(item.status) ? item.status : [item.status || {}];
-//             return statuses.map((status, sIdx) => (
-//               <tr key={generateUniqueKey(item._id, `status-${sIdx}`)}>
-//                 <td>{findLocationDetails(status?.locationId)?.path || 'Unknown Location'}</td>
-//                 <td>{status?.totalStock || 0}</td>
-//                 <td>{status?.inUse || 0}</td>
-//                 <td>{status?.reserved || 0}</td>
-//                 <td>{status?.available || 0}</td>
-//                 <td>
-//                   {status?.lastUpdated ? 
-//                     new Date(status.lastUpdated).toLocaleString() : 
-//                     'N/A'}
-//                 </td>
-//               </tr>
-//             ));
-//           })}
-//         </tbody>
-//       </Table>
-//     </div>
-//   );
-// };
-
-
-
 // Render product inventory view
 const renderProductInventory = () => {
   if (isLoading) {
@@ -882,8 +973,25 @@ const renderProductInventory = () => {
     );
   }
 
+  // Show message when no inventory is found
   if (!Array.isArray(inventory) || inventory.length === 0) {
-    return <Alert variant="info">No inventory records found for this product</Alert>;
+    return (
+      <div>
+        {currentItem?.ProductImage?.[0] && (
+          <div className="text-center mb-3">
+            <img 
+              src={`https://api.avessecurity.com/${currentItem.ProductImage[0]}`} 
+              alt={currentItem.ItemName} 
+              style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain' }}
+              className="img-thumbnail"
+            />
+          </div>
+        )}
+        <Alert variant="info" className="text-center">
+          No stock found for this product
+        </Alert>
+      </div>
+    );
   }
 
   const imageUrl = currentItem?.ProductImage?.[0] 

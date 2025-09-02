@@ -231,26 +231,68 @@ const ShiftManager = () => {
 
             <Form.Group className="mb-3">
               <Form.Label>Start Time</Form.Label>
-              <Form.Control
-                type="time"
-                name="ShiftStartTime"
-                value={formData.ShiftStartTime}
-                onChange={handleChange}
-                required
-                className="py-2"
-              />
+              {/* Custom styled time input for better touch experience */}
+              <div className="position-relative">
+                <Form.Control
+                  type="time"
+                  name="ShiftStartTime"
+                  value={formData.ShiftStartTime}
+                  onChange={handleChange}
+                  required
+                  className="py-2"
+                  style={{
+                    // Hide the default clock icon
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
+                />
+                {/* Custom clock icon that triggers the time picker */}
+                <div 
+                  className="position-absolute"
+                  style={{
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <i className="bi bi-clock text-muted"></i>
+                </div>
+              </div>
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>End Time</Form.Label>
-              <Form.Control
-                type="time"
-                name="ShiftEndTime"
-                value={formData.ShiftEndTime}
-                onChange={handleChange}
-                required
-                className="py-2"
-              />
+              {/* Custom styled time input for better touch experience */}
+              <div className="position-relative">
+                <Form.Control
+                  type="time"
+                  name="ShiftEndTime"
+                  value={formData.ShiftEndTime}
+                  onChange={handleChange}
+                  required
+                  className="py-2"
+                  style={{
+                    // Hide the default clock icon
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
+                />
+                {/* Custom clock icon that triggers the time picker */}
+                <div 
+                  className="position-absolute"
+                  style={{
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
+                  }}
+                >
+                  <i className="bi bi-clock text-muted"></i>
+                </div>
+              </div>
             </Form.Group>
 
             <Form.Group className="mb-4">
@@ -274,6 +316,37 @@ const ShiftManager = () => {
           </Form>
         </Offcanvas.Body>
       </Offcanvas>
+
+      {/* Add custom CSS to ensure the time input works properly on touch devices */}
+      <style>
+        {`
+          /* Ensure the entire time input is clickable on touch devices */
+          input[type="time"] {
+            position: relative;
+            z-index: 1;
+          }
+          
+          /* Make sure the custom clock icon doesn't block clicks */
+          .position-relative > .position-absolute {
+            z-index: 0;
+          }
+          
+          /* For WebKit browsers */
+          input[type="time"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                height: 100%;
+                color: transparent;
+                background: transparent;
+                cursor: pointer;
+                z-index: 2;
+          }
+        `}
+      </style>
     </Container>
   );
 };

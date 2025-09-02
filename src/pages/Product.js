@@ -442,7 +442,7 @@ const ProductManager = () => {
         </Form>
       </Modal>
 
-      {/* Product View Modal */}
+    {/* Product View Modal */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>Product Details</Modal.Title>
@@ -452,24 +452,29 @@ const ProductManager = () => {
             <div className="row">
               <div className="col-md-5">
                 {currentProduct.ProductImage?.length > 0 ? (
-                  <div className="d-flex flex-column gap-2">
+                  <div>
+                    {/* Main Image */}
                     <Image
                       src={currentProduct.ProductImage[0]}
                       alt={currentProduct.ItemName}
                       fluid
-                      className="rounded"
+                      className="rounded mb-2"
                     />
-                    <div className="d-flex gap-2">
-                      {currentProduct.ProductImage.map((img, index) => (
-      <Image
-        key={index}
-        src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`}
-        alt={currentProduct.ItemName}
-        fluid
-        className="rounded"
-      />
-    ))}
-                    </div>
+
+                    {/* Thumbnails if more than 1 image */}
+                    {currentProduct.ProductImage.length > 1 && (
+                      <div className="d-flex gap-2 flex-wrap">
+                        {currentProduct.ProductImage.map((img, index) => (
+                          <Image
+                            key={index}
+                            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`}
+                            alt={`${currentProduct.ItemName}-${index}`}
+                            thumbnail
+                            style={{ width: '70px', height: '70px', objectFit: 'cover' }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-light d-flex align-items-center justify-content-center rounded" style={{ height: '200px' }}>

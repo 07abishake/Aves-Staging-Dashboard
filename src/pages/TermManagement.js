@@ -7,7 +7,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api.avessecurity.com/api/termandcondition';
+const API_BASE_URL = 'http://localhost:6378/api/termandcondition';
 
 const token = localStorage.getItem("access_token");
 if (!token) {
@@ -688,9 +688,6 @@ const TermManagement = () => {
               </InputGroup>
             </Col>
             <Col md={3} className="d-flex justify-content-end">
-              {/* <Button variant="outline-secondary" onClick={loadTerms}>
-                <i className="bi bi-arrow-clockwise me-1"></i> Refresh
-              </Button> */}
             </Col>
           </Row>
         </Card.Body>

@@ -10,9 +10,10 @@ function Reports() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [username, setusername] = useState(null);
+  const [userId, setUserId] = useState(null);  
   const [LocationId, setLocationId] = useState(null);
   const [Status, setStatus] = useState(null);
-  const [DepartmentId, setDepartmentId] = useState(null);
+  const [Department, setDepartment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -81,15 +82,20 @@ function Reports() {
         }
       );
 
-      const departmentOptions = [];
+     const departmentOptions = [];
       response.data.forEach(parent => {
-        departmentOptions.push({ value: parent._id, label: parent.name });
+        departmentOptions.push({ 
+          value: parent.name, // Use name as value
+          label: parent.name,
+          id: parent._id // Store ID separately if needed
+        });
 
         if (parent.children && parent.children.length > 0) {
           parent.children.forEach(child => {
             departmentOptions.push({
-              value: child._id,
-              label: child.name
+              value: child.name, // Use name as value
+              label: child.name,
+              id: child._id // Store ID separately if needed
             });
           });
         }
@@ -99,7 +105,7 @@ function Reports() {
     } catch (error) {
       console.error('Error fetching departments:', error);
     }
-  };
+  }
 
   const fetchLocations = async () => {
     try {
@@ -341,7 +347,7 @@ function Reports() {
     return true;
   };
 
-  const handlePreview = async () => {
+  const handlePreview = async () => {         
     if (!validateDates()) return;
     if (!selectedModule) {
       setError("Please select a module");
@@ -357,10 +363,11 @@ function Reports() {
         {
           startDate,
           endDate,
-        username: username?.value || '',
+          username: username?.value || '',
+          userId: userId?.value || '', 
           LocationId: LocationId?.value || '',
           Status: Status?.value || '',
-          DepartmentId: DepartmentId?.value || ''
+          Department: Department?.value || ''
         },
         {
           headers: {
@@ -400,7 +407,7 @@ function Reports() {
           username: username?.value || '',
           LocationId: LocationId?.value || '',
           Status: Status?.value || '',
-          DepartmentId: DepartmentId?.value || ''
+          Department: Department?.value || ''
         },
         {
           responseType: "blob",
@@ -611,8 +618,8 @@ function Reports() {
               <label className="form-label fw-bold">Department</label>
               <Select
                 options={departments}
-                value={DepartmentId}
-                onChange={setDepartmentId}
+                value={Department}
+                onChange={setDepartment}
                 placeholder="Select department..."
                 isClearable
                 isSearchable

@@ -354,6 +354,7 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
       setSelectedUserId('');
       setSelectedUserName('');
       setSearchQuery('');
+     setShowAssignmentCanvas(false);
     } catch (error) {
       console.error("Error assigning GeoFences:", error.response?.data || error.message);
       alert("Failed to assign GeoFences");

@@ -30,11 +30,19 @@ function Departments() {
   });
   const [searchUser, setSearchUser] = useState("");
   const [reloadTrigger, setReloadTrigger] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const token = localStorage.getItem("access_token");
   if (!token) {
     // window.location.href = "/login";
   }
+
+
+  const filteredDepts = allDepts.filter(dept => 
+  dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  (dept.leadName && dept.leadName.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+  (dept.parentDepartment && dept.parentDepartment.name.toLowerCase().includes(searchTerm.toLowerCase()))
+);
 
   const handleDesignationClick = (department) => {
     setSelectedDepartmentData(department);
@@ -322,11 +330,13 @@ function Departments() {
         <div>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div className="d-flex">
-              <input
-                type="text"
-                className="form-control me-2"
-                placeholder="Search..."
-              />
+           <input
+  type="text"
+  className="form-control me-2"
+  placeholder="Search..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+/>
             </div>
             <button
               className="btn btn-primary h-50"
@@ -349,7 +359,8 @@ function Departments() {
                         </tr>
                       </thead>
                       <tbody>
-                        {allDepts.map((dept) => (
+                   {filteredDepts.map((dept) => (
+
                           <tr key={dept._id}>
                             <td>
                               <strong>{dept.name}</strong>
