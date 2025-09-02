@@ -17,6 +17,14 @@ import {
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
 
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 // Location Permission Popup Component
 function LocationPermissionPopup({ onAllow, onDeny }) {
   return (
@@ -125,7 +133,6 @@ function SetViewToCurrentLocation({ onPositionUpdate }) {
     alert('Location access is required to create accurate geofences.');
   };
 
-
   return (
     <>
       {showPermissionPopup && (
@@ -136,6 +143,38 @@ function SetViewToCurrentLocation({ onPositionUpdate }) {
       )}
     </>
   );
+}
+
+// Component to reset map view when geo-fence changes
+function ResetMapView({ geoFence }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (geoFence) {
+      // Set appropriate zoom level and center based on geo-fence type
+      let center, zoom;
+      
+      if (geoFence.center) {
+        center = geoFence.center;
+        zoom = 15;
+      } else if (geoFence.coordinates && geoFence.coordinates.length > 0) {
+        // Calculate center for polygons/polylines
+        const latlngs = geoFence.coordinates;
+        const latSum = latlngs.reduce((sum, point) => sum + point[0], 0);
+        const lngSum = latlngs.reduce((sum, point) => sum + point[1], 0);
+        center = [latSum / latlngs.length, lngSum / latlngs.length];
+        zoom = 13;
+      } else {
+        // Default fallback
+        center = [0, 0];
+        zoom = 2;
+      }
+      
+      map.setView(center, zoom);
+    }
+  }, [geoFence, map]);
+  
+  return null;
 }
 
 function GeoFenceManagement() {
@@ -152,11 +191,9 @@ function GeoFenceManagement() {
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
 
-
-
-  //Location DropDown
-    const [locationSuggestions, setLocationSuggestions] = useState([]);
-const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  // Location DropDown
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   
   // User Assignment State
   const [users, setUsers] = useState([]);
@@ -170,6 +207,7 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   
   const featureGroupRef = useRef(null);
   const mapRef = useRef(null);
+  const viewMapRef = useRef(null);
   const token = localStorage.getItem("access_token");
 
   useEffect(() => {
@@ -242,35 +280,35 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
     setDrawnLayer(e.layer);
   };
 
- const extractGeoFenceData = (layer) => {
-  const geojson = layer.toGeoJSON();
-  const shapeType = geojson.geometry.type;
+  const extractGeoFenceData = (layer) => {
+    const geojson = layer.toGeoJSON();
+    const shapeType = geojson.geometry.type;
 
-  let payload = {
-    GeoFencename: geoFenceName,
-    type: shapeType,
-    color: selectedColor,
+    let payload = {
+      GeoFencename: geoFenceName,
+      type: shapeType,
+      color: selectedColor,
+    };
+
+    if (layer instanceof L.Circle) {
+      const center = [layer.getLatLng().lat, layer.getLatLng().lng];
+      payload.center = center;
+      payload.radius = layer.getRadius();
+    } else if (layer instanceof L.Marker) {
+      const point = geojson.geometry.coordinates;
+      payload.center = [point[1], point[0]];
+      payload.type = 'point'; // Force type to be 'point' for markers
+    } else if (
+      layer instanceof L.Polygon ||
+      layer instanceof L.Polyline ||
+      layer instanceof L.Rectangle
+    ) {
+      const coords = geojson.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+      payload.coordinates = coords;
+    }
+
+    return payload;
   };
-
-  if (layer instanceof L.Circle) {
-    const center = [layer.getLatLng().lat, layer.getLatLng().lng];
-    payload.center = center;
-    payload.radius = layer.getRadius();
-  } else if (layer instanceof L.Marker) {
-    const point = geojson.geometry.coordinates;
-    payload.center = [point[1], point[0]];
-    payload.type = 'point'; // Force type to be 'point' for markers
-  } else if (
-    layer instanceof L.Polygon ||
-    layer instanceof L.Polyline ||
-    layer instanceof L.Rectangle
-  ) {
-    const coords = geojson.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
-    payload.coordinates = coords;
-  }
-
-  return payload;
-};
 
   const handleSubmit = async () => {
     if (!drawnLayer || !geoFenceName) {
@@ -354,7 +392,7 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
       setSelectedUserId('');
       setSelectedUserName('');
       setSearchQuery('');
-     setShowAssignmentCanvas(false);
+      setShowAssignmentCanvas(false);
     } catch (error) {
       console.error("Error assigning GeoFences:", error.response?.data || error.message);
       alert("Failed to assign GeoFences");
@@ -419,42 +457,43 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
     });
   };
 
- const renderGeoFenceDetails = (geoFence) => {
-  if (!geoFence) return null;
-  
-  switch (geoFence.type.toLowerCase()) {
-    case 'point':
-      return (
-        <div>
-          <p><strong>Type:</strong> Point (shown as circle with {geoFence.radius || 100}m radius)</p>
-          <p><strong>Coordinates:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
-        </div>
-      );
-    case 'circle':
-      return (
-        <div>
-          <p><strong>Type:</strong> Circle</p>
-          <p><strong>Center:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
-          <p><strong>Radius:</strong> {geoFence.radius} meters</p>
-        </div>
-      );
-    case 'polygon':
-    case 'polyline':
-      return (
-        <div>
-          <p><strong>Type:</strong> {geoFence.type}</p>
-          <p><strong>Coordinates:</strong></p>
-          <ul>
-            {geoFence.coordinates?.map((coord, idx) => (
-              <li key={idx}>Lat: {coord[0]}, Lng: {coord[1]}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    default:
-      return <p>Unknown GeoFence type</p>;
-  }
-};
+  const renderGeoFenceDetails = (geoFence) => {
+    if (!geoFence) return null;
+    
+    switch (geoFence.type.toLowerCase()) {
+      case 'point':
+        return (
+          <div>
+            <p><strong>Type:</strong> Point (shown as circle with {geoFence.radius || 100}m radius)</p>
+            <p><strong>Coordinates:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
+          </div>
+        );
+      case 'circle':
+        return (
+          <div>
+            <p><strong>Type:</strong> Circle</p>
+            <p><strong>Center:</strong> Lat: {geoFence.center[0]}, Lng: {geoFence.center[1]}</p>
+            <p><strong>Radius:</strong> {geoFence.radius} meters</p>
+          </div>
+        );
+      case 'polygon':
+      case 'polyline':
+        return (
+          <div>
+            <p><strong>Type:</strong> {geoFence.type}</p>
+            <p><strong>Coordinates:</strong></p>
+            <ul>
+              {geoFence.coordinates?.map((coord, idx) => (
+                <li key={idx}>Lat: {coord[0]}, Lng: {coord[1]}</li>
+              ))}
+            </ul>
+          </div>
+        );
+      default:
+        return <p>Unknown GeoFence type</p>;
+    }
+  };
+
   const zoomToManualLocation = () => {
     if (manualLatitude && manualLongitude) {
       const lat = parseFloat(manualLatitude);
@@ -480,93 +519,92 @@ const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   };
 
   // Suggestion DropDown For Location
-
-const fetchLocationSuggestions = debounce(async (query) => {
-  if (!query) {
-    setLocationSuggestions([]);
-    return;
-  }
-  
-  try {
-    const response = await axios.get(
-      'https://api.avessecurity.com/api/Location/getLocations',
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    
-    if (response.data && response.data.Location) {
-      const suggestions = new Set(); // Using Set to avoid duplicates
-      
-      // Process each location in the response
-      response.data.Location.forEach(location => {
-        if (!location.PrimaryLocation) return;
-        
-        // Add primary location if it matches
-        if (location.PrimaryLocation.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.add(location.PrimaryLocation);
-        }
-
-        // Process sublocations
-        if (location.SubLocation && location.SubLocation.length > 0) {
-          location.SubLocation.forEach(subLoc => {
-            // State level (PrimarySubLocation)
-            const state = subLoc.PrimarySubLocation;
-            if (state && state.toLowerCase().includes(query.toLowerCase())) {
-              suggestions.add(`${location.PrimaryLocation}, ${state}`);
-            }
-
-            // Process cities (SecondaryLocation)
-            if (subLoc.SecondaryLocation && subLoc.SecondaryLocation.length > 0) {
-              subLoc.SecondaryLocation.forEach(city => {
-                const cityName = city.SecondaryLocation;
-                if (cityName && cityName.toLowerCase().includes(query.toLowerCase())) {
-                  suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}`);
-                }
-
-                // Process areas (SecondarySubLocation)
-                if (city.SecondarySubLocation && city.SecondarySubLocation.length > 0) {
-                  city.SecondarySubLocation.forEach(area => {
-                    const areaName = area.SecondarySubLocation;
-                    if (areaName && areaName.toLowerCase().includes(query.toLowerCase())) {
-                      suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}`);
-                    }
-
-                    // Process buildings (ThirdLocation)
-                    if (area.ThirdLocation && area.ThirdLocation.length > 0) {
-                      area.ThirdLocation.forEach(building => {
-                        const buildingName = building.ThirdLocation;
-                        if (buildingName && buildingName.toLowerCase().includes(query.toLowerCase())) {
-                          suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}`);
-                        }
-
-                        // Process floors (ThirdSubLocation)
-                        const floorName = building.ThirdSubLocation;
-                        if (floorName && floorName.toLowerCase().includes(query.toLowerCase())) {
-                          suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}, ${floorName}`);
-                        }
-                      });
-                    }
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-      
-      // Convert Set to array and sort
-      const sortedSuggestions = Array.from(suggestions).sort();
-      setLocationSuggestions(sortedSuggestions);
-      setShowLocationSuggestions(true);
+  const fetchLocationSuggestions = debounce(async (query) => {
+    if (!query) {
+      setLocationSuggestions([]);
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching location suggestions:', error);
-    setLocationSuggestions([]);
-  }
-}, 300);
+    
+    try {
+      const response = await axios.get(
+        'https://api.avessecurity.com/api/Location/getLocations',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.data && response.data.Location) {
+        const suggestions = new Set(); // Using Set to avoid duplicates
+        
+        // Process each location in the response
+        response.data.Location.forEach(location => {
+          if (!location.PrimaryLocation) return;
+          
+          // Add primary location if it matches
+          if (location.PrimaryLocation.toLowerCase().includes(query.toLowerCase())) {
+            suggestions.add(location.PrimaryLocation);
+          }
+
+          // Process sublocations
+          if (location.SubLocation && location.SubLocation.length > 0) {
+            location.SubLocation.forEach(subLoc => {
+              // State level (PrimarySubLocation)
+              const state = subLoc.PrimarySubLocation;
+              if (state && state.toLowerCase().includes(query.toLowerCase())) {
+                suggestions.add(`${location.PrimaryLocation}, ${state}`);
+              }
+
+              // Process cities (SecondaryLocation)
+              if (subLoc.SecondaryLocation && subLoc.SecondaryLocation.length > 0) {
+                subLoc.SecondaryLocation.forEach(city => {
+                  const cityName = city.SecondaryLocation;
+                  if (cityName && cityName.toLowerCase().includes(query.toLowerCase())) {
+                    suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}`);
+                  }
+
+                  // Process areas (SecondarySubLocation)
+                  if (city.SecondarySubLocation && city.SecondarySubLocation.length > 0) {
+                    city.SecondarySubLocation.forEach(area => {
+                      const areaName = area.SecondarySubLocation;
+                      if (areaName && areaName.toLowerCase().includes(query.toLowerCase())) {
+                        suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}`);
+                      }
+
+                      // Process buildings (ThirdLocation)
+                      if (area.ThirdLocation && area.ThirdLocation.length > 0) {
+                        area.ThirdLocation.forEach(building => {
+                          const buildingName = building.ThirdLocation;
+                          if (buildingName && buildingName.toLowerCase().includes(query.toLowerCase())) {
+                            suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}`);
+                          }
+
+                          // Process floors (ThirdSubLocation)
+                          const floorName = building.ThirdSubLocation;
+                          if (floorName && floorName.toLowerCase().includes(query.toLowerCase())) {
+                            suggestions.add(`${location.PrimaryLocation}, ${state}, ${cityName}, ${areaName}, ${buildingName}, ${floorName}`);
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+        
+        // Convert Set to array and sort
+        const sortedSuggestions = Array.from(suggestions).sort();
+        setLocationSuggestions(sortedSuggestions);
+        setShowLocationSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Error fetching location suggestions:', error);
+      setLocationSuggestions([]);
+    }
+  }, 300);
 
   return (
     <div className="container mt-4">
@@ -685,59 +723,59 @@ const fetchLocationSuggestions = debounce(async (query) => {
           <button className="btn-close" onClick={() => setShowFormCanvas(false)}></button>
         </div>
         <div className="offcanvas-body">
-<div className="mb-3 position-relative">
-  <label className="form-label">GeoFence Name</label>
-  <input 
-    type="text" 
-    className="form-control" 
-    value={geoFenceName} 
-    onChange={e => {
-      setGeoFenceName(e.target.value);
-      fetchLocationSuggestions(e.target.value);
-    }}
-    onFocus={() => {
-      if (geoFenceName && locationSuggestions.length > 0) {
-        setShowLocationSuggestions(true);
-      }
-    }}
-    onBlur={() => {
-      setTimeout(() => setShowLocationSuggestions(false), 200);
-    }}
-    placeholder="Start typing to see location suggestions"
-  />
-  {showLocationSuggestions && locationSuggestions.length > 0 && (
-    <div 
-      className="list-group position-absolute w-100" 
-      style={{ 
-        zIndex: 1000, 
-        maxHeight: '300px', 
-        overflowY: 'auto',
-        border: '1px solid #ddd',
-        borderRadius: '0 0 4px 4px'
-      }}
-    >
-      {locationSuggestions.map((suggestion, index) => (
-        <button
-          key={index}
-          type="button"
-          className="list-group-item list-group-item-action text-start"
-          onMouseDown={(e) => {
-            e.preventDefault(); // Prevent input blur before click
-            setGeoFenceName(suggestion);
-            setShowLocationSuggestions(false);
-          }}
-          style={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {suggestion}
-        </button>
-      ))}
-    </div>
-  )}
-</div>
+          <div className="mb-3 position-relative">
+            <label className="form-label">GeoFence Name</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={geoFenceName} 
+              onChange={e => {
+                setGeoFenceName(e.target.value);
+                fetchLocationSuggestions(e.target.value);
+              }}
+              onFocus={() => {
+                if (geoFenceName && locationSuggestions.length > 0) {
+                  setShowLocationSuggestions(true);
+                }
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowLocationSuggestions(false), 200);
+              }}
+              placeholder="Start typing to see location suggestions"
+            />
+            {showLocationSuggestions && locationSuggestions.length > 0 && (
+              <div 
+                className="list-group position-absolute w-100" 
+                style={{ 
+                  zIndex: 1000, 
+                  maxHeight: '300px', 
+                  overflowY: 'auto',
+                  border: '1px solid #ddd',
+                  borderRadius: '0 0 4px 4px'
+                }}
+              >
+                {locationSuggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="list-group-item list-group-item-action text-start"
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // Prevent input blur before click
+                      setGeoFenceName(suggestion);
+                      setShowLocationSuggestions(false);
+                    }}
+                    style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="mb-3">
             <label className="form-label">Color</label>
             <input
@@ -775,7 +813,7 @@ const fetchLocationSuggestions = debounce(async (query) => {
             className="btn btn-outline-primary mb-3 w-100" 
             onClick={zoomToManualLocation}
           >
-          Get The Location
+            Get The Location
           </button>
 
           <div className="mb-3">
@@ -844,65 +882,69 @@ const fetchLocationSuggestions = debounce(async (query) => {
                 {renderGeoFenceDetails(selectedGeoFence)}
               </div>
               
-             <div className="mt-4" style={{ height: '400px' }}>
-  <MapContainer 
-    center={selectedGeoFence.center || selectedGeoFence.coordinates?.[0] || [0, 0]} 
-    zoom={15} 
-    style={{ height: '100%', width: '100%' }}
-  >
-    <LayersControl position="topright">
-      <LayersControl.BaseLayer checked name="OpenStreetMap">
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-      </LayersControl.BaseLayer>
-      <LayersControl.BaseLayer name="Google Satellite">
-        <TileLayer
-          url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-          attribution='&copy; Google'
-        />
-      </LayersControl.BaseLayer>
-    </LayersControl>
-    
-    {selectedGeoFence.type.toLowerCase() === 'point' && (
-      <Circle 
-        center={selectedGeoFence.center} 
-        radius={selectedGeoFence.radius || 100} 
-        color={selectedGeoFence.color}
-        fillColor={selectedGeoFence.color}
-        fillOpacity={0.2}
-      />
-    )}
-    
-    {selectedGeoFence.type.toLowerCase() === 'circle' && (
-      <Circle 
-        center={selectedGeoFence.center} 
-        radius={selectedGeoFence.radius} 
-        color={selectedGeoFence.color}
-        fillColor={selectedGeoFence.color}
-        fillOpacity={0.2}
-      />
-    )}
-    
-    {(selectedGeoFence.type.toLowerCase() === 'polygon' || 
-      selectedGeoFence.type.toLowerCase() === 'rectangle') && (
-      <Polygon 
-        positions={selectedGeoFence.coordinates} 
-        color={selectedGeoFence.color}
-        fillColor={selectedGeoFence.color}
-        fillOpacity={0.2}
-      />
-    )}
-    
-    {selectedGeoFence.type.toLowerCase() === 'polyline' && (
-      <Polyline 
-        positions={selectedGeoFence.coordinates} 
-        color={selectedGeoFence.color}
-      />
-    )}
-  </MapContainer>
-</div>
+              <div className="mt-4" style={{ height: '400px' }}>
+                <MapContainer 
+                  center={selectedGeoFence.center || (selectedGeoFence.coordinates && selectedGeoFence.coordinates[0]) || [0, 0]} 
+                  zoom={15} 
+                  style={{ height: '100%', width: '100%' }}
+                  ref={viewMapRef}
+                >
+                  <LayersControl position="topright">
+                    <LayersControl.BaseLayer checked name="OpenStreetMap">
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="Google Satellite">
+                      <TileLayer
+                        url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                        attribution='&copy; Google'
+                      />
+                    </LayersControl.BaseLayer>
+                  </LayersControl>
+                  
+                  {/* Add ResetMapView component to reset the view when geo-fence changes */}
+                  <ResetMapView geoFence={selectedGeoFence} />
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'point' && (
+                    <Circle 
+                      center={selectedGeoFence.center} 
+                      radius={selectedGeoFence.radius || 100} 
+                      color={selectedGeoFence.color}
+                      fillColor={selectedGeoFence.color}
+                      fillOpacity={0.2}
+                    />
+                  )}
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'circle' && (
+                    <Circle 
+                      center={selectedGeoFence.center} 
+                      radius={selectedGeoFence.radius} 
+                      color={selectedGeoFence.color}
+                      fillColor={selectedGeoFence.color}
+                      fillOpacity={0.2}
+                    />
+                  )}
+                  
+                  {(selectedGeoFence.type.toLowerCase() === 'polygon' || 
+                    selectedGeoFence.type.toLowerCase() === 'rectangle') && (
+                    <Polygon 
+                      positions={selectedGeoFence.coordinates} 
+                      color={selectedGeoFence.color}
+                      fillColor={selectedGeoFence.color}
+                      fillOpacity={0.2}
+                    />
+                  )}
+                  
+                  {selectedGeoFence.type.toLowerCase() === 'polyline' && (
+                    <Polyline 
+                      positions={selectedGeoFence.coordinates} 
+                      color={selectedGeoFence.color}
+                    />
+                  )}
+                </MapContainer>
+              </div>
             </>
           )}
         </div>
