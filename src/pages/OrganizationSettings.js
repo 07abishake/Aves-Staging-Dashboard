@@ -7,21 +7,28 @@ import {
   Card,
   Badge,
   Nav,
-  Tab,
   Spinner,
   Alert,
   Button,
   ListGroup,
-  ProgressBar
+  ProgressBar,
+  Table
 } from 'react-bootstrap';
 
 function OrganizationSettings() {
   const [organization, setOrganization] = useState(null);
+  const [userStatus, setUserStatus] = useState(null);
+  const [teams, setTeams] = useState(null);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState({
+    org: true,
+    users: false,
+    teams: false
+  });
 
   useEffect(() => {
-    const fetchOrganization = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('access_token');
         if (!token) {
@@ -29,22 +36,43 @@ function OrganizationSettings() {
           return;
         }
 
-        const response = await axios.get('https://api.avessecurity.com/api/oraganisation/dashboard', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        // Fetch organization data
+        setLoading(prev => ({...prev, org: true}));
+        const orgResponse = await axios.get('https://api.avessecurity.com/api/oraganisation/dashboard', {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        setOrganization(orgResponse.data);
+        setLoading(prev => ({...prev, org: false}));
 
-        setOrganization(response.data);
+        // Fetch user status if on members tab or overview
+        if (activeTab === 'members' || activeTab === 'overview') {
+          setLoading(prev => ({...prev, users: true}));
+          const userResponse = await axios.get('https://api.avessecurity.com/api/users/Status', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setUserStatus(userResponse.data);
+          setLoading(prev => ({...prev, users: false}));
+        }
+
+        // Fetch teams if on overview tab
+        if (activeTab === 'overview') {
+          setLoading(prev => ({...prev, teams: true}));
+          const teamsResponse = await axios.get('https://api.avessecurity.com/api/firebase/getAllTeamName/Dashbard', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setTeams(teamsResponse.data);
+          setLoading(prev => ({...prev, teams: false}));
+        }
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch organization data.');
+        setError(err.response?.data?.message || 'Failed to fetch data.');
+        setLoading({org: false, users: false, teams: false});
       }
     };
 
-    fetchOrganization();
-  }, []);
+    fetchData();
+  }, [activeTab]); // Refetch when tab changes
 
-  if (error) {
+  if (error && !organization) {
     return (
       <Container className="mt-4">
         <Alert variant="danger" className="d-flex align-items-center">
@@ -55,7 +83,7 @@ function OrganizationSettings() {
     );
   }
 
-  if (!organization) {
+  if (loading.org && !organization) {
     return (
       <Container className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
         <div className="text-center">
@@ -127,26 +155,6 @@ function OrganizationSettings() {
               </Nav>
             </Card.Body>
           </Card>
-
-          {/* Quick Stats Card
-          <Card className="mt-4 shadow-sm">
-            <Card.Header className="bg-light">
-              <h6 className="mb-0">Quick Stats</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Storage</span>
-                <span className="fw-bold">45%</span>
-              </div>
-              <ProgressBar now={45} className="mb-3" />
-              
-              <div className="d-flex justify-content-between mb-2">
-                <span>Seats used</span>
-                <span className="fw-bold">12/15</span>
-              </div>
-              <ProgressBar now={80} variant="success" />
-            </Card.Body>
-          </Card> */}
         </Col>
 
         {/* Main Content */}
@@ -179,20 +187,29 @@ function OrganizationSettings() {
                   <Row>
                     <Col md={4} className="text-center mb-3">
                       <div className="border rounded p-3">
-                        <h3 className="text-black">15</h3>
+                        <h3 className="text-black">
+                          {userStatus ? userStatus.totalUsers : 
+                            (loading.users ? <Spinner animation="border" size="sm" /> : 'N/A')}
+                        </h3>
                         <p className="mb-0 text-muted">Members</p>
                       </div>
                     </Col>
                     <Col md={4} className="text-center mb-3">
                       <div className="border rounded p-3">
-                        <h3 className="text-black">3</h3>
-                        <p className="mb-0 text-muted">Projects</p>
+                        <h3 className="text-black">
+                          {teams ? teams.FireBaseTeam.length : 
+                            (loading.teams ? <Spinner animation="border" size="sm" /> : 'N/A')}
+                        </h3>
+                        <p className="mb-0 text-muted">Teams</p>
                       </div>
                     </Col>
                     <Col md={4} className="text-center mb-3">
                       <div className="border rounded p-3">
-                        <h3 className="text-black">2</h3>
-                        <p className="mb-0 text-muted">Teams</p>
+                        <h3 className="text-black">
+                          {userStatus ? userStatus.onlineUsersCount : 
+                            (loading.users ? <Spinner animation="border" size="sm" /> : 'N/A')}
+                        </h3>
+                        <p className="mb-0 text-muted">Online Now</p>
                       </div>
                     </Col>
                   </Row>
@@ -247,13 +264,44 @@ function OrganizationSettings() {
                         </ListGroup.Item>
                       </ListGroup>
                       <div className="d-grid gap-2 mt-3">
-                        <Button variant="outline-primary">Upgrade Plan</Button>
-                        <Button variant="outline-secondary">Payment History</Button>
+                        {/* <Button variant="outline-primary">Upgrade Plan</Button>
+                        <Button variant="outline-secondary">Payment History</Button> */}
                       </div>
                     </Card.Body>
                   </Card>
                 </Col>
               </Row>
+
+              {/* Teams Section */}
+              {/* <Row>
+                <Col md={6} className="mb-4">
+                  <Card className="h-100 shadow-sm">
+                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                      <h5 className="mb-0">Teams</h5>
+                      {loading.teams && <Spinner animation="border" size="sm" />}
+                    </Card.Header>
+                    <Card.Body>
+                      {teams && teams.FireBaseTeam.length > 0 ? (
+                        <ListGroup variant="flush">
+                          {teams.FireBaseTeam.map(team => (
+                            <ListGroup.Item key={team._id} className="px-0">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <span className="fw-bold">{team.TeamName}</span>
+                                <Badge bg="secondary">{team.users.length} members</Badge>
+                              </div>
+                            </ListGroup.Item>
+                          ))}
+                        </ListGroup>
+                      ) : (
+                        <p className="text-muted text-center">No teams found</p>
+                      )}
+                      <div className="d-grid gap-2 mt-3">
+                        <Button variant="outline-primary">Manage Teams</Button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row> */}
             </>
           )}
 
@@ -279,17 +327,85 @@ function OrganizationSettings() {
             <Card className="shadow-sm">
               <Card.Header className="bg-light d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Team Members</h5>
-                <Button variant="primary" size="sm">Invite Member</Button>
+                {/* <Button variant="primary" size="sm">Invite Member</Button> */}
               </Card.Header>
               <Card.Body>
-                <div className="text-center py-5">
-                  <div className="bg-light rounded-circle d-inline-flex p-4 mb-3">
-                    <span style={{ fontSize: '2.5rem' }}>👥</span>
+                {loading.users ? (
+                  <div className="text-center py-5">
+                    <Spinner animation="border" variant="primary" className="mb-3" />
+                    <p>Loading members...</p>
                   </div>
-                  <h4>Team Management</h4>
-                  <p className="text-muted">Manage your team members here</p>
-                  <Button variant="outline-primary">View All Members</Button>
-                </div>
+                ) : userStatus ? (
+                  <>
+                    <Row className="mb-4">
+                      <Col md={6}>
+                        <Card className="bg-success bg-opacity-10 border-success">
+                          <Card.Body className="py-2">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span>Online Users</span>
+                              <Badge bg="success" className="fs-6">{userStatus.onlineUsersCount}</Badge>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                      <Col md={6}>
+                        <Card className="bg-secondary bg-opacity-10 border-secondary">
+                          <Card.Body className="py-2">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span>Offline Users</span>
+                              <Badge bg="secondary" className="fs-6">{userStatus.offlineUsersCount}</Badge>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <h6>Online Members</h6>
+                    <Table striped bordered hover size="sm" className="mb-4">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userStatus.onlineUsers.map(user => (
+                          <tr key={user._id}>
+                            <td>{user.username}</td>
+                            <td><Badge bg="success">Online</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+
+                    <h6>Offline Members</h6>
+                    <Table striped bordered hover size="sm">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userStatus.offlineUsers.map(user => (
+                          <tr key={user._id}>
+                            <td>{user.username}</td>
+                            <td><Badge bg="secondary">Offline</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </>
+                ) : (
+                  <div className="text-center py-5">
+                    <div className="bg-light rounded-circle d-inline-flex p-4 mb-3">
+                      <span style={{ fontSize: '2.5rem' }}>👥</span>
+                    </div>
+                    <h4>Team Management</h4>
+                    <p className="text-muted">Manage your team members here</p>
+                    <Button variant="outline-primary">View All Members</Button>
+                  </div>
+                )}
               </Card.Body>
             </Card>
           )}
