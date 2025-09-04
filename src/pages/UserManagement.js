@@ -864,6 +864,8 @@ const fetchLocations = async () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value.trim().split('@')[0])}
                     required
+            autoComplete="new-email"
+            name="new-email"
                   />
                   <span className="input-group-text">@{data?.domain}</span>
                 </div>
@@ -1040,6 +1042,8 @@ const fetchLocations = async () => {
       value={password}
       onChange={(e) => setPassword(e.target.value)}
       required
+autoComplete="new-password"
+  name="new-password"
     />
     <button
       type="button"
@@ -1058,6 +1062,8 @@ const fetchLocations = async () => {
       value={confirmPassword}
       onChange={(e) => setConfirmPassword(e.target.value)}
       required
+      autoComplete="new-password"
+  name="new-password"
     />
     <button
       type="button"
@@ -1158,6 +1164,7 @@ const fetchLocations = async () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value.trim().split('@')[0])}
                       required
+                      autoComplete='edit-email'
                     />
                   </div>
                   <div className="mb-3 d-flex">
@@ -1315,6 +1322,7 @@ const fetchLocations = async () => {
       placeholder="New Password"
       value={password}
       onChange={(e) => setPassword(e.target.value)}
+      autoComplete='new-password'
     />
     <button
       type="button"
@@ -1332,6 +1340,7 @@ const fetchLocations = async () => {
       placeholder="Confirm New Password"
       value={confirmPassword}
       onChange={(e) => setConfirmPassword(e.target.value)}
+      autoComplete='new-password'
     />
     <button
       type="button"
