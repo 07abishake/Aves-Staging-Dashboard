@@ -55,6 +55,13 @@ const CCTvRequest = () => {
   });
   const [activeTab, setActiveTab] = useState('all');
   const [viewData, setViewData] = useState(null);
+  const [showViewCanvas, setShowViewCanvas] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [requestToUpdate, setRequestToUpdate] = useState(null);
+  const [updateFormData, setUpdateFormData] = useState({
+    Remarks: '',
+    Status: 'Pending'
+  });
 
   // Calendar events
   const calendarEvents = requests.map(request => {
@@ -123,6 +130,15 @@ const CCTvRequest = () => {
     }
   };
 
+  // Handle update form input changes
+  const handleUpdateInputChange = (e) => {
+    const { name, value } = e.target;
+    setUpdateFormData({
+      ...updateFormData,
+      [name]: value
+    });
+  };
+
   // Fetch data on component mount
   useEffect(() => {
     fetchRequests();
@@ -138,6 +154,16 @@ const CCTvRequest = () => {
       resetForm();
     }
   }, [editData]);
+
+  // Set update form values when selecting a request to update
+  useEffect(() => {
+    if (requestToUpdate) {
+      setUpdateFormData({
+        Remarks: requestToUpdate.Remarks || '',
+        Status: requestToUpdate.Status || 'Pending'
+      });
+    }
+  }, [requestToUpdate]);
 
   const resetForm = () => {
     setFormData({
@@ -165,100 +191,100 @@ const CCTvRequest = () => {
   };
 
   // Process nested location data
-const processLocations = (locations) => {
-  if (!locations || locations.length === 0) return [];
+  const processLocations = (locations) => {
+    if (!locations || locations.length === 0) return [];
 
-  const options = [];
+    const options = [];
 
-  locations.forEach(location => {
-    if (!location.PrimaryLocation) return;
+    locations.forEach(location => {
+      if (!location.PrimaryLocation) return;
 
-    // Add primary location
-    options.push({
-      id: location._id,
-      value: location.PrimaryLocation,
-      label: location.PrimaryLocation,
-      level: 0
+      // Add primary location
+      options.push({
+        id: location._id,
+        value: location.PrimaryLocation,
+        label: location.PrimaryLocation,
+        level: 0
+      });
+
+      // Process SubLocations
+      if (location.SubLocation?.length > 0) {
+        location.SubLocation.forEach(subLoc => {
+          if (!subLoc.PrimarySubLocation) return;
+
+          // Add SubLocation (level 1)
+          const subLocValue = `${location.PrimaryLocation} > ${subLoc.PrimarySubLocation}`;
+          options.push({
+            id: subLoc._id,
+            value: subLocValue,
+            label: `${subLoc.PrimarySubLocation} (${location.PrimaryLocation})`,
+            level: 1
+          });
+
+          // Process Secondary Locations
+          if (subLoc.SecondaryLocation?.length > 0) {
+            subLoc.SecondaryLocation.forEach(secondary => {
+              if (!secondary.SecondaryLocation) return;
+
+              // Add Secondary Location (level 2)
+              const secondaryValue = `${subLocValue} > ${secondary.SecondaryLocation}`;
+              options.push({
+                id: secondary._id,
+                value: secondaryValue,
+                label: `${secondary.SecondaryLocation} (${subLoc.PrimarySubLocation})`,
+                level: 2
+              });
+
+              // Process Secondary SubLocations
+              if (secondary.SecondarySubLocation?.length > 0) {
+                secondary.SecondarySubLocation.forEach(secondarySub => {
+                  if (!secondarySub.SecondarySubLocation) return;
+                  
+                  // Add Secondary SubLocation (level 3)
+                  const secondarySubValue = `${secondaryValue} > ${secondarySub.SecondarySubLocation}`;
+                  options.push({
+                    id: secondarySub._id,
+                    value: secondarySubValue,
+                    label: `${secondarySub.SecondarySubLocation} (${secondary.SecondaryLocation})`,
+                    level: 3
+                  });
+
+                  // Process Third Locations
+                  if (secondarySub.ThirdLocation?.length > 0) {
+                    secondarySub.ThirdLocation.forEach(third => {
+                      if (!third.ThirdLocation) return;
+
+                      // Add Third Location (level 4)
+                      const thirdValue = `${secondarySubValue} > ${third.ThirdLocation}`;
+                      options.push({
+                        id: third._id,
+                        value: thirdValue,
+                        label: `${third.ThirdLocation} (${secondarySub.SecondarySubLocation})`,
+                        level: 4
+                      });
+
+                      // Add Third SubLocation if exists (level 5)
+                      if (third.ThirdSubLocation) {
+                        const thirdSubValue = `${thirdValue} > ${third.ThirdSubLocation}`;
+                        options.push({
+                          id: third._id, // Might need a different ID if available
+                          value: thirdSubValue,
+                          label: `${third.ThirdSubLocation} (${third.ThirdLocation})`,
+                          level: 5
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
     });
 
-    // Process SubLocations
-    if (location.SubLocation?.length > 0) {
-      location.SubLocation.forEach(subLoc => {
-        if (!subLoc.PrimarySubLocation) return;
-
-        // Add SubLocation (level 1)
-        const subLocValue = `${location.PrimaryLocation} > ${subLoc.PrimarySubLocation}`;
-        options.push({
-          id: subLoc._id,
-          value: subLocValue,
-          label: `${subLoc.PrimarySubLocation} (${location.PrimaryLocation})`,
-          level: 1
-        });
-
-        // Process Secondary Locations
-        if (subLoc.SecondaryLocation?.length > 0) {
-          subLoc.SecondaryLocation.forEach(secondary => {
-            if (!secondary.SecondaryLocation) return;
-
-            // Add Secondary Location (level 2)
-            const secondaryValue = `${subLocValue} > ${secondary.SecondaryLocation}`;
-            options.push({
-              id: secondary._id,
-              value: secondaryValue,
-              label: `${secondary.SecondaryLocation} (${subLoc.PrimarySubLocation})`,
-              level: 2
-            });
-
-            // Process Secondary SubLocations
-            if (secondary.SecondarySubLocation?.length > 0) {
-              secondary.SecondarySubLocation.forEach(secondarySub => {
-                if (!secondarySub.SecondarySubLocation) return;
-                
-                // Add Secondary SubLocation (level 3)
-                const secondarySubValue = `${secondaryValue} > ${secondarySub.SecondarySubLocation}`;
-                options.push({
-                  id: secondarySub._id,
-                  value: secondarySubValue,
-                  label: `${secondarySub.SecondarySubLocation} (${secondary.SecondaryLocation})`,
-                  level: 3
-                });
-
-                // Process Third Locations
-                if (secondarySub.ThirdLocation?.length > 0) {
-                  secondarySub.ThirdLocation.forEach(third => {
-                    if (!third.ThirdLocation) return;
-
-                    // Add Third Location (level 4)
-                    const thirdValue = `${secondarySubValue} > ${third.ThirdLocation}`;
-                    options.push({
-                      id: third._id,
-                      value: thirdValue,
-                      label: `${third.ThirdLocation} (${secondarySub.SecondarySubLocation})`,
-                      level: 4
-                    });
-
-                    // Add Third SubLocation if exists (level 5)
-                    if (third.ThirdSubLocation) {
-                      const thirdSubValue = `${thirdValue} > ${third.ThirdSubLocation}`;
-                      options.push({
-                        id: third._id, // Might need a different ID if available
-                        value: thirdSubValue,
-                        label: `${third.ThirdSubLocation} (${third.ThirdLocation})`,
-                        level: 5
-                      });
-                    }
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-  });
-
-  return options;
-};
+    return options;
+  };
 
   // API functions
   const fetchRequests = async () => {
@@ -365,6 +391,43 @@ const processLocations = (locations) => {
     }
   };
 
+  // Handle update form submission
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      const config = {
+        headers: { Authorization: `Bearer ${token}` },
+      };
+
+      // Only update Remarks and Status
+      const updateData = {
+        Remarks: updateFormData.Remarks,
+        Status: updateFormData.Status
+      };
+
+      await axios.put(
+        `https://api.avessecurity.com/api/CCTV/update/${requestToUpdate._id}`,
+        updateData,
+        config
+      );
+      
+      setSuccess('Request updated successfully!');
+      fetchRequests();
+      setShowUpdateModal(false);
+      setRequestToUpdate(null);
+    } catch (err) {
+      console.error('Error updating CCTV request:', err);
+      setError(err.response?.data?.message || 'Failed to update request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteRequest = async () => {
     if (!requestToDelete) return;
     
@@ -401,11 +464,26 @@ const processLocations = (locations) => {
 
   const handleView = (request) => {
     setViewData(request);
+    setShowViewCanvas(true);
+  };
+
+  const handleCloseViewCanvas = () => {
+    setShowViewCanvas(false);
+    setViewData(null);
   };
 
   const handleDeleteClick = (request) => {
     setRequestToDelete(request);
     setShowDeleteModal(true);
+  };
+
+  // Handle calendar event selection
+  const handleCalendarSelect = (event) => {
+    const selected = requests.find(r => r._id === event.id);
+    if (selected) {
+      setRequestToUpdate(selected);
+      setShowUpdateModal(true);
+    }
   };
 
   const renderStatusBadge = (status) => {
@@ -585,10 +663,7 @@ const processLocations = (locations) => {
             endAccessor="end"
             style={{ height: 500 }}
             eventPropGetter={eventStyleGetter}
-            onSelectEvent={(event) => {
-              const selected = requests.find(r => r._id === event.id);
-              if (selected) handleView(selected);
-            }}
+            onSelectEvent={handleCalendarSelect}
           />
         </div>
 
@@ -622,10 +697,20 @@ const processLocations = (locations) => {
                 <td>{renderStatusBadge(request.Status)}</td>
                 <td>
                   <Button 
+                    variant="outline-info" 
+                    size="sm" 
+                    onClick={() => handleView(request)}
+                    className="me-2"
+                    title="View Details"
+                  >
+                    <Eye size={16} />
+                  </Button>
+                  <Button 
                     variant="outline-primary" 
                     size="sm" 
                     onClick={() => handleEdit(request)}
                     className="me-2"
+                    title="Edit"
                   >
                     <Pencil size={16} />
                   </Button>
@@ -633,6 +718,7 @@ const processLocations = (locations) => {
                     variant="outline-danger" 
                     size="sm" 
                     onClick={() => handleDeleteClick(request)}
+                    title="Delete"
                   >
                     <Trash size={16} />
                   </Button>
@@ -920,6 +1006,22 @@ const processLocations = (locations) => {
               />
             </Form.Group>
 
+            <Form.Group className="mb-4">
+              <Form.Label>
+                <InfoCircle className="me-2" />
+                Status
+              </Form.Label>
+              <Form.Select
+                name="Status"
+                value={formData.Status}
+                onChange={handleInputChange}
+              >
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </Form.Select>
+            </Form.Group>
+
             <div className="d-grid gap-2">
               <Button variant="primary" type="submit" disabled={loading}>
                 {loading ? (
@@ -938,6 +1040,133 @@ const processLocations = (locations) => {
           </Form>
         </Offcanvas.Body>
       </Offcanvas>
+    );
+  };
+
+    const renderUpdateModal = () => {
+    if (!requestToUpdate) return null;
+    
+    return (
+      <Modal show={showUpdateModal} onHide={() => setShowUpdateModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>
+            <Pencil className="me-2" />
+            Update Request: {requestToUpdate.Title}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleUpdateSubmit}>
+          <Modal.Body>
+            {/* Display all request details in read-only mode */}
+            <Card className="mb-3">
+              <Card.Header className="bg-light">
+                <h6 className="mb-0">Request Details</h6>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <p><strong>Title:</strong> {requestToUpdate.Title}</p>
+                  </Col>
+                  <Col md={6}>
+                    <p><strong>Request Type:</strong> 
+                      {requestToUpdate.ForMySelf ? ' For Myself' : ''}
+                      {requestToUpdate.ForMySelf && requestToUpdate.ForOthers ? ' & ' : ''}
+                      {requestToUpdate.ForOthers ? ' For Others' : ''}
+                    </p>
+                  </Col>
+                </Row>
+                
+                {requestToUpdate.ForMySelf && (
+                  <>
+                    <hr />
+                    <h6>My Request Details</h6>
+                    <Row>
+                      <Col md={6}>
+                        <p><strong>Date:</strong> {requestToUpdate.MySelfDate}</p>
+                      </Col>
+                      <Col md={6}>
+                        <p><strong>Time:</strong> {requestToUpdate.MySelfTime}</p>
+                      </Col>
+                    </Row>
+                    <p><strong>Location:</strong> {requestToUpdate.MySelfLocationOFIncident}</p>
+                    <p><strong>Reason:</strong> {requestToUpdate.MyselfReasonofviewing}</p>
+                    <p><strong>Immediate Hold:</strong> {requestToUpdate.MySelfImmidiateHoldForView ? 'Yes' : 'No'}</p>
+                  </>
+                )}
+                
+                {requestToUpdate.ForOthers && (
+                  <>
+                    <hr />
+                    <h6>Others Request Details</h6>
+                    <p><strong>Name:</strong> {requestToUpdate.ForOthersName}</p>
+                    <Row>
+                      <Col md={6}>
+                        <p><strong>Date:</strong> {requestToUpdate.ForOthersDate}</p>
+                      </Col>
+                      <Col md={6}>
+                        <p><strong>Time:</strong> {requestToUpdate.ForOthersTime}</p>
+                      </Col>
+                    </Row>
+                    <p><strong>Location:</strong> {requestToUpdate.ForOthersLocationOFIncident}</p>
+                    <p><strong>Reason:</strong> {requestToUpdate.ForOthersReasonofviewing}</p>
+                    <p><strong>Immediate Hold:</strong> {requestToUpdate.ForOthersImmidiateHoldForView ? 'Yes' : 'No'}</p>
+                  </>
+                )}
+              </Card.Body>
+            </Card>
+
+            {/* Editable fields for Remarks and Status only */}
+            <Form.Group className="mb-3">
+              <Form.Label>
+                <InfoCircle className="me-2" />
+                Remarks
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="Remarks"
+                value={updateFormData.Remarks}
+                onChange={handleUpdateInputChange}
+                placeholder="Update remarks"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>
+                <InfoCircle className="me-2" />
+                Status
+              </Form.Label>
+              <Form.Select
+                name="Status"
+                value={updateFormData.Status}
+                onChange={handleUpdateInputChange}
+              >
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </Form.Select>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowUpdateModal(false)}>
+              <X className="me-2" />
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                  <span className="ms-2">Updating...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="me-2" />
+                  Update
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     );
   };
 
@@ -978,6 +1207,31 @@ const processLocations = (locations) => {
     );
   };
 
+  const renderViewCanvas = () => {
+    if (!viewData) return null;
+    
+    return (
+      <Offcanvas 
+        show={showViewCanvas} 
+        onHide={handleCloseViewCanvas} 
+        placement="end" 
+        className="w-50"
+      >
+        <Offcanvas.Header closeButton className="bg-light">
+          <Offcanvas.Title>
+            <h4 className="mb-0">
+              <Eye className="me-2" />
+              CCTV Request Details
+            </h4>
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          {renderRequestDetails(viewData)}
+        </Offcanvas.Body>
+      </Offcanvas>
+    );
+  };
+
   return (
     <Container className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -986,7 +1240,6 @@ const processLocations = (locations) => {
           CCTV Requests Management
         </h2>
         <Button variant="primary" onClick={() => setShowForm(true)}>
-          <PlusCircle className="me-2" />
           New Request
         </Button>
       </div>
@@ -1012,21 +1265,9 @@ const processLocations = (locations) => {
       </Card>
 
       {renderForm()}
+      {renderUpdateModal()}
       {renderDeleteModal()}
-
-      {/* View Offcanvas */}
-      <Offcanvas show={!!viewData} onHide={() => setViewData(null)} placement="end" className="w-50">
-        {viewData && (
-          <>
-            <Offcanvas.Header closeButton>
-              <Offcanvas.Title>CCTV Request Details</Offcanvas.Title>
-            </Offcanvas.Header>
-            <Offcanvas.Body>
-              {renderRequestDetails(viewData)}
-            </Offcanvas.Body>
-          </>
-        )}
-      </Offcanvas>
+      {renderViewCanvas()}
     </Container>
   );
 };

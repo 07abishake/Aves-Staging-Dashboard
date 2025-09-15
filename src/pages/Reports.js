@@ -3,13 +3,16 @@ import axios from "axios";
 import Select from "react-select";
 import { Modal, Button, Spinner } from "react-bootstrap";
 import debounce from "lodash/debounce";
+import { jwtDecode } from "jwt-decode";
 
 function Reports() {
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState(null);
   const [startDate, setStartDate] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState(null);
   const [endDate, setEndDate] = useState('');
-  const [username, setusername] = useState(null);
+  const [username, setUsername] = useState(null);
   const [userId, setUserId] = useState(null);  
   const [LocationId, setLocationId] = useState(null);
   const [Status, setStatus] = useState(null);
@@ -31,6 +34,7 @@ function Reports() {
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
   
   const statusOptions = [
     { value: '', label: 'All Statuses' },
@@ -40,11 +44,24 @@ function Reports() {
   ];
 
   const token = localStorage.getItem("access_token");
-  if (!token) {
-    // window.location.href = "/login";
-  }
-
+  
   useEffect(() => {
+    // Decode token to get company domain
+    if (token) {
+      try {
+        const decodedToken = jwtDecode(token);
+        // Set company name from domain in token
+        if (decodedToken.domain) {
+          setCompanyName(decodedToken.domain);
+        }
+      } catch (error) {
+        console.error("Error decoding token:", error);
+        setCompanyName('Security System');
+      }
+    } else {
+      // window.location.href = "/login";
+    }
+    
     // Fetch initial data
     fetchModules();
     fetchDepartments();
@@ -85,17 +102,17 @@ function Reports() {
      const departmentOptions = [];
       response.data.forEach(parent => {
         departmentOptions.push({ 
-          value: parent.name, // Use name as value
+          value: parent.name,
           label: parent.name,
-          id: parent._id // Store ID separately if needed
+          id: parent._id
         });
 
         if (parent.children && parent.children.length > 0) {
           parent.children.forEach(child => {
             departmentOptions.push({
-              value: child.name, // Use name as value
+              value: child.name,
               label: child.name,
-              id: child._id // Store ID separately if needed
+              id: child._id
             });
           });
         }
@@ -347,7 +364,21 @@ function Reports() {
     return true;
   };
 
-  const handlePreview = async () => {         
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCompanyLogo(file);
+      
+      // Create a preview URL for the image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+ const handlePreview = async () => {         
     if (!validateDates()) return;
     if (!selectedModule) {
       setError("Please select a module");
@@ -357,26 +388,40 @@ function Reports() {
     setLoading(true);
     setError('');
 
+    // Format dates for backend - DON'T convert to ISO string and split
+    // Just use the original date strings as they're already in YYYY-MM-DD format
+    const formattedStartDate = startDate;
+    const formattedEndDate = endDate;
+
+    // Create FormData to handle file upload for preview
+    const formData = new FormData();
+    formData.append('startDate', formattedStartDate);
+    formData.append('endDate', formattedEndDate);
+    formData.append('username', username?.value || '');
+    formData.append('userId', userId?.value || '');
+    formData.append('LocationId', LocationId?.value || '');
+    formData.append('Status', Status?.value || '');
+    formData.append('Department', Department?.value || '');
+    formData.append('companyName', companyName);
+    formData.append('Location', LocationId?.label || '');
+    
+    if (companyLogo) {
+      formData.append('companyLogo', companyLogo);
+    }
+
     try {
       const response = await axios.post(
-        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
-        {
-          startDate,
-          endDate,
-          username: username?.value || '',
-          userId: userId?.value || '', 
-          LocationId: LocationId?.value || '',
-          Status: Status?.value || '',
-          Department: Department?.value || ''
-        },
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        formData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           }
         }
       );
 
+      console.log('Reponse and Preview Data',response.data)
       setPreviewHtml(response.data);
       setReportData(response.data);
       setShowPreview(true);
@@ -387,7 +432,6 @@ function Reports() {
       setLoading(false);
     }
   };
-
   const handleGeneratePdf = async () => {
     if (!validateDates()) return;
     if (!selectedModule) {
@@ -398,22 +442,29 @@ function Reports() {
     setLoading(true);
     setError('');
 
+    // Create FormData to handle file upload
+    const formData = new FormData();
+    formData.append('startDate', startDate);
+    formData.append('endDate', endDate);
+    formData.append('username', username?.value || '');
+    formData.append('LocationId', LocationId?.value || '');
+    formData.append('Status', Status?.value || '');
+    formData.append('Department', Department?.value || '');
+    formData.append('companyName', companyName);
+    
+    if (companyLogo) {
+      formData.append('companyLogo', companyLogo);
+    }
+
     try {
       const response = await axios.post(
         `https://api.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
-        {
-          startDate,
-          endDate,
-          username: username?.value || '',
-          LocationId: LocationId?.value || '',
-          Status: Status?.value || '',
-          Department: Department?.value || ''
-        },
+        formData,
         {
           responseType: "blob",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           }
         }
       );
@@ -525,6 +576,39 @@ function Reports() {
           )}
 
           <div className="row g-3">
+            {/* Company Name from Token */}
+            <div className="col-md-6">
+              <label className="form-label fw-bold">Company Name</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={companyName} 
+                readOnly
+                disabled
+              />
+              <small className="text-muted">Company name is the WaterMark of pdf</small>
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label fw-bold">Company Logo</label>
+              <input 
+                type="file" 
+                className="form-control" 
+                accept="image/*" 
+                onChange={handleLogoChange}
+              />
+              {logoPreview && (
+                <div className="mt-2">
+                  <img 
+                    src={logoPreview} 
+                    alt="Logo preview" 
+                    style={{ maxWidth: '100px', maxHeight: '100px' }} 
+                    className="img-thumbnail"
+                  />
+                </div>
+              )}
+            </div>
+            
             <div className="col-md-12">
               <label className="form-label fw-bold">Module</label>
               <Select
@@ -565,7 +649,7 @@ function Reports() {
               <Select
                 options={users}
                 value={username}
-                onChange={setusername}
+                onChange={setUsername}
                 onInputChange={(inputValue) => {
                   setUserInput(inputValue);
                   fetchUsers(inputValue);

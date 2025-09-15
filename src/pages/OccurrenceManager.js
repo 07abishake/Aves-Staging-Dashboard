@@ -1,11 +1,505 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Button, Form, Table, Offcanvas, Modal } from 'react-bootstrap';
+import { Button, Form, Table, Offcanvas, Modal, Alert, Spinner } from 'react-bootstrap';
+import Select from 'react-select';
 
+// Debounce function implementation
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// Enhanced Location Dropdown Component
+const LocationDropdown = ({ value, onChange, showLabel = true }) => {
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Selected location IDs at each level
+  const [selectedPrimary, setSelectedPrimary] = useState('');
+  const [selectedSubPrimary, setSelectedSubPrimary] = useState('');
+  const [selectedSecondary, setSelectedSecondary] = useState('');
+  const [selectedSubSecondary, setSelectedSubSecondary] = useState('');
+  const [selectedTertiary, setSelectedTertiary] = useState('');
+  const [selectedSubTertiary, setSelectedSubTertiary] = useState('');
+
+  // Fetch locations on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setLocations(data.Location || []);
+      } catch (err) {
+        setError(err.message || 'Failed to load locations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // When the external value changes (like in edit mode), parse it to set the selected values
+  useEffect(() => {
+    if (value && locations.length > 0) {
+      // Try to find the location in the hierarchy
+      const findLocationInHierarchy = (locations, targetValue) => {
+        for (const primary of locations) {
+          if (primary.PrimaryLocation === targetValue) {
+            setSelectedPrimary(primary._id);
+            return;
+          }
+          
+          if (primary.SubLocation) {
+            for (const subPrimary of primary.SubLocation) {
+              const subPrimaryPath = `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation}`;
+              if (subPrimaryPath === targetValue) {
+                setSelectedPrimary(primary._id);
+                setSelectedSubPrimary(subPrimary._id);
+                return;
+              }
+              
+              if (subPrimary.SecondaryLocation) {
+                for (const secondary of subPrimary.SecondaryLocation) {
+                  const secondaryPath = `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation}`;
+                  if (secondaryPath === targetValue) {
+                    setSelectedPrimary(primary._id);
+                    setSelectedSubPrimary(subPrimary._id);
+                    setSelectedSecondary(secondary._id);
+                    return;
+                  }
+                  
+                  if (secondary.SecondarySubLocation) {
+                    for (const subSecondary of secondary.SecondarySubLocation) {
+                      const subSecondaryPath = `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation}`;
+                      if (subSecondaryPath === targetValue) {
+                        setSelectedPrimary(primary._id);
+                        setSelectedSubPrimary(subPrimary._id);
+                        setSelectedSecondary(secondary._id);
+                        setSelectedSubSecondary(subSecondary._id);
+                        return;
+                      }
+                      
+                      if (subSecondary.ThirdLocation) {
+                        for (const tertiary of subSecondary.ThirdLocation) {
+                          const tertiaryPath = `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation} > ${tertiary.ThirdLocation}`;
+                          if (tertiaryPath === targetValue) {
+                            setSelectedPrimary(primary._id);
+                            setSelectedSubPrimary(subPrimary._id);
+                            setSelectedSecondary(secondary._id);
+                            setSelectedSubSecondary(subSecondary._id);
+                            setSelectedTertiary(tertiary._id);
+                            return;
+                          }
+                          
+                          if (tertiary.ThirdSubLocation) {
+                            const subTertiaryPath = `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation} > ${tertiary.ThirdLocation} > ${tertiary.ThirdSubLocation.ThirdSubLocation}`;
+                            if (subTertiaryPath === targetValue) {
+                              setSelectedPrimary(primary._id);
+                              setSelectedSubPrimary(subPrimary._id);
+                              setSelectedSecondary(secondary._id);
+                              setSelectedSubSecondary(subSecondary._id);
+                              setSelectedTertiary(tertiary._id);
+                              setSelectedSubTertiary(tertiary.ThirdSubLocation._id);
+                              return;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
+      
+      findLocationInHierarchy(locations, value);
+    }
+  }, [value, locations]);
+
+  // Helper functions to get selected location objects
+  const getSelectedPrimary = () => locations.find(loc => loc._id === selectedPrimary);
+  const getSelectedSubPrimary = () => {
+    const primary = getSelectedPrimary();
+    return primary?.SubLocation?.find(sub => sub._id === selectedSubPrimary);
+  };
+  const getSelectedSecondary = () => {
+    const subPrimary = getSelectedSubPrimary();
+    return subPrimary?.SecondaryLocation?.find(sec => sec._id === selectedSecondary);
+  };
+  const getSelectedSubSecondary = () => {
+    const secondary = getSelectedSecondary();
+    return secondary?.SecondarySubLocation?.find(subSec => subSec._id === selectedSubSecondary);
+  };
+  const getSelectedTertiary = () => {
+    const subSecondary = getSelectedSubSecondary();
+    return subSecondary?.ThirdLocation?.find(ter => ter._id === selectedTertiary);
+  };
+  const getSelectedSubTertiary = () => {
+    const tertiary = getSelectedTertiary();
+    return tertiary?.ThirdSubLocation;
+  };
+
+  // Handler functions for each dropdown level
+  const handlePrimaryChange = (e) => {
+    const primaryId = e.target.value;
+    setSelectedPrimary(primaryId);
+    setSelectedSubPrimary('');
+    setSelectedSecondary('');
+    setSelectedSubSecondary('');
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    
+    const primary = locations.find(loc => loc._id === primaryId);
+    if (primary) {
+      onChange({ target: { name: 'Location', value: primary.PrimaryLocation } });
+    }
+  };
+
+  const handleSubPrimaryChange = (e) => {
+    const subPrimaryId = e.target.value;
+    setSelectedSubPrimary(subPrimaryId);
+    setSelectedSecondary('');
+    setSelectedSubSecondary('');
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    
+    const primary = getSelectedPrimary();
+    const subPrimary = primary?.SubLocation?.find(sub => sub._id === subPrimaryId);
+    if (primary && subPrimary) {
+      onChange({ target: { name: 'Location', value: `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation}` } });
+    }
+  };
+
+  const handleSecondaryChange = (e) => {
+    const secondaryId = e.target.value;
+    setSelectedSecondary(secondaryId);
+    setSelectedSubSecondary('');
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    
+    const primary = getSelectedPrimary();
+    const subPrimary = getSelectedSubPrimary();
+    const secondary = subPrimary?.SecondaryLocation?.find(sec => sec._id === secondaryId);
+    if (primary && subPrimary && secondary) {
+      onChange({ target: { name: 'Location', value: `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation}` } });
+    }
+  };
+
+  const handleSubSecondaryChange = (e) => {
+    const subSecondaryId = e.target.value;
+    setSelectedSubSecondary(subSecondaryId);
+    setSelectedTertiary('');
+    setSelectedSubTertiary('');
+    
+    const primary = getSelectedPrimary();
+    const subPrimary = getSelectedSubPrimary();
+    const secondary = getSelectedSecondary();
+    const subSecondary = secondary?.SecondarySubLocation?.find(subSec => subSec._id === subSecondaryId);
+    if (primary && subPrimary && secondary && subSecondary) {
+      onChange({ target: { name: 'Location', value: `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation}` } });
+    }
+  };
+
+  const handleTertiaryChange = (e) => {
+    const tertiaryId = e.target.value;
+    setSelectedTertiary(tertiaryId);
+    setSelectedSubTertiary('');
+    
+    const primary = getSelectedPrimary();
+    const subPrimary = getSelectedSubPrimary();
+    const secondary = getSelectedSecondary();
+    const subSecondary = getSelectedSubSecondary();
+    const tertiary = subSecondary?.ThirdLocation?.find(ter => ter._id === tertiaryId);
+    if (primary && subPrimary && secondary && subSecondary && tertiary) {
+      onChange({ target: { name: 'Location', value: `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation} > ${tertiary.ThirdLocation}` } });
+    }
+  };
+
+  const handleSubTertiaryChange = (e) => {
+    const subTertiaryId = e.target.value;
+    setSelectedSubTertiary(subTertiaryId);
+    
+    const primary = getSelectedPrimary();
+    const subPrimary = getSelectedSubPrimary();
+    const secondary = getSelectedSecondary();
+    const subSecondary = getSelectedSubSecondary();
+    const tertiary = getSelectedTertiary();
+    if (primary && subPrimary && secondary && subSecondary && tertiary && tertiary.ThirdSubLocation) {
+      onChange({ target: { name: 'Location', value: `${primary.PrimaryLocation} > ${subPrimary.PrimarySubLocation} > ${secondary.SecondaryLocation} > ${subSecondary.SecondarySubLocation} > ${tertiary.ThirdLocation} > ${tertiary.ThirdSubLocation.ThirdSubLocation}` } });
+    }
+  };
+
+  // Function to get the full location path as a string
+  const getLocationPath = () => {
+    let path = [];
+    
+    const primary = getSelectedPrimary();
+    if (primary) path.push(primary.PrimaryLocation);
+    
+    const subPrimary = getSelectedSubPrimary();
+    if (subPrimary) path.push(subPrimary.PrimarySubLocation);
+    
+    const secondary = getSelectedSecondary();
+    if (secondary) path.push(secondary.SecondaryLocation);
+    
+    const subSecondary = getSelectedSubSecondary();
+    if (subSecondary) path.push(subSecondary.SecondarySubLocation);
+    
+    const tertiary = getSelectedTertiary();
+    if (tertiary) path.push(tertiary.ThirdLocation);
+    
+    const subTertiary = getSelectedSubTertiary();
+    if (subTertiary) path.push(subTertiary.ThirdSubLocation);
+    
+    return path.join(' → ');
+  };
+
+  if (loading) {
+    return (
+      <Form.Group controlId="Location">
+        {showLabel && <Form.Label>Location</Form.Label>}
+        <div className="d-flex align-items-center">
+          <Spinner animation="border" size="sm" className="me-2" />
+          <span>Loading locations...</span>
+        </div>
+      </Form.Group>
+    );
+  }
+
+  if (error) {
+    return (
+      <Form.Group controlId="Location">
+        {showLabel && <Form.Label>Location</Form.Label>}
+        <Alert variant="danger" className="py-1">
+          {error}
+        </Alert>
+      </Form.Group>
+    );
+  }
+
+  return (
+    <Form.Group controlId="Location">
+      {showLabel && <Form.Label>Location</Form.Label>}
+      
+      {/* Display the selected location path */}
+      {(selectedPrimary || selectedSubPrimary || selectedSecondary || 
+        selectedSubSecondary || selectedTertiary || selectedSubTertiary) && (
+        <div className="mb-2 p-2 bg-light rounded">
+          <small className="text-muted">Selected: </small>
+          <span>{getLocationPath()}</span>
+        </div>
+      )}
+      
+      {/* Primary Location Dropdown */}
+      <Form.Select 
+        className="mb-2"
+        value={selectedPrimary}
+        onChange={handlePrimaryChange}
+      >
+        <option value="">Select Primary Location</option>
+        {locations.map(loc => (
+          <option key={loc._id} value={loc._id}>
+            {loc.PrimaryLocation}
+          </option>
+        ))}
+      </Form.Select>
+
+      {/* Sub-Primary Location Dropdown */}
+      {selectedPrimary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedSubPrimary}
+          onChange={handleSubPrimaryChange}
+        >
+          <option value="">Select Sub-Primary Location</option>
+          {getSelectedPrimary()?.SubLocation?.map(sub => (
+            <option key={sub._id} value={sub._id}>
+              {sub.PrimarySubLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Secondary Location Dropdown */}
+      {selectedSubPrimary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedSecondary}
+          onChange={handleSecondaryChange}
+        >
+          <option value="">Select Secondary Location</option>
+          {getSelectedSubPrimary()?.SecondaryLocation?.map(sec => (
+            <option key={sec._id} value={sec._id}>
+              {sec.SecondaryLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Sub-Secondary Location Dropdown */}
+      {selectedSecondary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedSubSecondary}
+          onChange={handleSubSecondaryChange}
+        >
+          <option value="">Select Sub-Secondary Location</option>
+          {getSelectedSecondary()?.SecondarySubLocation?.map(subSec => (
+            <option key={subSec._id} value={subSec._id}>
+              {subSec.SecondarySubLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Tertiary Location Dropdown */}
+      {selectedSubSecondary && (
+        <Form.Select
+          className="mb-2"
+          value={selectedTertiary}
+          onChange={handleTertiaryChange}
+        >
+          <option value="">Select Tertiary Location</option>
+          {getSelectedSubSecondary()?.ThirdLocation?.map(ter => (
+            <option key={ter._id} value={ter._id}>
+              {ter.ThirdLocation}
+            </option>
+          ))}
+        </Form.Select>
+      )}
+
+      {/* Sub-Tertiary Location Dropdown */}
+      {selectedTertiary && getSelectedTertiary()?.ThirdSubLocation && (
+        <Form.Select
+          value={selectedSubTertiary}
+          onChange={handleSubTertiaryChange}
+        >
+          <option value="">Select Sub-Tertiary Location</option>
+          <option value={getSelectedTertiary().ThirdSubLocation._id}>
+            {getSelectedTertiary().ThirdSubLocation.ThirdSubLocation}
+          </option>
+        </Form.Select>
+      )}
+    </Form.Group>
+  );
+};
+
+// User Dropdown Component
+const UserDropdown = ({ value, onChange, showLabel = true }) => {
+  const [users, setUsers] = useState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  // Debounced fetch function
+  const fetchUsers = useCallback(
+    debounce(async (query) => {
+      if (!query) return;
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await axios.get(
+          `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        if (response.data && response.data.Report) {
+          const userOptions = response.data.Report.map((user) => ({
+            value: user.username,
+            label: user.username,
+          }));
+          setUsers(userOptions);
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    }, 500),
+    []
+  );
+
+  // Handle input change
+  useEffect(() => {
+    if (inputValue) {
+      fetchUsers(inputValue);
+    }
+  }, [inputValue, fetchUsers]);
+
+  // Parse initial value if editing
+  useEffect(() => {
+    if (value) {
+      // If value is a string of comma-separated usernames
+      const initialUsers = value.split(',').map(username => ({
+        value: username.trim(),
+        label: username.trim()
+      }));
+      setUsers(prev => [...prev, ...initialUsers.filter(user => 
+        !prev.some(existing => existing.value === user.value)
+      )]);
+    }
+  }, [value]);
+
+  const handleInputChange = (newValue) => {
+    setInputValue(newValue);
+  };
+
+  const handleChange = (selectedOptions) => {
+    // Convert selected options to comma-separated string
+    const valueString = selectedOptions ? selectedOptions.map(option => option.value).join(', ') : '';
+    onChange({
+      target: {
+        name: 'ReportedBy',
+        value: valueString
+      }
+    });
+  };
+
+  // Parse current value for the select component
+  const getSelectedValues = () => {
+    if (!value) return [];
+    return value.split(',').map(username => ({
+      value: username.trim(),
+      label: username.trim()
+    }));
+  };
+
+  return (
+    <Form.Group controlId="ReportedBy">
+      {showLabel && <Form.Label>Reported By</Form.Label>}
+      <Select
+        isMulti
+        options={users}
+        value={getSelectedValues()}
+        onInputChange={handleInputChange}
+        onChange={handleChange}
+        isLoading={loading}
+        placeholder="Type to search users..."
+        className="mb-2"
+      />
+    </Form.Group>
+  );
+};
+
+// Main OccurrenceManager Component
 const OccurrenceManager = () => {
   const [data, setData] = useState([]);
   const [form, setForm] = useState({});
-  const [locations, setLocations] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showView, setShowView] = useState(false);
@@ -27,21 +521,8 @@ const OccurrenceManager = () => {
     }
   };
 
-  const fetchLocations = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await axios.get("https://api.avessecurity.com/api/Location/getLocations", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLocations(res.data?.Location || []);
-    } catch (error) {
-      console.error("Error fetching locations:", error);
-    }
-  };
-
   useEffect(() => {
     fetchData();
-    fetchLocations();
   }, []);
 
   const handleInputChange = (e) => {
@@ -51,7 +532,7 @@ const OccurrenceManager = () => {
   const handleCreate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post('https://api.avessecurity.com/api/DailyOccurance/create', form, {
+      await axios.post('http://localhost:6378/api/DailyOccurance/create', form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowCreate(false);
@@ -76,7 +557,7 @@ const OccurrenceManager = () => {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.put(`https://api.avessecurity.com/api/DailyOccurance/update/${editId}`, form, {
+      await axios.put(`http://localhost:6378/api/DailyOccurance/update/${editId}`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowEdit(false);
@@ -91,7 +572,7 @@ const OccurrenceManager = () => {
     if (window.confirm('Are you sure you want to delete this record?')) {
       try {
         const token = localStorage.getItem('access_token');
-        await axios.delete(`https://api.avessecurity.com/api/DailyOccurance/delete/${id}`, {
+        await axios.delete(`http://localhost:6378/api/DailyOccurance/delete/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();
@@ -137,29 +618,6 @@ const OccurrenceManager = () => {
       
       printWindow.document.close();
     }, 100);
-  };
-
-  const getLocationOptions = () => {
-    const options = [];
-    locations.forEach(location => {
-      if (!location.PrimaryLocation) return;
-      options.push({ value: location._id, label: location.PrimaryLocation });
-      location.SecondaryLocation?.forEach(secondary => {
-        if (!secondary.SecondaryLocation) return;
-        options.push({
-          value: secondary._id,
-          label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation}`
-        });
-        secondary.ThirdLocation?.forEach(third => {
-          if (!third.ThirdLocation) return;
-          options.push({
-            value: third._id,
-            label: `${location.PrimaryLocation} > ${secondary.SecondaryLocation} > ${third.ThirdLocation}`
-          });
-        });
-      });
-    });
-    return options;
   };
 
   return (
@@ -255,7 +713,6 @@ const OccurrenceManager = () => {
           <p>Click the print button below to generate a printable report of this occurrence.</p>
           <div ref={printRef} className="d-none">
             <div className="print-header">
-              {/* <h2>AVES Security</h2> */}
               <h4>Occurrence Report</h4>
               <p>Generated on: {new Date().toLocaleDateString()}</p>
             </div>
@@ -321,6 +778,7 @@ const OccurrenceManager = () => {
         </Modal.Footer>
       </Modal>
 
+      {/* Create and Edit Offcanvas */}
       {[showCreate, showEdit].map((show, idx) => (
         <Offcanvas
           key={idx}
@@ -333,43 +791,54 @@ const OccurrenceManager = () => {
           </Offcanvas.Header>
           <Offcanvas.Body>
             <Form>
-              {["OccurringTime", "Location", "ReportedBy", "NatureOfIncident", "Description", "ActionTaken", "FollowupRequired", "SupervisorNameRemark"].map((field) => (
+              {["RecordingDate", "RecordingTime", "OccurringTime", "NatureOfIncident", "Description", "ActionTaken", "SupervisorNameRemark"].map((field) => (
                 <Form.Group key={field} className="mb-3">
                   <Form.Label>{field.replace(/([A-Z])/g, ' $1')}</Form.Label>
-                  {field === "Location" ? (
-                    <Form.Select
-                      name="Location"
-                      value={form["Location"] || ''}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select Location</option>
-                      {getLocationOptions().map(opt => (
-                        <option key={opt.value} value={opt.label}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  ) : field === "FollowupRequired" ? (
-                    <Form.Select
-                      name="FollowupRequired"
-                      value={form["FollowupRequired"] || ''}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </Form.Select>
-                  ) : (
-                    <Form.Control
-                      as={field === "Description" ? "textarea" : "input"}
-                      rows={field === "Description" ? 3 : undefined}
-                      name={field}
-                      value={form[field] || ''}
-                      onChange={handleInputChange}
-                    />
-                  )}
+                  <Form.Control
+                    as={field === "Description" ? "textarea" : "input"}
+                    rows={field === "Description" ? 3 : undefined}
+                    type={field === "RecordingDate" ? "date" : "text"}
+                    name={field}
+                    value={form[field] || ''}
+                    onChange={handleInputChange}
+                  />
                 </Form.Group>
               ))}
+              
+              {/* Location Dropdown */}
+              <Form.Group className="mb-3">
+                <Form.Label>Location</Form.Label>
+                <LocationDropdown 
+                  value={form.Location || ''}
+                  onChange={handleInputChange}
+                  showLabel={false}
+                />
+              </Form.Group>
+              
+              {/* Reported By User Dropdown */}
+              <Form.Group className="mb-3">
+                <Form.Label>Reported By</Form.Label>
+                <UserDropdown 
+                  value={form.ReportedBy || ''}
+                  onChange={handleInputChange}
+                  showLabel={false}
+                />
+              </Form.Group>
+              
+              {/* Followup Required Dropdown */}
+              <Form.Group className="mb-3">
+                <Form.Label>Followup Required</Form.Label>
+                <Form.Select
+                  name="FollowupRequired"
+                  value={form["FollowupRequired"] || ''}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </Form.Select>
+              </Form.Group>
+              
               <Button variant="primary" onClick={idx === 0 ? handleCreate : handleUpdate}>
                 {idx === 0 ? 'Submit' : 'Update'}
               </Button>
