@@ -532,7 +532,10 @@ const OccurrenceManager = () => {
   const handleCreate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post('http://localhost:6378/api/DailyOccurance/create', form, {
+      // Don't send RecordingDate, RecordingTime, and OccurringTime as they're auto-generated
+      const { RecordingDate, RecordingTime, OccurringTime, ...formData } = form;
+      
+      await axios.post('https://api.avessecurity.com/api/DailyOccurance/create', formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowCreate(false);
@@ -557,7 +560,10 @@ const OccurrenceManager = () => {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.put(`http://localhost:6378/api/DailyOccurance/update/${editId}`, form, {
+      // Don't send RecordingDate, RecordingTime, and OccurringTime as they're auto-generated
+      const { RecordingDate, RecordingTime, OccurringTime, ...formData } = form;
+      
+      await axios.put(`https://api.avessecurity.com/api/DailyOccurance/update/${editId}`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowEdit(false);
@@ -572,7 +578,7 @@ const OccurrenceManager = () => {
     if (window.confirm('Are you sure you want to delete this record?')) {
       try {
         const token = localStorage.getItem('access_token');
-        await axios.delete(`http://localhost:6378/api/DailyOccurance/delete/${id}`, {
+        await axios.delete(`https://api.avessecurity.com/api/DailyOccurance/delete/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();
@@ -791,13 +797,14 @@ const OccurrenceManager = () => {
           </Offcanvas.Header>
           <Offcanvas.Body>
             <Form>
-              {["RecordingDate", "RecordingTime", "OccurringTime", "NatureOfIncident", "Description", "ActionTaken", "SupervisorNameRemark"].map((field) => (
+              {/* Don't show RecordingDate, RecordingTime, and OccurringTime in the form as they're auto-generated */}
+              {["NatureOfIncident", "Description", "ActionTaken", "SupervisorNameRemark"].map((field) => (
                 <Form.Group key={field} className="mb-3">
                   <Form.Label>{field.replace(/([A-Z])/g, ' $1')}</Form.Label>
                   <Form.Control
                     as={field === "Description" ? "textarea" : "input"}
                     rows={field === "Description" ? 3 : undefined}
-                    type={field === "RecordingDate" ? "date" : "text"}
+                    type="text"
                     name={field}
                     value={form[field] || ''}
                     onChange={handleInputChange}

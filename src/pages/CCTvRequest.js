@@ -613,7 +613,6 @@ const CCTvRequest = () => {
               size="sm" 
               onClick={() => handleEdit(request)}
             >
-              <Pencil size={16} className="me-1" />
               Edit
             </Button>
             <Button 
@@ -621,7 +620,7 @@ const CCTvRequest = () => {
               size="sm" 
               onClick={() => handleDeleteClick(request)}
             >
-              <Trash size={16} className="me-1" />
+      
               Delete
             </Button>
           </div>
@@ -1148,7 +1147,6 @@ const CCTvRequest = () => {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowUpdateModal(false)}>
-              <X className="me-2" />
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
