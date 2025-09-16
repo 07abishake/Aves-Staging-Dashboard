@@ -15,7 +15,8 @@ import {
   Card,
   Tab,
   Tabs,
-  Accordion
+  Accordion,
+  Nav
 } from 'react-bootstrap';
 import { 
   PlusCircle, 
@@ -29,7 +30,13 @@ import {
   Person,
   GeoAlt,
   CardChecklist,
-  InfoCircle
+  InfoCircle,
+  Search,
+  Filter,
+  SortDown,
+  Download,
+  Upload,
+  ThreeDotsVertical
 } from 'react-bootstrap-icons';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
@@ -62,6 +69,8 @@ const CCTvRequest = () => {
     Remarks: '',
     Status: 'Pending'
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: '', direction: 'ascending' });
 
   // Calendar events
   const calendarEvents = requests.map(request => {
@@ -137,6 +146,20 @@ const CCTvRequest = () => {
       ...updateFormData,
       [name]: value
     });
+  };
+
+  // Handle search input
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Handle sort requests
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
   };
 
   // Fetch data on component mount
@@ -492,14 +515,14 @@ const CCTvRequest = () => {
     if (status === 'Rejected') variant = 'danger';
     if (status === 'Pending') variant = 'warning';
     
-    return <Badge bg={variant}>{status}</Badge>;
+    return <Badge bg={variant} className="px-2 py-1">{status}</Badge>;
   };
 
   const renderLocationSelector = (name, value, label) => {
     return (
       <Form.Group className="mb-3">
-        <Form.Label>
-          <GeoAlt className="me-2" />
+        <Form.Label className="fw-semibold">
+          <GeoAlt className="me-2 text-primary" />
           {label}
         </Form.Label>
         <Form.Select 
@@ -508,6 +531,7 @@ const CCTvRequest = () => {
           onChange={handleInputChange}
           isInvalid={!!formErrors.locationError}
           required
+          className="border-primary"
         >
           <option value="">Select location</option>
           {locations.map(location => (
@@ -527,21 +551,21 @@ const CCTvRequest = () => {
 
   const renderRequestDetails = (request) => {
     return (
-      <Card className="mb-3 shadow-sm">
+      <Card className="mb-3 border-0 shadow-sm">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-3">
-            <Card.Title className="mb-0">
+            <Card.Title className="mb-0 text-primary">
               {request.Title}
             </Card.Title>
             {renderStatusBadge(request.Status)}
           </div>
           
           <div className="mb-3">
-            <h6 className="text-muted">
+            <h6 className="text-muted d-flex align-items-center">
               <CardChecklist className="me-2" />
               Request Type
             </h6>
-            <p>
+            <p className="ms-3">
               {request.ForMySelf ? 'For Myself' : ''}
               {request.ForMySelf && request.ForOthers ? ' & ' : ''}
               {request.ForOthers ? 'For Others' : ''}
@@ -550,22 +574,22 @@ const CCTvRequest = () => {
 
           {request.ForMySelf && (
             <Accordion defaultActiveKey="0" className="mb-3">
-              <Accordion.Item eventKey="0">
-                <Accordion.Header>
-                  <Person className="me-2" />
+              <Accordion.Item eventKey="0" className="border-0 shadow-sm">
+                <Accordion.Header className="bg-light">
+                  <Person className="me-2 text-primary" />
                   My Request Details
                 </Accordion.Header>
                 <Accordion.Body>
                   <Row>
                     <Col md={6}>
-                      <p><strong><CalendarIcon className="me-2" />Date:</strong> {request.MySelfDate}</p>
+                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {request.MySelfDate}</p>
                     </Col>
                     <Col md={6}>
-                      <p><strong><Clock className="me-2" />Time:</strong> {request.MySelfTime}</p>
+                      <p><strong><Clock className="me-2 text-primary" />Time:</strong> {request.MySelfTime}</p>
                     </Col>
                   </Row>
-                  <p><strong><GeoAlt className="me-2" />Location:</strong> {request.MySelfLocationOFIncident}</p>
-                  <p><strong><InfoCircle className="me-2" />Reason:</strong> {request.MyselfReasonofviewing}</p>
+                  <p><strong><GeoAlt className="me-2 text-primary" />Location:</strong> {request.MySelfLocationOFIncident}</p>
+                  <p><strong><InfoCircle className="me-2 text-primary" />Reason:</strong> {request.MyselfReasonofviewing}</p>
                   <p><strong>Immediate Hold:</strong> {request.MySelfImmidiateHoldForView ? 'Yes' : 'No'}</p>
                 </Accordion.Body>
               </Accordion.Item>
@@ -574,23 +598,23 @@ const CCTvRequest = () => {
 
           {request.ForOthers && (
             <Accordion defaultActiveKey="1" className="mb-3">
-              <Accordion.Item eventKey="1">
-                <Accordion.Header>
-                  <Person className="me-2" />
+              <Accordion.Item eventKey="1" className="border-0 shadow-sm">
+                <Accordion.Header className="bg-light">
+                  <Person className="me-2 text-primary" />
                   Others Request Details
                 </Accordion.Header>
                 <Accordion.Body>
                   <p><strong>Name:</strong> {request.ForOthersName}</p>
                   <Row>
                     <Col md={6}>
-                      <p><strong><CalendarIcon className="me-2" />Date:</strong> {request.ForOthersDate}</p>
+                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {request.ForOthersDate}</p>
                     </Col>
                     <Col md={6}>
-                      <p><strong><Clock className="me-2" />Time:</strong> {request.ForOthersTime}</p>
+                      <p><strong><Clock className="me-2 text-primary" />Time:</strong> {request.ForOthersTime}</p>
                     </Col>
                   </Row>
-                  <p><strong><GeoAlt className="me-2" />Location:</strong> {request.ForOthersLocationOFIncident}</p>
-                  <p><strong><InfoCircle className="me-2" />Reason:</strong> {request.ForOthersReasonofviewing}</p>
+                  <p><strong><GeoAlt className="me-2 text-primary" />Location:</strong> {request.ForOthersLocationOFIncident}</p>
+                  <p><strong><InfoCircle className="me-2 text-primary" />Reason:</strong> {request.ForOthersReasonofviewing}</p>
                   <p><strong>Immediate Hold:</strong> {request.ForOthersImmidiateHoldForView ? 'Yes' : 'No'}</p>
                 </Accordion.Body>
               </Accordion.Item>
@@ -599,28 +623,31 @@ const CCTvRequest = () => {
 
           {request.Remarks && (
             <div className="mb-3">
-              <h6 className="text-muted">
-                <InfoCircle className="me-2" />
+              <h6 className="text-muted d-flex align-items-center">
+                <InfoCircle className="me-2 text-primary" />
                 Remarks
               </h6>
-              <p>{request.Remarks}</p>
+              <p className="ms-3">{request.Remarks}</p>
             </div>
           )}
 
-          <div className="d-flex justify-content-end gap-2">
+          <div className="d-flex justify-content-end gap-2 mt-4">
             <Button 
               variant="outline-primary" 
               size="sm" 
               onClick={() => handleEdit(request)}
+              className="d-flex align-items-center"
             >
+              <Pencil size={14} className="me-1" />
               Edit
             </Button>
             <Button 
               variant="outline-danger" 
               size="sm" 
               onClick={() => handleDeleteClick(request)}
+              className="d-flex align-items-center"
             >
-      
+              <Trash size={14} className="me-1" />
               Delete
             </Button>
           </div>
@@ -632,9 +659,9 @@ const CCTvRequest = () => {
   const renderTable = () => {
     if (loading) {
       return (
-        <div className="text-center py-4">
+        <div className="text-center py-5">
           <Spinner animation="border" variant="primary" />
-          <p className="mt-2">Loading requests...</p>
+          <p className="mt-2 text-muted">Loading requests...</p>
         </div>
       );
     }
@@ -643,89 +670,148 @@ const CCTvRequest = () => {
       return <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>;
     }
 
-    const filteredRequests = requests.filter(request => {
+    // Filter and sort requests
+    let filteredRequests = requests.filter(request => {
       if (activeTab === 'all') return true;
       return request.Status === activeTab;
     });
 
+    // Apply search filter
+    if (searchTerm) {
+      filteredRequests = filteredRequests.filter(request => 
+        request.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (request.ForMySelf && request.MySelfLocationOFIncident?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.ForOthers && request.ForOthersLocationOFIncident?.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filteredRequests.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
     if (filteredRequests.length === 0) {
-      return <Alert variant="info">No CCTV requests found</Alert>;
+      return (
+        <div className="text-center py-5">
+          <Eye size={48} className="text-muted mb-3" />
+          <h5 className="text-muted">No CCTV requests found</h5>
+          <p className="text-muted">Try adjusting your search or create a new request</p>
+        </div>
+      );
     }
 
     return (
       <>
-        <div className="mb-4 p-3 bg-white rounded shadow-sm">
+        <div className="mb-4 p-3 bg-white rounded shadow-sm border-0">
+          <h5 className="mb-3 text-primary d-flex align-items-center">
+            <CalendarIcon className="me-2" />
+            Request Calendar
+          </h5>
           <Calendar
             localizer={localizer}
             events={calendarEvents}
             startAccessor="start"
             endAccessor="end"
-            style={{ height: 500 }}
+            style={{ height: 400 }}
             eventPropGetter={eventStyleGetter}
             onSelectEvent={handleCalendarSelect}
           />
         </div>
 
-        <Table striped hover responsive className="mt-3">
-          <thead className="bg-light">
-            <tr>
-              <th>Title</th>
-              <th>Request Type</th>
-              <th>Location</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRequests.map(request => (
-              <tr key={request._id}>
-                <td>{request.Title}</td>
-                <td>
-                  {request.ForMySelf ? <Badge bg="info" className="me-1">Myself</Badge> : null}
-                  {request.ForOthers ? <Badge bg="secondary">Others</Badge> : null}
-                </td>
-                <td>
-                  {request.ForMySelf && request.MySelfLocationOFIncident}
-                  {request.ForOthers && request.ForOthersLocationOFIncident}
-                </td>
-                <td>
-                  {request.ForMySelf && request.MySelfDate}
-                  {request.ForOthers && request.ForOthersDate}
-                </td>
-                <td>{renderStatusBadge(request.Status)}</td>
-                <td>
-                  <Button 
-                    variant="outline-info" 
-                    size="sm" 
-                    onClick={() => handleView(request)}
-                    className="me-2"
-                    title="View Details"
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="text-primary mb-0">Request List</h5>
+          <span className="text-muted">{filteredRequests.length} requests found</span>
+        </div>
+
+        <div className="table-responsive">
+          <Table hover className="align-middle">
+            <thead className="bg-light">
+              <tr>
+                <th>
+                  <div 
+                    className="d-flex align-items-center cursor-pointer" 
+                    onClick={() => handleSort('Title')}
                   >
-                    <Eye size={16} />
-                  </Button>
-                  <Button 
-                    variant="outline-primary" 
-                    size="sm" 
-                    onClick={() => handleEdit(request)}
-                    className="me-2"
-                    title="Edit"
+                    Title
+                    <SortDown className="ms-1" />
+                  </div>
+                </th>
+                <th>Request Type</th>
+                <th>Location</th>
+                <th>
+                  <div 
+                    className="d-flex align-items-center cursor-pointer" 
+                    onClick={() => handleSort(requests[0].ForMySelf ? 'MySelfDate' : 'ForOthersDate')}
                   >
-                    <Pencil size={16} />
-                  </Button>
-                  <Button 
-                    variant="outline-danger" 
-                    size="sm" 
-                    onClick={() => handleDeleteClick(request)}
-                    title="Delete"
-                  >
-                    <Trash size={16} />
-                  </Button>
-                </td>
+                    Date
+                    <SortDown className="ms-1" />
+                  </div>
+                </th>
+                <th>Status</th>
+                <th className="text-center">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {filteredRequests.map(request => (
+                <tr key={request._id} className="border-bottom">
+                  <td className="fw-semibold">{request.Title}</td>
+                  <td>
+                    {request.ForMySelf && <Badge bg="info" className="me-1">Myself</Badge>}
+                    {request.ForOthers && <Badge bg="secondary">Others</Badge>}
+                  </td>
+                  <td>
+                    {request.ForMySelf && request.MySelfLocationOFIncident}
+                    {request.ForOthers && request.ForOthersLocationOFIncident}
+                  </td>
+                  <td>
+                    {request.ForMySelf && request.MySelfDate}
+                    {request.ForOthers && request.ForOthersDate}
+                  </td>
+                  <td>{renderStatusBadge(request.Status)}</td>
+                  <td>
+                    <div className="d-flex justify-content-center gap-2">
+                      <Button 
+                        variant="outline-info" 
+                        size="sm" 
+                        onClick={() => handleView(request)}
+                        className="d-flex align-items-center"
+                        title="View Details"
+                      >
+                        <Eye size={14} />
+                      </Button>
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm" 
+                        onClick={() => handleEdit(request)}
+                        className="d-flex align-items-center"
+                        title="Edit"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => handleDeleteClick(request)}
+                        className="d-flex align-items-center"
+                        title="Delete"
+                      >
+                        <Trash size={14} />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
       </>
     );
   };
@@ -739,9 +825,9 @@ const CCTvRequest = () => {
         backdrop="static"
         className="w-50"
       >
-        <Offcanvas.Header closeButton className="bg-light">
+        <Offcanvas.Header closeButton className="bg-light border-bottom">
           <Offcanvas.Title>
-            <h4 className="mb-0">
+            <h4 className="mb-0 text-primary">
               {editData ? (
                 <>
                   <Pencil className="me-2" />
@@ -749,14 +835,14 @@ const CCTvRequest = () => {
                 </>
               ) : (
                 <>
-                  <PlusCircle className="me-2" />
+                  
                   Create New CCTV Request
                 </>
               )}
             </h4>
           </Offcanvas.Title>
         </Offcanvas.Header>
-        <Offcanvas.Body>
+        <Offcanvas.Body className="p-4">
           <Form onSubmit={handleFormSubmit}>
             {formErrors.generalError && (
               <Alert variant="danger" className="mb-3" onClose={() => setFormErrors({...formErrors, generalError: ''})} dismissible>
@@ -764,9 +850,9 @@ const CCTvRequest = () => {
               </Alert>
             )}
             
-            <Form.Group className="mb-3">
-              <Form.Label>
-                <InfoCircle className="me-2" />
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-semibold">
+                <InfoCircle className="me-2 text-primary" />
                 Title
               </Form.Label>
               <Form.Control
@@ -776,12 +862,13 @@ const CCTvRequest = () => {
                 onChange={handleInputChange}
                 placeholder="Enter request title"
                 required
+                className="border-primary"
               />
             </Form.Group>
 
-            <Card className="mb-3">
+            <Card className="mb-4 border-0 shadow-sm">
               <Card.Header className="bg-light">
-                <h6 className="mb-0">Request Type</h6>
+                <h6 className="mb-0 text-primary">Request Type</h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -790,10 +877,10 @@ const CCTvRequest = () => {
                       type="switch"
                       id="forMyself"
                       label={
-                        <>
-                          <Person className="me-2" />
+                        <span className="fw-semibold">
+                          <Person className="me-2 text-primary" />
                           For Myself
-                        </>
+                        </span>
                       }
                       name="ForMySelf"
                       checked={formData.ForMySelf}
@@ -805,10 +892,10 @@ const CCTvRequest = () => {
                       type="switch"
                       id="forOthers"
                       label={
-                        <>
-                          <Person className="me-2" />
+                        <span className="fw-semibold">
+                          <Person className="me-2 text-primary" />
                           For Others
-                        </>
+                        </span>
                       }
                       name="ForOthers"
                       checked={formData.ForOthers}
@@ -820,9 +907,9 @@ const CCTvRequest = () => {
             </Card>
 
             {formData.ForMySelf && (
-              <Card className="mb-3">
+              <Card className="mb-4 border-0 shadow-sm">
                 <Card.Header className="bg-light">
-                  <h6 className="mb-0">
+                  <h6 className="mb-0 text-primary">
                     <Person className="me-2" />
                     My Request Details
                   </h6>
@@ -831,8 +918,8 @@ const CCTvRequest = () => {
                   <Row className="mb-3">
                     <Col md={6}>
                       <Form.Group>
-                        <Form.Label>
-                          <CalendarIcon className="me-2" />
+                        <Form.Label className="fw-semibold">
+                          <CalendarIcon className="me-2 text-primary" />
                           Date
                         </Form.Label>
                         <Form.Control
@@ -841,13 +928,14 @@ const CCTvRequest = () => {
                           value={formData.MySelfDate}
                           onChange={handleInputChange}
                           required
+                          className="border-primary"
                         />
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group>
-                        <Form.Label>
-                          <Clock className="me-2" />
+                        <Form.Label className="fw-semibold">
+                          <Clock className="me-2 text-primary" />
                           Time
                         </Form.Label>
                         <Form.Control
@@ -856,6 +944,7 @@ const CCTvRequest = () => {
                           value={formData.MySelfTime}
                           onChange={handleInputChange}
                           required
+                          className="border-primary"
                         />
                       </Form.Group>
                     </Col>
@@ -868,8 +957,8 @@ const CCTvRequest = () => {
                   )}
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
-                      <InfoCircle className="me-2" />
+                    <Form.Label className="fw-semibold">
+                      <InfoCircle className="me-2 text-primary" />
                       Reason for Viewing
                     </Form.Label>
                     <Form.Control
@@ -880,6 +969,7 @@ const CCTvRequest = () => {
                       onChange={handleInputChange}
                       placeholder="Describe the reason for viewing CCTV footage"
                       required
+                      className="border-primary"
                     />
                   </Form.Group>
 
@@ -898,17 +988,17 @@ const CCTvRequest = () => {
             )}
 
             {formData.ForOthers && (
-              <Card className="mb-3">
+              <Card className="mb-4 border-0 shadow-sm">
                 <Card.Header className="bg-light">
-                  <h6 className="mb-0">
+                  <h6 className="mb-0 text-primary">
                     <Person className="me-2" />
                     Others Request Details
                   </h6>
                 </Card.Header>
                 <Card.Body>
                   <Form.Group className="mb-3">
-                    <Form.Label>
-                      <Person className="me-2" />
+                    <Form.Label className="fw-semibold">
+                      <Person className="me-2 text-primary" />
                       Name
                     </Form.Label>
                     <Form.Control
@@ -918,14 +1008,15 @@ const CCTvRequest = () => {
                       onChange={handleInputChange}
                       placeholder="Enter person's name"
                       required
+                      className="border-primary"
                     />
                   </Form.Group>
 
                   <Row className="mb-3">
                     <Col md={6}>
                       <Form.Group>
-                        <Form.Label>
-                          <CalendarIcon className="me-2" />
+                        <Form.Label className="fw-semibold">
+                          <CalendarIcon className="me-2 text-primary" />
                           Date
                         </Form.Label>
                         <Form.Control
@@ -934,13 +1025,14 @@ const CCTvRequest = () => {
                           value={formData.ForOthersDate}
                           onChange={handleInputChange}
                           required
+                          className="border-primary"
                         />
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group>
-                        <Form.Label>
-                          <Clock className="me-2" />
+                        <Form.Label className="fw-semibold">
+                          <Clock className="me-2 text-primary" />
                           Time
                         </Form.Label>
                         <Form.Control
@@ -949,6 +1041,7 @@ const CCTvRequest = () => {
                           value={formData.ForOthersTime}
                           onChange={handleInputChange}
                           required
+                          className="border-primary"
                         />
                       </Form.Group>
                     </Col>
@@ -961,8 +1054,8 @@ const CCTvRequest = () => {
                   )}
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
-                      <InfoCircle className="me-2" />
+                    <Form.Label className="fw-semibold">
+                      <InfoCircle className="me-2 text-primary" />
                       Reason for Viewing
                     </Form.Label>
                     <Form.Control
@@ -973,6 +1066,7 @@ const CCTvRequest = () => {
                       onChange={handleInputChange}
                       placeholder="Describe the reason for viewing CCTV footage"
                       required
+                      className="border-primary"
                     />
                   </Form.Group>
 
@@ -991,8 +1085,8 @@ const CCTvRequest = () => {
             )}
 
             <Form.Group className="mb-4">
-              <Form.Label>
-                <InfoCircle className="me-2" />
+              <Form.Label className="fw-semibold">
+                <InfoCircle className="me-2 text-primary" />
                 Remarks
               </Form.Label>
               <Form.Control
@@ -1002,18 +1096,20 @@ const CCTvRequest = () => {
                 value={formData.Remarks}
                 onChange={handleInputChange}
                 placeholder="Any additional remarks"
+                className="border-primary"
               />
             </Form.Group>
 
             <Form.Group className="mb-4">
-              <Form.Label>
-                <InfoCircle className="me-2" />
+              <Form.Label className="fw-semibold">
+                <InfoCircle className="me-2 text-primary" />
                 Status
               </Form.Label>
               <Form.Select
                 name="Status"
                 value={formData.Status}
                 onChange={handleInputChange}
+                className="border-primary"
               >
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
@@ -1022,7 +1118,7 @@ const CCTvRequest = () => {
             </Form.Group>
 
             <div className="d-grid gap-2">
-              <Button variant="primary" type="submit" disabled={loading}>
+              <Button variant="primary" type="submit" disabled={loading} size="lg" className="py-2">
                 {loading ? (
                   <>
                     <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
@@ -1042,23 +1138,23 @@ const CCTvRequest = () => {
     );
   };
 
-    const renderUpdateModal = () => {
+  const renderUpdateModal = () => {
     if (!requestToUpdate) return null;
     
     return (
       <Modal show={showUpdateModal} onHide={() => setShowUpdateModal(false)} size="lg" centered>
-        <Modal.Header closeButton className="bg-light">
-          <Modal.Title>
-            <Pencil className="me-2" />
+        <Modal.Header closeButton className="bg-light border-0">
+          <Modal.Title className="text-primary">
+
             Update Request: {requestToUpdate.Title}
           </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleUpdateSubmit}>
           <Modal.Body>
             {/* Display all request details in read-only mode */}
-            <Card className="mb-3">
+            <Card className="mb-3 border-0 shadow-sm">
               <Card.Header className="bg-light">
-                <h6 className="mb-0">Request Details</h6>
+                <h6 className="mb-0 text-primary">Request Details</h6>
               </Card.Header>
               <Card.Body>
                 <Row>
@@ -1077,7 +1173,7 @@ const CCTvRequest = () => {
                 {requestToUpdate.ForMySelf && (
                   <>
                     <hr />
-                    <h6>My Request Details</h6>
+                    <h6 className="text-primary">My Request Details</h6>
                     <Row>
                       <Col md={6}>
                         <p><strong>Date:</strong> {requestToUpdate.MySelfDate}</p>
@@ -1095,7 +1191,7 @@ const CCTvRequest = () => {
                 {requestToUpdate.ForOthers && (
                   <>
                     <hr />
-                    <h6>Others Request Details</h6>
+                    <h6 className="text-primary">Others Request Details</h6>
                     <p><strong>Name:</strong> {requestToUpdate.ForOthersName}</p>
                     <Row>
                       <Col md={6}>
@@ -1115,8 +1211,8 @@ const CCTvRequest = () => {
 
             {/* Editable fields for Remarks and Status only */}
             <Form.Group className="mb-3">
-              <Form.Label>
-                <InfoCircle className="me-2" />
+              <Form.Label className="fw-semibold">
+                <InfoCircle className="me-2 text-primary" />
                 Remarks
               </Form.Label>
               <Form.Control
@@ -1126,18 +1222,20 @@ const CCTvRequest = () => {
                 value={updateFormData.Remarks}
                 onChange={handleUpdateInputChange}
                 placeholder="Update remarks"
+                className="border-primary"
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>
-                <InfoCircle className="me-2" />
+              <Form.Label className="fw-semibold">
+                <InfoCircle className="me-2 text-primary" />
                 Status
               </Form.Label>
               <Form.Select
                 name="Status"
                 value={updateFormData.Status}
                 onChange={handleUpdateInputChange}
+                className="border-primary"
               >
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
@@ -1145,8 +1243,8 @@ const CCTvRequest = () => {
               </Form.Select>
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowUpdateModal(false)}>
+          <Modal.Footer className="border-0">
+            <Button variant="outline-secondary" onClick={() => setShowUpdateModal(false)}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
@@ -1171,19 +1269,18 @@ const CCTvRequest = () => {
   const renderDeleteModal = () => {
     return (
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton className="bg-light">
-          <Modal.Title>
+        <Modal.Header closeButton className="bg-light border-0">
+          <Modal.Title className="text-danger">
             <Trash className="me-2" />
             Confirm Delete
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete the CCTV request for <strong>{requestToDelete?.Title}</strong>?
-          <br />
-          This action cannot be undone.
+          <p>Are you sure you want to delete the CCTV request for <strong className="text-primary">{requestToDelete?.Title}</strong>?</p>
+          <p className="text-muted">This action cannot be undone.</p>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={() => setShowDeleteModal(false)}>
             <X className="me-2" />
             Cancel
           </Button>
@@ -1215,15 +1312,15 @@ const CCTvRequest = () => {
         placement="end" 
         className="w-50"
       >
-        <Offcanvas.Header closeButton className="bg-light">
+        <Offcanvas.Header closeButton className="bg-light border-bottom">
           <Offcanvas.Title>
-            <h4 className="mb-0">
+            <h4 className="mb-0 text-primary">
               <Eye className="me-2" />
               CCTV Request Details
             </h4>
           </Offcanvas.Title>
         </Offcanvas.Header>
-        <Offcanvas.Body>
+        <Offcanvas.Body className="p-4">
           {renderRequestDetails(viewData)}
         </Offcanvas.Body>
       </Offcanvas>
@@ -1231,31 +1328,54 @@ const CCTvRequest = () => {
   };
 
   return (
-    <Container className="py-4">
+    <Container fluid className="py-4 bg-light min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>
-          <Eye className="me-2" />
-          CCTV Requests Management
-        </h2>
-        <Button variant="primary" onClick={() => setShowForm(true)}>
+        <div>
+          <h2 className="text-primary mb-1">
+            CCTV Requests Management
+          </h2>
+          <p className="text-muted">Manage and monitor all CCTV viewing requests</p>
+        </div>
+        <Button variant="primary" onClick={() => setShowForm(true)} className="d-flex align-items-center">
+          <PlusCircle className="me-2" />
           New Request
         </Button>
       </div>
 
-      {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
-      {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
+      {error && <Alert variant="danger" onClose={() => setError(null)} dismissible className="border-0 shadow-sm">{error}</Alert>}
+      {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible className="border-0 shadow-sm">{success}</Alert>}
 
-      <Card className="mb-4 shadow-sm">
-        <Card.Body>
+      <Card className="border-0 shadow-sm">
+        <Card.Body className="p-4">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h5 className="text-primary mb-0">Requests Overview</h5>
+            <div className="d-flex gap-2">
+              <div className="position-relative">
+                <Form.Control
+                  type="text"
+                  placeholder="Search requests..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="ps-5 border-primary"
+                />
+                <Search className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+              </div>
+              <Button variant="outline-primary" className="d-flex align-items-center">
+                <Filter className="me-2" />
+                Filter
+              </Button>
+            </div>
+          </div>
+
           <Tabs
             activeKey={activeTab}
             onSelect={(k) => setActiveTab(k)}
-            className="mb-3"
+            className="mb-4 border-0"
           >
-            <Tab eventKey="all" title="All Requests" />
-            <Tab eventKey="Pending" title="Pending" />
-            <Tab eventKey="Approved" title="Approved" />
-            <Tab eventKey="Rejected" title="Rejected" />
+            <Tab eventKey="all" title="All Requests" className="border-0" />
+            <Tab eventKey="Pending" title="Pending" className="border-0" />
+            <Tab eventKey="Approved" title="Approved" className="border-0" />
+            <Tab eventKey="Rejected" title="Rejected" className="border-0" />
           </Tabs>
 
           {renderTable()}

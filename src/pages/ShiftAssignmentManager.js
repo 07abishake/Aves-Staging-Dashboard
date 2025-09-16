@@ -554,7 +554,7 @@ const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate)
                                     </div>
                                     <div>
                                       <div className="fw-medium">{userShift.Name}</div>
-                                      <small className="text-muted">{userShift.Designation?.[0]?.Name || "N/A"}</small>
+                                      {/* <small className="text-muted">{userShift.Designation?.[0]?.Name || "N/A"}</small> */}
                                     </div>
                                   </div>
                                 </td>
