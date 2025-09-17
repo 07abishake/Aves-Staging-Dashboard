@@ -1084,7 +1084,7 @@ const CCTvRequest = () => {
               </Card>
             )}
 
-            <Form.Group className="mb-4">
+            {/* <Form.Group className="mb-4">
               <Form.Label className="fw-semibold">
                 <InfoCircle className="me-2 text-primary" />
                 Remarks
@@ -1098,9 +1098,9 @@ const CCTvRequest = () => {
                 placeholder="Any additional remarks"
                 className="border-primary"
               />
-            </Form.Group>
+            </Form.Group> */}
 
-            <Form.Group className="mb-4">
+            {/* <Form.Group className="mb-4">
               <Form.Label className="fw-semibold">
                 <InfoCircle className="me-2 text-primary" />
                 Status
@@ -1115,7 +1115,7 @@ const CCTvRequest = () => {
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
               </Form.Select>
-            </Form.Group>
+            </Form.Group> */}
 
             <div className="d-grid gap-2">
               <Button variant="primary" type="submit" disabled={loading} size="lg" className="py-2">
