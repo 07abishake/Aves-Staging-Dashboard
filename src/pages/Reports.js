@@ -411,7 +411,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
