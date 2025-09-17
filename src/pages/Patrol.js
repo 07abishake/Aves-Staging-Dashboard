@@ -473,39 +473,68 @@ function Patrol() {
     }
   };
 
+  // const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
+  //   if (!shiftStart || !shiftEnd) return timeOptions;
+
+  //   const now = new Date();
+  //   const currentHours = now.getHours();
+  //   const currentMinutes = now.getMinutes();
+  //   const currentTotalMinutes = currentHours * 60 + currentMinutes;
+
+  //   const convertToMinutes = (timeStr) => {
+  //     const [time, period] = timeStr.split(" ");
+  //     const [hours, minutes] = time.split(":").map(Number);
+  //     let total = hours * 60 + minutes;
+  //     if (period === "PM" && hours !== 12) total += 12 * 60;
+  //     if (period === "AM" && hours === 12) total -= 12 * 60;
+  //     return total;
+  //   };
+
+  //   const startMinutes = convertToMinutes(shiftStart);
+  //   const endMinutes = convertToMinutes(shiftEnd);
+
+  //   return timeOptions.filter((time) => {
+  //     const timeMinutes = convertToMinutes(time);
+
+  //     const isWithinShift =
+  //       startMinutes <= endMinutes
+  //         ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
+  //         : timeMinutes >= startMinutes || timeMinutes <= endMinutes; // for overnight
+
+  //     const isFuture = timeMinutes >= currentTotalMinutes;
+
+  //     return isWithinShift && isFuture;
+  //   });
+  // };
+
   const getFilteredTimeOptions = (shiftStart, shiftEnd) => {
-    if (!shiftStart || !shiftEnd) return timeOptions;
+  if (!shiftStart || !shiftEnd) return timeOptions;
 
-    const now = new Date();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+  const convertToMinutes = (timeStr) => {
+    const [time, period] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
 
-    const convertToMinutes = (timeStr) => {
-      const [time, period] = timeStr.split(" ");
-      const [hours, minutes] = time.split(":").map(Number);
-      let total = hours * 60 + minutes;
-      if (period === "PM" && hours !== 12) total += 12 * 60;
-      if (period === "AM" && hours === 12) total -= 12 * 60;
-      return total;
-    };
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
 
-    const startMinutes = convertToMinutes(shiftStart);
-    const endMinutes = convertToMinutes(shiftEnd);
-
-    return timeOptions.filter((time) => {
-      const timeMinutes = convertToMinutes(time);
-
-      const isWithinShift =
-        startMinutes <= endMinutes
-          ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
-          : timeMinutes >= startMinutes || timeMinutes <= endMinutes; // for overnight
-
-      const isFuture = timeMinutes >= currentTotalMinutes;
-
-      return isWithinShift && isFuture;
-    });
+    return hours * 60 + minutes;
   };
+
+  const startMinutes = convertToMinutes(shiftStart);
+  const endMinutes = convertToMinutes(shiftEnd);
+
+  return timeOptions.filter((time) => {
+    const timeMinutes = convertToMinutes(time);
+
+    // Check if time is within shift (handles overnight shifts)
+    const isWithinShift =
+      startMinutes <= endMinutes
+        ? timeMinutes >= startMinutes && timeMinutes <= endMinutes
+        : timeMinutes >= startMinutes || timeMinutes <= endMinutes;
+
+    return isWithinShift;
+  });
+};
 
   const hasOverlappingAssignments = (
     userId,
@@ -1226,22 +1255,22 @@ function Patrol() {
             >
               <option value="">-- Select Start Time --</option>
               {selectedUser &&
-              shiftAssignedUsers.find((u) => u.userId === selectedUser)
-                ? getFilteredTimeOptions(
-                    shiftAssignedUsers.find((u) => u.userId === selectedUser)
-                      .shiftTime.start,
-                    shiftAssignedUsers.find((u) => u.userId === selectedUser)
-                      .shiftTime.end
-                  ).map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))
-                : timeOptions.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
+shiftAssignedUsers.find((u) => u.userId === selectedUser)
+  ? getFilteredTimeOptions(
+      shiftAssignedUsers.find((u) => u.userId === selectedUser)
+        .shiftTime.start,
+      shiftAssignedUsers.find((u) => u.userId === selectedUser)
+        .shiftTime.end
+    ).map((time) => (
+      <option key={time} value={time}>
+        {time}
+      </option>
+    ))
+  : timeOptions.map((time) => (
+      <option key={time} value={time}>
+        {time}
+      </option>
+    ))}
             </select>
           </div>
 
