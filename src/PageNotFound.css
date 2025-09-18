@@ -1,0 +1,271 @@
+/* Security404.css */
+.security-404-container {
+  background: linear-gradient(135deg, #0c0e2a 0%, #1a1f4b 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+}
+
+/* Background elements */
+.background-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.floating-shield, .floating-lock, .floating-key {
+  position: absolute;
+  opacity: 0.1;
+  font-size: 10rem;
+  color: #00ffff;
+  animation: float 15s infinite ease-in-out;
+}
+
+.floating-shield {
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.floating-lock {
+  bottom: 15%;
+  right: 15%;
+  animation-delay: -5s;
+}
+
+.floating-key {
+  top: 40%;
+  right: 20%;
+  animation-delay: -10s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(5deg); }
+}
+
+.grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(0, 150, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 150, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+/* Security card */
+.security-card {
+  background: rgba(13, 18, 44, 0.9) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.security-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  z-index: -1;
+  background: linear-gradient(45deg, #0066ff, #00ccff, #0066ff);
+  border-radius: 16px;
+  animation: border-glow 3s linear infinite;
+}
+
+@keyframes border-glow {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+/* Security icon */
+.security-icon {
+  font-size: 5rem;
+  color: #00ccff;
+  text-shadow: 0 0 20px rgba(0, 204, 255, 0.7);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Text styles */
+.security-title {
+  font-weight: 700;
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.security-subtitle {
+  color: #a0a7e0;
+  line-height: 1.6;
+  font-size: 1.1rem;
+}
+
+/* Alert */
+.security-alert {
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  color: #ffc107;
+  border-radius: 8px;
+}
+
+/* Fingerprint scanner */
+.scan-section {
+  padding: 20px 0;
+}
+
+.fingerprint-scanner {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.scanner-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  border: 3px solid rgba(0, 150, 255, 0.5);
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.scanner-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, rgba(0, 255, 255, 0.7), transparent);
+  transition: height 0.1s linear;
+}
+
+.fingerprint-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 6rem;
+  color: rgba(255, 255, 255, 0.8);
+  z-index: 2;
+}
+
+.scan-progress {
+  margin-top: 20px;
+}
+
+.progress {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #0066ff, #00ccff);
+  transition: width 0.1s linear;
+}
+
+/* Buttons */
+.security-btn {
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.security-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: 0.5s;
+}
+
+.security-btn:hover::before {
+  left: 100%;
+}
+
+.security-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 150, 255, 0.4);
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #0066ff, #00ccff);
+  border: none;
+}
+
+.btn-outline-primary {
+  background: transparent;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+}
+
+.btn-outline-primary:hover {
+  background: #00ccff;
+  color: #0c0e2a;
+}
+
+/* Security code */
+.security-code {
+  color: #00ffcc;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+/* Scan button */
+.scan-btn {
+  border-radius: 30px;
+  padding: 10px 25px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .security-card {
+    margin: 20px;
+  }
+  
+  .security-title {
+    font-size: 1.8rem;
+  }
+  
+  .security-subtitle {
+    font-size: 1rem;
+  }
+  
+  .scanner-container {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .fingerprint-image {
+    font-size: 5rem;
+  }
+}
