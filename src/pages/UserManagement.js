@@ -62,6 +62,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   if (!token) {
     // window.location.href = "/login";
   }
+  console.log('Token Get',token)
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -411,7 +412,7 @@ const fetchLocations = async () => {
     if (selectedDepartment) formData.append('Department', selectedDepartment);
     if (selectedDesignation) formData.append('Designation', selectedDesignation);
     formData.append('EmployeeID', employeeId);
-    formData.append('EmailId', `${email}@${data?.domain}`);
+    formData.append('EmailId', `${email}@${data?.userDomain}`);
     if (workNumber) formData.append('WorkPhone', `+${workNumber}`);
     if (phoneNumber) formData.append('PersonalMobile', `+${phoneNumber}`);
     formData.append('Extension', extension);
@@ -867,7 +868,7 @@ const fetchLocations = async () => {
             autoComplete="new-email"
             name="new-email"
                   />
-                  <span className="input-group-text">@{data?.domain}</span>
+                  <span className="input-group-text">@{data?.userDomain}</span>
                 </div>
 
                 <div className="mb-3 d-flex">

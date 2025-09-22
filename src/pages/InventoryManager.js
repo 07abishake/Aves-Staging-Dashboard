@@ -63,64 +63,6 @@ const InventoryManager = () => {
   const generateUniqueKey = (baseId, suffix = '') => {
     return `${baseId}-${suffix}-${Math.random().toString(36).substr(2, 5)}`;
   };
-
-  // Fetch initial data
-  // useEffect(() => {
-  //   if (!token) {
-  //     return;
-  //   }
-
-  //   const fetchData = async () => {
-  //     setIsLoading(true);
-  //     try {
-  //       const [productsRes, locationsRes] = await Promise.all([
-  //         axios.get('https://api.avessecurity.com/api/AddProducts/products', {
-  //           headers: { Authorization: `Bearer ${token}` }
-  //         }),
-  //         axios.get('https://api.avessecurity.com/api/Location/getLocations', {
-  //           headers: { Authorization: `Bearer ${token}` }
-  //         })
-  //       ]);
-        
-  //       setProducts(productsRes.data?.Products || []);
-  //       setAllLocations(locationsRes.data?.Location || []);
-  //       setError(null);
-  //     } catch (err) {
-  //       setError('Failed to load initial data: ' + (err.response?.data?.message || err.message));
-  //     } finally {
-  //       setIsLoading(false);
-  //       setRefreshProducts(false);
-  //     }
-  //   };
-    
-  //   fetchData();
-  // }, [token, refreshProducts]);
-
-  // // Auto-refresh for inventory view
-  // useEffect(() => {
-  //   if (currentItem && refreshInventory) {
-  //     fetchInventoryByProduct(currentItem._id);
-  //   }
-  // }, [refreshInventory]);
-
-  // // Auto-refresh for location stock view
-  // useEffect(() => {
-  //   if (selectedLocation && refreshLocationStock) {
-  //     fetchLocationStock(selectedLocation.id);
-  //   }
-  // }, [refreshLocationStock]);
-
-  // // Reset alerts after 5 seconds
-  // useEffect(() => {
-  //   if (error || success) {
-  //     const timer = setTimeout(() => {
-  //       setError(null);
-  //       setSuccess(null);
-  //     }, 5000);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [error, success]);
-
 useEffect(() => {
   if (!token) {
     return;
@@ -178,74 +120,6 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }
 }, [error, success]);
-
-  // Fetch inventory by product
-  // const fetchInventoryByProduct = async (productId) => {
-  //   console.log(`Fetching inventory for product ${productId}`)
-  //   setIsLoading(true);
-  //   try {
-  //     const { data } = await axios.get(
-  //       `https://api.avessecurity.com/api/inventory/product/${productId}`,
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-
-  //     // Handle both array and object responses
-  //     if (Array.isArray(data?.data)) {
-  //       setInventory(data.data);
-  //     } else if (data?.data) {
-  //       setInventory([data.data]);
-  //     } else {
-  //       setInventory([]);
-  //     }
-
-  //     setCurrentItem(products.find(p => p._id === productId));
-  //     setShowInventoryView(true);
-  //     setError(null);
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || 'Failed to fetch inventory');
-  //     setInventory([]);
-  //   } finally {
-  //     setIsLoading(false);
-  //     setRefreshInventory(false);
-  //   }
-  // };
-
-
-  // Fetch inventory by product
-// const fetchInventoryByProduct = async (productId) => {
-//   console.log(`Fetching inventory for product ${productId}`)
-//   setIsLoading(true);
-//   try {
-//     const { data } = await axios.get(
-//       `https://api.avessecurity.com/api/inventory/product/${productId}`,
-//       { headers: { Authorization: `Bearer ${token}` } }
-//     );
-
-//     // Handle the response format correctly
-//     if (data.success && data.data) {
-//       // If the data is an object (single inventory item), wrap it in an array
-//       if (Array.isArray(data.data)) {
-//         setInventory(data.data);
-//       } else {
-//         setInventory([data.data]);
-//       }
-//     } else {
-//       setInventory([]);
-//     }
-
-//     setCurrentItem(products.find(p => p._id === productId));
-//     setShowInventoryView(true);
-//     setError(null);
-//   } catch (err) {
-//     setError(err.response?.data?.message || 'Failed to fetch inventory');
-//     setInventory([]);
-//   } finally {
-//     setIsLoading(false);
-//     setRefreshInventory(false);
-//   }
-// }; 
-
-
 // Fetch inventory by product
 const fetchInventoryByProduct = async (productId) => {
   console.log(`Fetching inventory for product ${productId}`);
@@ -396,31 +270,6 @@ const fetchInventoryByProduct = async (productId) => {
     }
     return null;
   };
-
-  // Handle add stock
-  // const handleAddStock = async (e) => {
-  //   e.preventDefault();
-  //   setIsLoading(true);
-  //   try {
-  //     await axios.post(
-  //       'https://api.avessecurity.com/api/inventory/add-stock',
-  //       addStockForm,
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-  //     setSuccess('Stock added successfully');
-  //     setShowAddStock(false);
-  //     setAddStockForm({ productId: '', locationId: '', quantity: 0 });
-      
-  //     setRefreshProducts(true);
-  //     setRefreshInventory(true);
-  //     setRefreshLocationStock(true);
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || 'Failed to add stock');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
 const handleAddStock = async (e) => {
   e.preventDefault();
   setIsLoading(true);
@@ -452,31 +301,6 @@ const handleAddStock = async (e) => {
     setIsLoading(false);
   }
 };
-
-  // Handle remove stock
-  // const handleRemoveStock = async (e) => {
-  //   e.preventDefault();
-  //   setIsLoading(true);
-  //   try {
-  //     await axios.post(
-  //       'https://api.avessecurity.com/api/inventory/remove-stock',
-  //       removeStockForm,
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-  //     setSuccess('Stock removed successfully');
-  //     setShowRemoveStock(false);
-  //     setRemoveStockForm({ productId: '', locationId: '', quantity: 0 });
-      
-  //     setRefreshProducts(true);
-  //     setRefreshInventory(true);
-  //     setRefreshLocationStock(true);
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || 'Failed to remove stock');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
   const handleRemoveStock = async (e) => {
   e.preventDefault();
   setIsLoading(true);
@@ -508,36 +332,6 @@ const handleAddStock = async (e) => {
     setIsLoading(false);
   }
 };
-
-  // Handle transfer stock
-  // const handleTransferStock = async (e) => {
-  //   e.preventDefault();
-  //   setIsLoading(true);
-  //   try {
-  //     await axios.post(
-  //       'https://api.avessecurity.com/api/inventory/transfer-stock',
-  //       transferForm,
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-  //     setSuccess('Stock transferred successfully');
-  //     setShowTransferStock(false);
-  //     setTransferForm({
-  //       productId: '',
-  //       fromLocationId: '',
-  //       toLocationId: '',
-  //       quantity: 0
-  //     });
-      
-  //     setRefreshProducts(true);
-  //     setRefreshInventory(true);
-  //     setRefreshLocationStock(true);
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || 'Failed to transfer stock');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
   const handleTransferStock = async (e) => {
   e.preventDefault();
   setIsLoading(true);
@@ -700,66 +494,6 @@ const getFlattenedLocations = () => {
       </Table>
     );
   };
-
-  // Render the stock view for a selected location
-  // const renderLocationStock = () => {
-  //   if (isLoading) {
-  //     return (
-  //       <div className="text-center py-5">
-  //         <Spinner animation="border" role="status">
-  //           <span className="visually-hidden">Loading...</span>
-  //         </Spinner>
-  //       </div>
-  //     );
-  //   }
-
-  //   if (!Array.isArray(locationStock) || locationStock.length === 0) {
-  //     return <Alert variant="info">No stock found in this location</Alert>;
-  //   }
-
-  //   return (
-  //     <Table striped hover responsive>
-  //       <thead>
-  //         <tr>
-  //           <th>Product</th>
-  //           <th>Category</th>
-  //           <th>Type</th>
-  //           <th>Item Code</th>
-  //           <th>Total Stock</th>
-  //           <th>In Use</th>
-  //           <th>Reserved</th>
-  //           <th>Available</th>
-  //           <th>Last Updated</th>
-  //         </tr>
-  //       </thead>
-  //       <tbody>
-  //         {locationStock.map((item, index) => (
-  //           <tr key={generateUniqueKey(item._id, `stock-${index}`)}>
-  //             <td>
-  //               <strong>{item.product?.ItemName || 'Unknown'}</strong>
-  //               <div className="text-muted small">{item.product?.Description || ''}</div>
-  //             </td>
-  //             <td>{item.product?.Category || 'N/A'}</td>
-  //             <td>{item.product?.Type || 'N/A'}</td>
-  //             <td>{item.product?.ItemCode || 'N/A'}</td>
-  //             <td>{item.status?.[0]?.totalStock || 0}</td>
-  //             <td>{item.status?.[0]?.inUse || 0}</td>
-  //             <td>{item.status?.[0]?.reserved || 0}</td>
-  //             <td>{item.status?.[0]?.available || 0}</td>
-  //             <td>
-  //               {item.status?.[0]?.lastUpdated ? 
-  //                 new Date(item.status[0].lastUpdated).toLocaleString() : 
-  //                 'N/A'}
-  //             </td>
-  //           </tr>
-  //         ))}
-  //       </tbody>
-  //     </Table>
-  //   );
-  // };
-
-
-  // Render the stock view for a selected location
 const renderLocationStock = () => {
   if (isLoading) {
     return (
@@ -833,61 +567,6 @@ const renderLocationStock = () => {
     </Table>
   );
 };
-
-  // Render product table
-  // const renderProductTable = () => {
-  //   if (isLoading && products.length === 0) {
-  //     return (
-  //       <div className="text-center py-5">
-  //         <Spinner animation="border" role="status">
-  //           <span className="visually-hidden">Loading...</span>
-  //         </Spinner>
-  //       </div>
-  //     );
-  //   }
-
-  //   if (products.length === 0) {
-  //     return <Alert variant="info">No products found</Alert>;
-  //   }
-
-  //   return (
-  //     <Table striped hover responsive>
-  //       <thead>
-  //         <tr>
-  //           <th>Item Code</th>
-  //           <th>Item Name</th>
-  //           <th>Category</th>
-  //           <th>Type</th>
-  //           <th>Description</th>
-  //           <th>Actions</th>
-  //         </tr>
-  //       </thead>
-  //       <tbody>
-  //         {products.map((product) => (
-  //           <tr key={generateUniqueKey(product._id, 'product')}>
-  //             <td>{product.ItemCode}</td>
-  //             <td>
-  //               <strong>{product.ItemName}</strong>
-  //             </td>
-  //             <td>{product.Category}</td>
-  //             <td>{product.Type}</td>
-  //             <td className="text-muted small">{product.Description}</td>
-  //             <td>
-  //               <Button 
-  //                 variant="outline-primary" 
-  //                 size="sm" 
-  //                 onClick={() => fetchInventoryByProduct(product._id)}
-  //               >
-  //                 View Inventory
-  //               </Button>
-  //             </td>
-  //           </tr>
-  //         ))}
-  //       </tbody>
-  //     </Table>
-  //   );
-  // };
-
 
   // Render product table
 const renderProductTable = () => {

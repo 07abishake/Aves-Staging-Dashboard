@@ -6,7 +6,6 @@ function Sidebar() {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [orgMenuOpen, setOrgMenuOpen] = useState(false);
     const [inventoryMenuOpen, setInventoryMenuOpen] = useState(false);
-    const [locationMenuOpen, setLocationMenuOpen] = useState(false);
     const [adminMenuOpen, setAdminMenuOpen] = useState(false);
     
    
@@ -42,23 +41,27 @@ function Sidebar() {
                             </div>
                             {userMenuOpen && (
                                 <ul className="nav flex-column ms-4">
-                                    <li className="nav-item">
-                                        <NavLink to="/users" className="nav-link">Users</NavLink>
+                                         <li className="nav-item">
+                                        <NavLink to="/designation" className="nav-link">Designation</NavLink>
                                     </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/teams" className="nav-link">Teams</NavLink>
-                                    </li>
-                                    <li className="nav-item">
+                                       <li className="nav-item">
                                         <NavLink to="/department" className="nav-link">Department</NavLink>
                                     </li>
+                                      <li className="nav-item">
+                                        <NavLink to="/teams" className="nav-link">Teams</NavLink>
+                                    </li>
+                                     <li className="nav-item">
+                                        <NavLink to="/location" className="nav-link">Location</NavLink>
+                                    </li>
+                                      <li className="nav-item">
+                                        <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
+                                    </li>
                                     <li className="nav-item">
-                                        <NavLink to="/designation" className="nav-link">Designation</NavLink>
+                                        <NavLink to="/users" className="nav-link">Users</NavLink>
                                     </li>
                                 </ul>
                             )}
                         </li>
-                
-
                     {/* Inventory Menu */}
                         <li className="nav-item">
                             <div 
@@ -111,31 +114,6 @@ function Sidebar() {
                         </li>
 
                     {/* Location Menu */}
-                  
-                        <li className="nav-item">
-                            <div 
-                                className="nav-link d-flex justify-content-between align-items-center" 
-                                onClick={() => setLocationMenuOpen(!locationMenuOpen)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <span>
-                                    <i className="bi bi-geo-alt me-2"></i>
-                                    Location
-                                </span>
-                                <i className={`bi ${locationMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
-                            </div>
-                            {locationMenuOpen && (
-                                <ul className="nav flex-column ms-4">
-                                    <li className="nav-item">
-                                        <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/location" className="nav-link">Location</NavLink>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
-                
 
                     {/* Admin Menu */}
                  

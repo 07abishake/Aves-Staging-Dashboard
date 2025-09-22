@@ -155,7 +155,7 @@ function Teams() {
             
             // Update the selected designation with new users
             const updatedTeamResponse = await axios.get(
-                `https://api.avessecurity.com/api/firebase/getTeam/${selectedDesignation._id}`,
+                `https://api.avessecurity.com/api/firebase/getTeamNew/${selectedDesignation._id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             

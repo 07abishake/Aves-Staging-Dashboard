@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Modal, Button, Form, Table, Card, Badge, Spinner, Alert, Image } from 'react-bootstrap';
+import { Modal, Button, Form, Table, Card, Badge, Spinner, Alert, Image, Row, Col } from 'react-bootstrap';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const ProductManager = () => {
   // State declarations
@@ -12,6 +14,12 @@ const ProductManager = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [imagePreview, setImagePreview] = useState([]);
+  const [duplicateProducts, setDuplicateProducts] = useState([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [updateExisting, setUpdateExisting] = useState(false);
+  const [expiryDate, setExpiryDate] = useState(null);
+  const [hasExpiry, setHasExpiry] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -22,43 +30,44 @@ const ProductManager = () => {
     Description: '',
     AddQuntity: 0,
     MinimumStockLevel: 0,
-    ProductImage: []
+    ProductImage: [],
+    ExpiryDate: null
   });
 
   // Get token from localStorage
   const token = localStorage.getItem("access_token");
 
   // Fetch products function
- const fetchProducts = async () => {
-  setIsLoading(true);
-  try {
-    const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    
-    const productsData = response.data?.Products || [];
-    
-    // Ensure ProductImage is an array and construct full URLs
-    const processedProducts = productsData.map(product => ({
-      ...product,
-      ProductImage: Array.isArray(product.ProductImage) 
-        ? product.ProductImage.map(img => 
-            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`)
-        : []
-    }));
-    
-    setProducts(processedProducts);
-    setError(null);
-  } catch (err) {
-    console.error('Fetch error:', err);
-    setError(err.response?.data?.message || err.message || 'Failed to fetch products');
-    setProducts([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      const productsData = response.data?.Products || [];
+      
+      // Ensure ProductImage is an array and construct full URLs
+      const processedProducts = productsData.map(product => ({
+        ...product,
+        ProductImage: Array.isArray(product.ProductImage) 
+          ? product.ProductImage.map(img => 
+              img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`)
+          : []
+      }));
+      
+      setProducts(processedProducts);
+      setError(null);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to fetch products');
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // useEffect for initial data loading
   useEffect(() => {
@@ -67,12 +76,41 @@ const ProductManager = () => {
       return;
     }
     fetchProducts();
-  }, [token]); // Added token to dependency array
+  }, [token]);
+
+  // Check for duplicates
+  const checkForDuplicates = async (itemName) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:6378/api/AddProducts/products/check-duplicate?itemName=${encodeURIComponent(itemName)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.data.duplicates && response.data.duplicates.length > 0) {
+        setDuplicateProducts(response.data.duplicates);
+        setShowDuplicateModal(true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Duplicate check error:', err);
+      return false;
+    }
+  };
 
   // Handle input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Check for duplicates when ItemName changes
+    if (name === 'ItemName' && value.trim() !== '') {
+      checkForDuplicates(value);
+    }
   };
 
   // Handle image upload
@@ -93,32 +131,44 @@ const ProductManager = () => {
       Description: '',
       AddQuntity: 0,
       MinimumStockLevel: 0,
-      ProductImage: []
+      ProductImage: [],
+      ExpiryDate: null
     });
     setImagePreview([]);
     setCurrentProduct(null);
+    setUpdateExisting(false);
+    setHasExpiry(false);
+    setExpiryDate(null);
+    setIsDuplicate(false);
+    setDuplicateProducts([]);
   };
 
   // Open form for editing
- const openEditForm = (product) => {
-  setCurrentProduct(product);
-  setFormData({
-    ItemName: product.ItemName || '',
-    Category: product.Category || '',
-    Type: product.Type || '',
-    BrandModel: product.BrandModel || '',
-    Description: product.Description || '',
-    AddQuntity: product.AddQuntity || 0,
-    MinimumStockLevel: product.MinimumStockLevel || 0,
-    ProductImage: [] // This is correct for new uploads, but keep existing images for display
-  });
-  // Set image previews from existing product images
-  setImagePreview(
-    product.ProductImage?.map(img => 
-      img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
-  );
-  setShowFormModal(true);
-};
+  const openEditForm = (product) => {
+    setCurrentProduct(product);
+    setFormData({
+      ItemName: product.ItemName || '',
+      Category: product.Category || '',
+      Type: product.Type || '',
+      BrandModel: product.BrandModel || '',
+      Description: product.Description || '',
+      AddQuntity: product.AddQuntity || 0,
+      MinimumStockLevel: product.MinimumStockLevel || 0,
+      ProductImage: [],
+      ExpiryDate: product.ExpiryDate || null
+    });
+    
+    // Set expiry state
+    setHasExpiry(!!product.ExpiryDate);
+    setExpiryDate(product.ExpiryDate ? new Date(product.ExpiryDate) : null);
+    
+    // Set image previews from existing product images
+    setImagePreview(
+      product.ProductImage?.map(img => 
+        img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
+    );
+    setShowFormModal(true);
+  };
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -128,14 +178,65 @@ const ProductManager = () => {
     setSuccess(null);
     
     try {
+      // If updating an existing product with duplicate handling
+      if (updateExisting && duplicateProducts.length > 0) {
+        // Update the first duplicate (you might want to let the user choose which one)
+        const productToUpdate = duplicateProducts[0];
+        const updatedQuantity = parseInt(productToUpdate.AddQuntity || 0) + parseInt(formData.AddQuntity || 0);
+        
+        const updateData = {
+          ...formData,
+          AddQuntity: updatedQuantity,
+          ExpiryDate: hasExpiry ? expiryDate : null
+        };
+        
+        const formDataToSend = new FormData();
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (key !== 'ProductImage' && value !== null) {
+            formDataToSend.append(key, value);
+          }
+        });
+        
+        // Append each image file
+        if (formData.ProductImage && formData.ProductImage.length > 0) {
+          formData.ProductImage.forEach(file => {
+            formDataToSend.append('ProductImage', file);
+          });
+        }
+        
+        const response = await axios.put(
+          `https://api.avessecurity.com/api/AddProducts/products/update/${productToUpdate._id}`,
+          formDataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+        
+        setSuccess('Product quantity updated successfully');
+        setShowFormModal(false);
+        setShowDuplicateModal(false);
+        resetForm();
+        fetchProducts();
+        return;
+      }
+      
+      // Regular create/update flow
       const formDataToSend = new FormData();
       
       // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'ProductImage') {
+        if (key !== 'ProductImage' && value !== null) {
           formDataToSend.append(key, value);
         }
       });
+      
+      // Add expiry date if applicable
+      if (hasExpiry && expiryDate) {
+        formDataToSend.append('ExpiryDate', expiryDate.toISOString());
+      }
       
       // Append each image file
       if (formData.ProductImage && formData.ProductImage.length > 0) {
@@ -161,7 +262,7 @@ const ProductManager = () => {
       } else {
         // Create new product
         response = await axios.post(
-          'https://api.avessecurity.com/api/AddProducts/products/create',
+          'http://localhost:6378/AddProducts/products/create',
           formDataToSend,
           {
             headers: {
@@ -207,6 +308,7 @@ const ProductManager = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="container-fluid py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -237,6 +339,7 @@ const ProductManager = () => {
                     <th>Category</th>
                     <th>Type</th>
                     <th>Quantity</th>
+                    <th>Expiry Date</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -252,6 +355,7 @@ const ProductManager = () => {
                         <td>{product.Category || 'N/A'}</td>
                         <td>{product.Type || 'N/A'}</td>
                         <td>{product.AddQuntity || 0}</td>
+                        <td>{product.ExpiryDate ? new Date(product.ExpiryDate).toLocaleDateString() : 'N/A'}</td>
                         <td>
                           <Badge bg={product.isActive ? 'success' : 'secondary'}>
                             {product.isActive ? 'Active' : 'Inactive'}
@@ -277,7 +381,7 @@ const ProductManager = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center">No products found</td>
+                      <td colSpan="8" className="text-center">No products found</td>
                     </tr>
                   )}
                 </tbody>
@@ -395,6 +499,32 @@ const ProductManager = () => {
                 </Form.Group>
               </div>
               
+              <div className="col-md-6">
+                <Form.Group controlId="hasExpiry">
+                  <Form.Check
+                    type="checkbox"
+                    label="Product has expiry date"
+                    checked={hasExpiry}
+                    onChange={(e) => setHasExpiry(e.target.checked)}
+                  />
+                </Form.Group>
+              </div>
+              
+              {hasExpiry && (
+                <div className="col-md-6">
+                  <Form.Group controlId="expiryDate">
+                    <Form.Label>Expiry Date</Form.Label>
+                    <DatePicker
+                      selected={expiryDate}
+                      onChange={date => setExpiryDate(date)}
+                      dateFormat="MMMM d, yyyy"
+                      className="form-control"
+                      minDate={new Date()}
+                    />
+                  </Form.Group>
+                </div>
+              )}
+              
               {(imagePreview.length > 0 || (currentProduct?.ProductImage?.length > 0)) && (
                 <div className="col-12">
                   <div className="d-flex flex-wrap gap-2 mt-2">
@@ -442,7 +572,70 @@ const ProductManager = () => {
         </Form>
       </Modal>
 
-    {/* Product View Modal */}
+      {/* Duplicate Products Modal */}
+      <Modal show={showDuplicateModal} onHide={() => setShowDuplicateModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Duplicate Products Found</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Products with the same name already exist. Would you like to update an existing product instead?</p>
+          
+          <Form.Check
+            type="checkbox"
+            label="Yes, update existing product quantity"
+            checked={updateExisting}
+            onChange={(e) => setUpdateExisting(e.target.checked)}
+            className="mb-3"
+          />
+          
+          {updateExisting && (
+            <div>
+              <p>Select product to Map:</p>
+              <Form.Select 
+                onChange={(e) => {
+                  const selectedProduct = duplicateProducts.find(p => p._id === e.target.value);
+                  if (selectedProduct) {
+                    setFormData(prev => ({
+                      ...prev,
+                      Category: selectedProduct.Category || '',
+                      Type: selectedProduct.Type || '',
+                      BrandModel: selectedProduct.BrandModel || '',
+                      Description: selectedProduct.Description || '',
+                      MinimumStockLevel: selectedProduct.MinimumStockLevel || 0
+                    }));
+                  }
+                }}
+              >
+                <option value="">Select a product</option>
+                {duplicateProducts.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.ItemName} (Qty: {product.AddQuntity || 0})
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDuplicateModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={() => {
+            setShowDuplicateModal(false);
+            if (updateExisting) {
+              // We'll handle the update in the submit function
+              setShowFormModal(true);
+            } else {
+              // Continue with creating a new product
+              setShowFormModal(true);
+            }
+          }}>
+            Continue
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Product View Modal */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>Product Details</Modal.Title>
@@ -498,6 +691,11 @@ const ProductManager = () => {
                       <p className="mb-1"><strong>Quantity:</strong> {currentProduct.AddQuntity || 0}</p>
                     </div>
                   </div>
+                  {currentProduct.ExpiryDate && (
+                    <p className="mb-1">
+                      <strong>Expiry Date:</strong> {new Date(currentProduct.ExpiryDate).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="mb-3">

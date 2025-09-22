@@ -53,6 +53,7 @@ function Reports() {
         // Set company name from domain in token
         if (decodedToken.domain) {
           setCompanyName(decodedToken.domain);
+          console.log(decodedToken.domain);
         }
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -411,7 +412,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://api.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
