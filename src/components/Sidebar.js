@@ -59,6 +59,12 @@ function Sidebar() {
                                     <li className="nav-item">
                                         <NavLink to="/users" className="nav-link">Users</NavLink>
                                     </li>
+                                      <li className="nav-item">
+                            <NavLink to="/permissions" className="nav-link">
+                                {/* <i className="bi bi-shield-lock me-2"></i> */}
+                                Permissions
+                            </NavLink>
+                        </li>
                                 </ul>
                             )}
                         </li>
@@ -106,9 +112,9 @@ function Sidebar() {
                                     <li className="nav-item">
                                         <NavLink to="/organization" className="nav-link">Company Info</NavLink>
                                     </li>
-                                    {/* <li className="nav-item">
-                                        <NavLink to="/organisation-chart" className="nav-link">Organization Chart</NavLink>
-                                    </li> */}
+                                    <li className="nav-item">
+                                        <NavLink to="/organisation-chart" className="nav-link">Sub-Organisation</NavLink>
+                                    </li>
                                 </ul>
                             )}
                         </li>
@@ -208,12 +214,7 @@ function Sidebar() {
                         </li>
                     {/* Other Menu Items */}
                  
-                        <li className="nav-item">
-                            <NavLink to="/permissions" className="nav-link">
-                                <i className="bi bi-shield-lock me-2"></i>
-                                Permissions
-                            </NavLink>
-                        </li>
+                      
                     
                         <li className="nav-item">
                             <NavLink to="/reports" className="nav-link">
