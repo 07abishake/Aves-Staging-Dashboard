@@ -1,185 +1,604 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { Spinner } from 'react-bootstrap';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import {
+  Form,
+  Button,
+  Alert,
+  Card,
+  Row,
+  Col,
+  ProgressBar,
+  Badge,
+  Tooltip,
+  OverlayTrigger,
+  InputGroup,
+  Spinner,
+  Modal,
+  ListGroup,
+} from "react-bootstrap";
+import { jwtDecode } from "jwt-decode";
+import {
+  Eye,
+  EyeSlash,
+  ShieldCheck,
+  Building,
+  InfoCircle,
+  CheckCircle,
+  XCircle,
+  ArrowLeft
+} from "react-bootstrap-icons";
 
-const OrganizationView = () => {
-  const [departments, setDepartments] = useState([]);
-  const [designations, setDesignations] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const CreateSubOrganization = () => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmpassword: "",
+    subDomain: "", // ✅ user only types "hr"
+  });
+  const [parentDomain, setParentDomain] = useState(""); // e.g., "kdr.in.org"
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [domainAvailable, setDomainAvailable] = useState(null);
+  const [checkingDomain, setCheckingDomain] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [step, setStep] = useState(1);
 
-  const BASE_URL = 'https://api.avessecurity.com/api';
-  const token = localStorage.getItem('access_token');
+  const navigate = useNavigate();
 
+  // Password strength criteria
+  const passwordCriteria = {
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false,
+  };
+
+  const [criteria, setCriteria] = useState(passwordCriteria);
+
+  // ✅ Get parent domain from token
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
     if (!token) {
-      window.location.href = '/login';
+      setError("Authentication token is missing. Please log in again.");
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded?.userDomain) {
+        setParentDomain(decoded.userDomain);
+      } else {
+        setError("Parent domain not found in token.");
+      }
+    } catch (err) {
+      setError("Invalid authentication token.");
+    }
+  }, []);
+
+  // ✅ Check domain availability
+  useEffect(() => {
+    const checkDomainAvailability = async () => {
+      if (!formData.subDomain || !isValidSubDomain(formData.subDomain)) {
+        setDomainAvailable(null);
+        return;
+      }
+
+      setCheckingDomain(true);
+      try {
+        // Simulate API call to check domain availability
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setDomainAvailable(Math.random() > 0.3); // Simulate availability
+      } catch (error) {
+        setDomainAvailable(null);
+      } finally {
+        setCheckingDomain(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(checkDomainAvailability, 800);
+    return () => clearTimeout(debounceTimer);
+  }, [formData.subDomain]);
+
+  // ✅ Password strength check
+  useEffect(() => {
+    if (!formData.password) {
+      setPasswordStrength(0);
+      setCriteria(passwordCriteria);
       return;
     }
 
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const config = {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        };
+    const newCriteria = {
+      length: formData.password.length >= 8,
+      uppercase: /[A-Z]/.test(formData.password),
+      lowercase: /[a-z]/.test(formData.password),
+      number: /[0-9]/.test(formData.password),
+      special: /[^A-Za-z0-9]/.test(formData.password),
+    };
 
-        const [deptRes, desigRes, roleRes] = await Promise.all([
-          axios.get(`${BASE_URL}/Department/getAll`, config),
-          axios.get(`${BASE_URL}/Designation/getDataDesignation`, config),
-          axios.get(`${BASE_URL}/Roles/getRole`, config)
-        ]);
+    setCriteria(newCriteria);
 
-        // Handle department data
-        const deptData = Array.isArray(deptRes.data?.data) ? deptRes.data.data : 
-                        Array.isArray(deptRes.data) ? deptRes.data : [];
-        setDepartments(deptData);
+    const strength = Object.values(newCriteria).filter(Boolean).length;
+    setPasswordStrength((strength / 5) * 100);
+  }, [formData.password]);
 
-        // Handle designation data
-        const desigData = Array.isArray(desigRes.data?.Designation) ? desigRes.data.Designation : 
-                         Array.isArray(desigRes.data) ? desigRes.data : [];
-        setDesignations(desigData);
+  // ✅ Subdomain validation
+  const isValidSubDomain = (sub) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sub);
 
-        // Handle role data
-        const roleData = Array.isArray(roleRes.data?.data) ? roleRes.data.data : 
-                        Array.isArray(roleRes.data) ? roleRes.data : [];
-        setRoles(roleData);
+  // ✅ Get password strength color
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength < 40) return "danger";
+    if (passwordStrength < 70) return "warning";
+    return "success";
+  };
 
-      } catch (error) {
-        console.error('Error loading organization data:', error);
-        setError(error.message);
-        if (error.response?.status === 401) {
-          window.location.href = '/login';
-        }
-      } finally {
-        setLoading(false);
-      }
+  // ✅ Build payload
+  const buildPayload = () => {
+    const fullDomain = `${formData.subDomain}.${parentDomain}`;
+    return {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      confirmPassword: formData.confirmpassword,
+      domain: fullDomain, // ✅ hr.kdr.in.org
+      parentDomain: parentDomain, // ✅ kdr.in.org
+    };
+  };
+
+  // ✅ Handle input change
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (validationErrors[name]) {
+      setValidationErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // ✅ Validate form
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name.trim()) errors.name = "Name is required.";
+    
+    if (!formData.email.trim()) {
+      errors.email = "Email is required.";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Enter a valid email address.";
     }
 
-    fetchData();
-  }, [token]);
+    if (!formData.password) {
+      errors.password = "Password is required.";
+    } else if (passwordStrength < 40) {
+      errors.password = "Password is too weak. Please strengthen it.";
+    }
 
-  // Function to get top-level departments (without parent)
-  const getTopLevelDepartments = () => {
-    return departments.filter(dept => !dept.parentDepartment || !dept.parentDepartment._id);
+    if (!formData.confirmpassword) {
+      errors.confirmpassword = "Please confirm your password.";
+    } else if (formData.password !== formData.confirmpassword) {
+      errors.confirmpassword = "Passwords do not match.";
+    }
+
+    if (!formData.subDomain) {
+      errors.subDomain = "Subdomain is required.";
+    } else if (!isValidSubDomain(formData.subDomain)) {
+      errors.subDomain = "Subdomain must be lowercase alphanumeric, with optional hyphens.";
+    } else if (domainAvailable === false) {
+      errors.subDomain = "This subdomain is not available.";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  // Function to get child departments
-  const getChildDepartments = (parentId) => {
-    return departments.filter(dept => 
-      dept.parentDepartment && dept.parentDepartment._id === parentId
-    );
+  // ✅ Handle submit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (!validateForm()) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("Authentication token is missing.");
+
+      const payload = buildPayload();
+      console.log("Sending payload:", payload);
+      
+      const res = await axios.post(
+        "http://localhost:3393/api/oraganisation/create-Sub",
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccess(res.data.message || "Sub-organization created successfully.");
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        confirmpassword: "",
+        subDomain: "",
+      });
+
+      setTimeout(() => navigate("/organizations"), 2000);
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Something went wrong. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Function to get designations by department
-  const getDesignationsByDepartment = (deptId) => {
-    if (!Array.isArray(designations)) return [];
-    return designations.filter(desig => 
-      desig.departmentId === deptId || 
-      (desig.department && desig.department._id === deptId)
-    );
-  };
+  const renderTooltip = (text) => (
+    <Tooltip>{text}</Tooltip>
+  );
 
-  // Function to get roles by designation
-  const getRolesByDesignation = (desigId) => {
-    if (!Array.isArray(roles)) return [];
-    return roles.filter(role => 
-      role.designationId === desigId || 
-      (role.designation && role.designation._id === desigId)
-    );
-  };
-
-  // Recursive component to render department hierarchy
-  const DepartmentCard = ({ department, level = 0 }) => {
-    const childDepartments = getChildDepartments(department._id);
-    const deptDesignations = getDesignationsByDepartment(department._id);
-
-    return (
-      <div className={`mb-3 ${level > 0 ? 'ms-4' : ''}`}>
-        <div className="card">
-          <div className={`card-header ${level === 0 ? 'bg-primary text-white' : 'bg-light'}`}>
-            <h5 className="card-title m-0">
-              {department.name}
-              {department.leadName && (
-                <small className="d-block">Lead: {department.leadName.username}</small>
-              )}
-            </h5>
-          </div>
-          <div className="card-body">
-            {deptDesignations.length > 0 ? (
-              deptDesignations.map(desig => (
-                <div key={desig._id} className="mb-2">
-                  <div className="d-flex align-items-center">
-                    <strong className="me-2">{desig.Name || desig.DesignationName}</strong>
-                    {desig.AssignUsers && desig.AssignUsers.length > 0 && (
-                      <span className="badge bg-secondary">
-                        {desig.AssignUsers.length} user(s)
-                      </span>
-                    )}
-                  </div>
-                  <ul className="list-unstyled ms-3">
-                    {getRolesByDesignation(desig._id).map(role => (
-                      <li key={role._id}>• {role.RoleName}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted">No designations</p>
-            )}
-          </div>
-        </div>
-
-        {childDepartments.length > 0 && (
-          <div className="mt-3">
-            {childDepartments.map(childDept => (
-              <DepartmentCard 
-                key={childDept._id} 
-                department={childDept} 
-                level={level + 1} 
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="alert alert-danger">
-        Error loading organization data: {error}
-      </div>
-    );
-  }
+  const PasswordCriteriaItem = ({ met, text }) => (
+    <div className="d-flex align-items-center mb-1">
+      {met ? (
+        <CheckCircle size={14} className="text-success me-2" />
+      ) : (
+        <XCircle size={14} className="text-danger me-2" />
+      )}
+      <small className={met ? "text-success" : "text-muted"}>{text}</small>
+    </div>
+  );
 
   return (
-    <div className="container py-5">
-      <h2 className="text-center mb-4">Organization Chart</h2>
-      
-      {getTopLevelDepartments().length > 0 ? (
-        getTopLevelDepartments().map(dept => (
-          <DepartmentCard key={dept._id} department={dept} />
-        ))
-      ) : (
-        <div className="alert alert-info">No departments found</div>
-      )}
+    <div className="container-fluid py-4">
+      <Row className="justify-content-center">
+        <Col xl={8} lg={10} md={12}>
+          <Card className="shadow-lg border-0">
+            <Card.Header className="bg-primary text-white py-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <Button 
+                    variant="outline-light" 
+                    size="sm" 
+                    onClick={() => navigate("/organizations")}
+                    className="me-3"
+                  >
+                    <ArrowLeft size={16} className="me-1" />
+                    Back
+                  </Button>
+                  <h4 className="mb-0">
+                    <Building className="me-2" />
+                    Create Sub-Organization
+                  </h4>
+                  <small className="opacity-75">
+                    Set up a new sub-organization under {parentDomain || "your domain"}
+                  </small>
+                </div>
+                <Badge bg="light" text="dark" className="fs-6">
+                  Step {step} of 3
+                </Badge>
+              </div>
+            </Card.Header>
+
+            <Card.Body className="p-4">
+              {/* Progress Bar */}
+              <ProgressBar 
+                now={(step / 3) * 100} 
+                className="mb-4" 
+                style={{ height: "6px" }}
+              />
+
+              {error && (
+                <Alert variant="danger" dismissible onClose={() => setError("")}>
+                  <XCircle className="me-2" />
+                  {error}
+                </Alert>
+              )}
+              
+              {success && (
+                <Alert variant="success" dismissible onClose={() => setSuccess("")}>
+                  <CheckCircle className="me-2" />
+                  {success}
+                </Alert>
+              )}
+
+              <Form onSubmit={handleSubmit}>
+                <Row>
+                  <Col md={6}>
+                    {/* Parent Domain */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">
+                        Parent Domain
+                        <OverlayTrigger
+                          placement="top"
+                          overlay={renderTooltip("This is your main organization domain")}
+                        >
+                          <InfoCircle size={14} className="ms-1 text-muted" />
+                        </OverlayTrigger>
+                      </Form.Label>
+                      <InputGroup>
+                        <InputGroup.Text>
+                          <ShieldCheck />
+                        </InputGroup.Text>
+                        <Form.Control 
+                          type="text" 
+                          value={parentDomain || "Loading..."} 
+                          readOnly 
+                          className="bg-light"
+                        />
+                      </InputGroup>
+                    </Form.Group>
+
+                    {/* Name */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">Full Name *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="name"
+                        placeholder="Enter administrator's full name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        isInvalid={!!validationErrors.name}
+                        className="py-2"
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {validationErrors.name}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+
+                    {/* Email */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">Email Address *</Form.Label>
+                      <Form.Control
+                        type="email"
+                        name="email"
+                        placeholder="Enter administrator's email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        isInvalid={!!validationErrors.email}
+                        className="py-2"
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {validationErrors.email}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={6}>
+                    {/* Subdomain */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">
+                        Subdomain *
+                        <OverlayTrigger
+                          placement="top"
+                          overlay={renderTooltip("This will be part of your sub-organization URL")}
+                        >
+                          <InfoCircle size={14} className="ms-1 text-muted" />
+                        </OverlayTrigger>
+                      </Form.Label>
+                      <InputGroup>
+                        <Form.Control
+                          type="text"
+                          name="subDomain"
+                          placeholder="e.g., hr, sales, marketing"
+                          value={formData.subDomain}
+                          onChange={handleChange}
+                          isInvalid={!!validationErrors.subDomain}
+                          className="py-2"
+                        />
+                        <InputGroup.Text className="bg-light">.{parentDomain}</InputGroup.Text>
+                      </InputGroup>
+                      
+                      {formData.subDomain && (
+                        <div className="mt-2">
+                          {checkingDomain ? (
+                            <small className="text-warning">
+                              <Spinner animation="border" size="sm" className="me-1" />
+                              Checking availability...
+                            </small>
+                          ) : domainAvailable === true ? (
+                            <small className="text-success">
+                              <CheckCircle size={14} className="me-1" />
+                              Subdomain is available!
+                            </small>
+                          ) : domainAvailable === false ? (
+                            <small className="text-danger">
+                              <XCircle size={14} className="me-1" />
+                              Subdomain is not available
+                            </small>
+                          ) : null}
+                        </div>
+                      )}
+                      
+                      <Form.Control.Feedback type="invalid">
+                        {validationErrors.subDomain}
+                      </Form.Control.Feedback>
+                      
+                      {formData.subDomain && isValidSubDomain(formData.subDomain) && (
+                        <small className="text-muted">
+                          Full domain: <strong>{formData.subDomain}.{parentDomain}</strong>
+                        </small>
+                      )}
+                    </Form.Group>
+
+                    {/* Password */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">Password *</Form.Label>
+                      <InputGroup>
+                        <Form.Control
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          placeholder="Create a strong password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          isInvalid={!!validationErrors.password}
+                          className="py-2"
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeSlash /> : <Eye />}
+                        </Button>
+                      </InputGroup>
+                      
+                      {formData.password && (
+                        <div className="mt-2">
+                          <ProgressBar 
+                            now={passwordStrength} 
+                            variant={getPasswordStrengthColor()}
+                            className="mb-2"
+                            style={{ height: "4px" }}
+                          />
+                          <div className="row">
+                            <div className="col-6">
+                              <PasswordCriteriaItem 
+                                met={criteria.length} 
+                                text="8+ characters" 
+                              />
+                              <PasswordCriteriaItem 
+                                met={criteria.uppercase} 
+                                text="Uppercase letter" 
+                              />
+                              <PasswordCriteriaItem 
+                                met={criteria.lowercase} 
+                                text="Lowercase letter" 
+                              />
+                            </div>
+                            <div className="col-6">
+                              <PasswordCriteriaItem 
+                                met={criteria.number} 
+                                text="Number" 
+                              />
+                              <PasswordCriteriaItem 
+                                met={criteria.special} 
+                                text="Special character" 
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <Form.Control.Feedback type="invalid">
+                        {validationErrors.password}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+
+                    {/* Confirm Password */}
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-semibold">Confirm Password *</Form.Label>
+                      <InputGroup>
+                        <Form.Control
+                          type={showConfirmPassword ? "text" : "password"}
+                          name="confirmpassword"
+                          placeholder="Confirm your password"
+                          value={formData.confirmpassword}
+                          onChange={handleChange}
+                          isInvalid={!!validationErrors.confirmpassword}
+                          className="py-2"
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? <EyeSlash /> : <Eye />}
+                        </Button>
+                      </InputGroup>
+                      <Form.Control.Feedback type="invalid">
+                        {validationErrors.confirmpassword}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowPreview(true)}
+                    disabled={loading}
+                  >
+                    Preview
+                  </Button>
+                  
+                  <div>
+                    <Button
+                      variant="outline-secondary"
+                      className="me-2"
+                      onClick={() => navigate("/organizations")}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      type="submit"
+                      disabled={loading || !parentDomain}
+                      className="px-4"
+                    >
+                      {loading ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="me-2" />
+                          Create Sub-Organization
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Preview Modal */}
+      <Modal show={showPreview} onHide={() => setShowPreview(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <Building className="me-2" />
+            Sub-Organization Preview
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ListGroup variant="flush">
+            <ListGroup.Item>
+              <strong>Parent Domain:</strong> {parentDomain}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Subdomain:</strong> {formData.subDomain || "Not set"}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Full Domain:</strong> {formData.subDomain ? `${formData.subDomain}.${parentDomain}` : "Not set"}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Administrator Name:</strong> {formData.name || "Not set"}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Administrator Email:</strong> {formData.email || "Not set"}
+            </ListGroup.Item>
+          </ListGroup>
+        
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowPreview(false)}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleSubmit}>
+            Confirm Creation
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
 
-export default OrganizationView;
+export default CreateSubOrganization;
