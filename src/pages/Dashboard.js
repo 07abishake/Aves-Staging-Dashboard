@@ -424,7 +424,7 @@ function Dashboard() {
   animate={{ opacity: 1 }}
   transition={{ duration: 0.5, delay: 0.4 }}
 >
-  <div className="d-flex align-items-center justify-content-between mb-3">
+  {/* <div className="d-flex align-items-center justify-content-between mb-3">
     <h4 className="mb-0">User Status</h4>
     <div className="d-flex align-items-center">
       <label htmlFor="userFilter" className="form-label me-2 mb-0">Filter:</label>
@@ -446,83 +446,7 @@ function Dashboard() {
         <option value="offline">Offline Only</option>
       </select>
     </div>
-  </div>
-
-  <motion.div
-    className="card border-0 shadow-sm"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay: 0.5 }}
-  >
-    <div className="card-body p-0">
-      <div className="table-responsive">
-        <table className="table table-hover mb-0">
-          <thead className="bg-light">
-            <tr>
-              <th className="ps-4" style={{ width: '30%' }}>User Name</th>
-              <th>Status</th>
-              <th>Activity</th>
-              {/* <th className="pe-4 text-end">Details</th> */}
-            </tr>
-          </thead>
-          <tbody>
-            {(filter === 'all' ? 
-              [...userStats.onlineUsers, ...userStats.offlineUsers] :
-              filter === 'online' ? 
-              userStats.onlineUsers : 
-              userStats.offlineUsers
-            ).map((user, idx) => {
-              const isOnline = userStats.onlineUsers.some(u => u._id === user._id);
-              const statusColor = isOnline ? 'success' : 'danger';
-              const statusText = isOnline ? 'Online' : 'Offline';
-              const lastSeen = isOnline ? 'Active now' : 'Last seen recently';
-
-              return (
-                <motion.tr 
-                  key={user._id} 
-                  className="position-relative"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  whileHover={{ 
-                    backgroundColor: 'rgba(0,0,0,0.02)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  <td className="ps-4 fw-semibold">
-                    <div className="d-flex align-items-center">
-                      <div 
-                        className="me-3 rounded-circle d-flex align-items-center justify-content-center"
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          backgroundColor: `hsl(${idx * 60}, 70%, 90%)`,
-                          color: `hsl(${idx * 60}, 70%, 30%)`
-                        }}
-                      >
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                      {user.username}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`badge bg-${statusColor}-subtle text-${statusColor}`}>
-                      {statusText}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="text-muted small">
-                      {lastSeen}
-                    </div>
-                  </td>
-                </motion.tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </motion.div>
+  </div> */}
 </motion.div>
      </div>
   );
