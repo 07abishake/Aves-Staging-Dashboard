@@ -343,7 +343,7 @@ function Permissions() {
             <div className="offcanvas-body p-2">
               <form style={{ height: '500px' }} onSubmit={hanleSubmit}>
                 <div className="mb-3">
-                  <label className="form-label">Role Name</label>
+                  <label className="form-label">Title</label>
                   <input
                     className="form-control"
                     onChange={(e) => setRoleName(e.target.value)}

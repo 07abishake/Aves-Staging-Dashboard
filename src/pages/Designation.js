@@ -340,7 +340,7 @@ function Designation() {
                     <div className="offcanvas-body p-2">
                         <form onSubmit={handleSubmit}>
                             <div className='d-flex mb-3 justify-content-between'>
-                                <label className="form-label me-2 mb-0 mt-1 ">Name</label>
+                                <label className="form-label me-2 mb-0 mt-1 ">Title</label>
                                 <input
                                     type="text"
                                     className="form-control "
