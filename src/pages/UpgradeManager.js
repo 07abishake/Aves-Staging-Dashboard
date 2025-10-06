@@ -16,7 +16,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
     const fetchDepartments = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/Department/getAll', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -128,7 +128,7 @@ const UpgradeManager = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.get('https://api.avessecurity.com/api/upgrade/get', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/upgrade/get', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -137,9 +137,9 @@ const UpgradeManager = () => {
         const processedUpgrades = res.data.Upgrade.map(upgrade => ({
           ...upgrade,
           PictureOfTheNewproduct: upgrade.PictureOfTheNewproduct?.map(img => 
-            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || [],
+            img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`) || [],
           PictureOfTheExistingProduct: upgrade.PictureOfTheExistingProduct?.map(img => 
-            img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
+            img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`) || []
         }));
         setUpgrades(processedUpgrades);
       } else {
@@ -171,15 +171,15 @@ const UpgradeManager = () => {
       
       // For existing images, store them with their URLs and paths
       setNewProductImages(upgrade.PictureOfTheNewproduct?.map(img => ({
-        url: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`,
-        path: img.startsWith('http') ? img.replace('https://api.avessecurity.com/', '') : img,
-        preview: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`
+        url: img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img}`,
+        path: img.startsWith('http') ? img.replace('https://codeaves.avessecurity.com/', '') : img,
+        preview: img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img}`
       })) || []);
         
       setExistingProductImages(upgrade.PictureOfTheExistingProduct?.map(img => ({
-        url: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`,
-        path: img.startsWith('http') ? img.replace('https://api.avessecurity.com/', '') : img,
-        preview: img.startsWith('http') ? img : `https://api.avessecurity.com/uploads/${img}`
+        url: img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img}`,
+        path: img.startsWith('http') ? img.replace('https://codeaves.avessecurity.com/', '') : img,
+        preview: img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img}`
       })) || []);
     } else {
       setEditMode(false);
@@ -280,11 +280,11 @@ const UpgradeManager = () => {
 //     };
 
 //     if (editMode) {
-//       await axios.put(`https://api.avessecurity.com/api/upgrade/update/${currentId}`, payload, {
+//       await axios.put(`https://codeaves.avessecurity.com/api/upgrade/update/${currentId}`, payload, {
 //         headers: { Authorization: `Bearer ${token}` }
 //       });
 //     } else {
-//       await axios.post('https://api.avessecurity.com/api/upgrade/create', payload, {
+//       await axios.post('https://codeaves.avessecurity.com/api/upgrade/create', payload, {
 //         headers: { Authorization: `Bearer ${token}` }
 //       });
 //     }
@@ -322,7 +322,7 @@ const handleSubmit = async (e) => {
         formDataToSend.append('PictureOfTheNewproduct', img.file);
       } else {
         // For existing images that weren't changed, send the path
-        formDataToSend.append('existingNewProductImages', img.path || img.url.replace('https://api.avessecurity.com/', ''));
+        formDataToSend.append('existingNewProductImages', img.path || img.url.replace('https://codeaves.avessecurity.com/', ''));
       }
     });
     
@@ -332,7 +332,7 @@ const handleSubmit = async (e) => {
         formDataToSend.append('PictureOfTheExistingProduct', img.file);
       } else {
         // For existing images that weren't changed, send the path
-        formDataToSend.append('existingProductImages', img.path || img.url.replace('https://api.avessecurity.com/uploads/', ''));
+        formDataToSend.append('existingProductImages', img.path || img.url.replace('https://codeaves.avessecurity.com/uploads/', ''));
       }
     });
     
@@ -353,7 +353,7 @@ const handleSubmit = async (e) => {
       );
     } else {
       await axios.post(
-        'https://api.avessecurity.com/api/upgrade/create',
+        'https://codeaves.avessecurity.com/api/upgrade/create',
         formDataToSend,
         {
           headers: { 
@@ -383,7 +383,7 @@ const confirmDelete = (id) => {
   const handleDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`https://api.avessecurity.com/api/upgrade/delete/${deleteId}`, {
+      await axios.delete(`https://codeaves.avessecurity.com/api/upgrade/delete/${deleteId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchUpgrades();
@@ -550,12 +550,12 @@ const confirmDelete = (id) => {
       {currentUpgrade.PictureOfTheNewproduct.map((img, index) => (
         <a 
           key={index} 
-          href={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+          href={img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`} 
           target="_blank" 
           rel="noopener noreferrer"
         >
           <Image 
-            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+            src={img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`} 
             thumbnail 
             style={{ width: '100px', height: '100px', objectFit: 'cover' }} 
           />
@@ -572,12 +572,12 @@ const confirmDelete = (id) => {
       {currentUpgrade.PictureOfTheExistingProduct.map((img, index) => (
         <a 
           key={index} 
-          href={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+          href={img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`} 
           target="_blank" 
           rel="noopener noreferrer"
         >
           <Image 
-            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`} 
+            src={img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`} 
             thumbnail 
             style={{ width: '100px', height: '100px', objectFit: 'cover' }} 
           />

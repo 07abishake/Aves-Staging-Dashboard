@@ -63,7 +63,7 @@ const OshaInvite = () => {
     const fetchDepartments = async () => {
         try {
             const response = await axios.get(
-                'https://api.avessecurity.com/api/Department/getAll',
+                'https://codeaves.avessecurity.com/api/Department/getAll',
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -95,7 +95,7 @@ const OshaInvite = () => {
         if (!query) return;
         try {
             const response = await axios.get(
-                `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+                `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -127,7 +127,7 @@ const OshaInvite = () => {
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const res = await axios.get('https://api.avessecurity.com/api/oshaminutes/get', {
+            const res = await axios.get('https://codeaves.avessecurity.com/api/oshaminutes/get', {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setData(res.data?.OshaMinutes || []);
@@ -138,7 +138,7 @@ const OshaInvite = () => {
 
     const deleteOSha = async () => {
         try {
-            const res = await axios.delete(`https://api.avessecurity.com/api/oshaminutes/delete/${meetingToDelete}`, {
+            const res = await axios.delete(`https://codeaves.avessecurity.com/api/oshaminutes/delete/${meetingToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowDeleteModal(false);
@@ -151,7 +151,7 @@ const OshaInvite = () => {
     const fetchLocations = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const res = await axios.get("https://api.avessecurity.com/api/Location/getLocations", {
+            const res = await axios.get("https://codeaves.avessecurity.com/api/Location/getLocations", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setLocations(res.data?.Location || []);
@@ -176,7 +176,7 @@ const OshaInvite = () => {
                 ...form,
                 Venue: selectedLocation
             };
-            await axios.post('https://api.avessecurity.com/api/oshaminutes/create', payload, {
+            await axios.post('https://codeaves.avessecurity.com/api/oshaminutes/create', payload, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowCreate(false);
@@ -200,7 +200,7 @@ const OshaInvite = () => {
                 ...form,
                 Venue: selectedLocation
             };
-            await axios.put(`https://api.avessecurity.com/api/oshaminutes/update/${editId}`, payload, {
+            await axios.put(`https://codeaves.avessecurity.com/api/oshaminutes/update/${editId}`, payload, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setShowEdit(false);
@@ -310,7 +310,7 @@ const OshaInvite = () => {
     const handleFollowUpSubmit = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const url = `https://api.avessecurity.com/api/oshaminutes/create/${viewData._id}/${followUpType}`;
+            const url = `https://codeaves.avessecurity.com/api/oshaminutes/create/${viewData._id}/${followUpType}`;
 
             await axios.post(url, followUpForm, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -335,7 +335,7 @@ const OshaInvite = () => {
             const token = localStorage.getItem('access_token');
             const { type, meetingId, itemId, remarks, closeItem } = currentRemarks;
             
-            const url = `https://api.avessecurity.com/api/oshaminutes/update/${meetingId}/${type}/${itemId}`;
+            const url = `https://codeaves.avessecurity.com/api/oshaminutes/update/${meetingId}/${type}/${itemId}`;
             
             const updateData = { 
                 Remarks: remarks,
@@ -1009,7 +1009,7 @@ const formatVenue = (venue) => {
                                 const token = localStorage.getItem("access_token");
 
                                 await axios.post(
-                                    `https://api.avessecurity.com/api/oshaminutes/Osha/AddParticipant/${selectedMeetingId}`,
+                                    `https://codeaves.avessecurity.com/api/oshaminutes/Osha/AddParticipant/${selectedMeetingId}`,
                                     { _id: selectedParticipants },
                                     { headers: { Authorization: `Bearer ${token}` } }
                                 );
@@ -1077,7 +1077,7 @@ const formatVenue = (venue) => {
                             try {
                                 const token = localStorage.getItem("access_token");
                                 await axios.put(
-                                    `https://api.avessecurity.com/api/oshaminutes/SendMail/${emailMeetingId}`,
+                                    `https://codeaves.avessecurity.com/api/oshaminutes/SendMail/${emailMeetingId}`,
                                     { EmailId: emailList },
                                     { headers: { Authorization: `Bearer ${token}` } }
                                 );

@@ -68,7 +68,7 @@ const PropertyPolices = () => {
   // Fetch policies
   const fetchPolicies = async () => {
     try {
-      const response = await axios.get('https://api.avessecurity.com/api/hotelPolicy/get', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/hotelPolicy/get', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -90,7 +90,7 @@ const PropertyPolices = () => {
         ...policy,
         UploadDoc: Array.isArray(policy.UploadDoc) 
           ? policy.UploadDoc.map(doc => 
-              doc.startsWith('http') ? doc : `https://api.avessecurity.com/${doc}`)
+              doc.startsWith('http') ? doc : `https://codeaves.avessecurity.com/${doc}`)
           : []
       }));
 
@@ -104,7 +104,7 @@ const PropertyPolices = () => {
   // Fetch teams
   const fetchTeams = async () => {
     try {
-      const response = await axios.get('https://api.avessecurity.com/api/firebase/get/TeamNamedropdown', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/firebase/get/TeamNamedropdown', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -118,7 +118,7 @@ const PropertyPolices = () => {
   // Fetch departments
   const fetchDepartments = async () => {
     try {
-      const response = await axios.get("https://api.avessecurity.com/api/Department/getAll", {
+      const response = await axios.get("https://codeaves.avessecurity.com/api/Department/getAll", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDepartments(response.data || []);
@@ -210,7 +210,7 @@ const PropertyPolices = () => {
       }
 
       const response = await axios.post(
-        'https://api.avessecurity.com/api/hotelPolicy/create', 
+        'https://codeaves.avessecurity.com/api/hotelPolicy/create', 
         formDataToSend,
         {
           headers: {
@@ -229,7 +229,7 @@ const PropertyPolices = () => {
           message: formData.Policy
         };
         await axios.post(
-          'https://api.avessecurity.com/api/firebase/Send-Notification-toTeam', 
+          'https://codeaves.avessecurity.com/api/firebase/Send-Notification-toTeam', 
           notificationData,
           {
             headers: {
@@ -302,7 +302,7 @@ const PropertyPolices = () => {
       }
 
       await axios.put(
-        `https://api.avessecurity.com/api/hotelPolicy/update/${selectedPolicy._id}`, 
+        `https://codeaves.avessecurity.com/api/hotelPolicy/update/${selectedPolicy._id}`, 
         formDataToSend,
         {
           headers: {
@@ -330,7 +330,7 @@ const PropertyPolices = () => {
       setError(null);
       
       await axios.delete(
-        `https://api.avessecurity.com/api/hotelPolicy/delete/${selectedPolicy._id}`,
+        `https://codeaves.avessecurity.com/api/hotelPolicy/delete/${selectedPolicy._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

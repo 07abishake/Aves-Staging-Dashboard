@@ -50,7 +50,7 @@ function LocationManager() {
         try {
             setIsLoading(true);
             const token = localStorage.getItem('access_token');
-            const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+            const { data } = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setLocations(Array.isArray(data?.Location) ? data.Location : []);
@@ -154,7 +154,7 @@ const openFormCanvas = (location = null) => {
 
         try {
             const token = localStorage.getItem('access_token');
-            await axios.delete(`https://api.avessecurity.com/api/Location/deleteLocation/${locationId}`, {
+            await axios.delete(`https://codeaves.avessecurity.com/api/Location/deleteLocation/${locationId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             alert("Location deleted successfully");
@@ -200,7 +200,7 @@ const handleSubmit = async (e) => {
         }]
       };
       
-      url = `https://api.avessecurity.com/api/Location/updateLocation/${editId}`;
+      url = `https://codeaves.avessecurity.com/api/Location/updateLocation/${editId}`;
     } else {
       // Payload for creating (flat structure)
       payload = {
@@ -227,7 +227,7 @@ const handleSubmit = async (e) => {
         delete payload.SecondaryLocations;
       }
       
-      url = 'https://api.avessecurity.com/api/Location/createLocation';
+      url = 'https://codeaves.avessecurity.com/api/Location/createLocation';
     }
     
     console.log('Sending payload:', JSON.stringify(payload, null, 2)); // For debugging

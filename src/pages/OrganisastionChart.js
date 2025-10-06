@@ -214,7 +214,7 @@ const CreateSubOrganization = () => {
       console.log("Sending payload:", payload);
       
       const res = await axios.post(
-        "http://localhost:3393/api/oraganisation/create-Sub",
+        "https://codeaves.avessecurity.com/api/oraganisation/create-Sub",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

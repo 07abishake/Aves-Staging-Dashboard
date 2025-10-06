@@ -40,7 +40,7 @@ const InventoryStatus = () => {
 
   const fetchInventoryStatus = async () => {
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/inventory/status',
+      const res = await axios.get('https://codeaves.avessecurity.com/api/inventory/status',
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -58,7 +58,7 @@ const InventoryStatus = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/inventory/products', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/inventory/products', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -83,7 +83,7 @@ const InventoryStatus = () => {
     
     setIsLoading(true);
     try {
-      const res = await axios.get(`https://api.avessecurity.com/api/inventory/search/${query}`, {
+      const res = await axios.get(`https://codeaves.avessecurity.com/api/inventory/search/${query}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -199,14 +199,14 @@ const handleItemSelect = (selectedOption) => {
       };
 
       if (editId) {
-        await axios.put(`https://api.avessecurity.com/api/inventory/status/${editId}`, payload, {
+        await axios.put(`https://codeaves.avessecurity.com/api/inventory/status/${editId}`, payload, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         setSuccess('Inventory updated successfully!');
       } else {
-        await axios.post('https://api.avessecurity.com/api/inventory/status', payload, {
+        await axios.post('https://codeaves.avessecurity.com/api/inventory/status', payload, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -229,7 +229,7 @@ const handleItemSelect = (selectedOption) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this inventory record?')) {
       try {
-        await axios.delete(`https://api.avessecurity.com/api/inventory/status/${id}`, {
+        await axios.delete(`https://codeaves.avessecurity.com/api/inventory/status/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

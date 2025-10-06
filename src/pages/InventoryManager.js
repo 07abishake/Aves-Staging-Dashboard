@@ -72,10 +72,10 @@ useEffect(() => {
     setIsLoading(true);
     try {
       const [productsRes, locationsRes] = await Promise.all([
-        axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+        axios.get('https://codeaves.avessecurity.com/api/AddProducts/products', {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+        axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -126,7 +126,7 @@ const fetchInventoryByProduct = async (productId) => {
   setIsLoading(true);
   try {
     const { data } = await axios.get(
-      `https://api.avessecurity.com/api/inventory/product/${productId}`,
+      `https://codeaves.avessecurity.com/api/inventory/product/${productId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
@@ -177,7 +177,7 @@ const fetchInventoryByProduct = async (productId) => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/inventory/location/${locationId}`,
+        `https://codeaves.avessecurity.com/api/inventory/location/${locationId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -275,7 +275,7 @@ const handleAddStock = async (e) => {
   setIsLoading(true);
   try {
     await axios.post(
-      'https://api.avessecurity.com/api/inventory/add-stock',
+      'https://codeaves.avessecurity.com/api/inventory/add-stock',
       addStockForm,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -306,7 +306,7 @@ const handleAddStock = async (e) => {
   setIsLoading(true);
   try {
     await axios.post(
-      'https://api.avessecurity.com/api/inventory/remove-stock',
+      'https://codeaves.avessecurity.com/api/inventory/remove-stock',
       removeStockForm,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -337,7 +337,7 @@ const handleAddStock = async (e) => {
   setIsLoading(true);
   try {
     await axios.post(
-      'https://api.avessecurity.com/api/inventory/transfer-stock',
+      'https://codeaves.avessecurity.com/api/inventory/transfer-stock',
       transferForm,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -528,7 +528,7 @@ const renderLocationStock = () => {
       <tbody>
         {locationStock.map((item, index) => {
           const imageUrl = item.product?.ProductImage?.[0] 
-            ? `https://api.avessecurity.com/${item.product.ProductImage[0]}`
+            ? `https://codeaves.avessecurity.com/${item.product.ProductImage[0]}`
             : null;
             
           return (
@@ -600,7 +600,7 @@ const renderProductTable = () => {
       <tbody>
         {products.map((product) => {
           const imageUrl = product.ProductImage?.[0] 
-            ? `https://api.avessecurity.com/${product.ProductImage[0]}`
+            ? `https://codeaves.avessecurity.com/${product.ProductImage[0]}`
             : null;
             
           return (
@@ -659,7 +659,7 @@ const renderProductInventory = () => {
         {currentItem?.ProductImage?.[0] && (
           <div className="text-center mb-3">
             <img 
-              src={`https://api.avessecurity.com/${currentItem.ProductImage[0]}`} 
+              src={`https://codeaves.avessecurity.com/${currentItem.ProductImage[0]}`} 
               alt={currentItem.ItemName} 
               style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain' }}
               className="img-thumbnail"
@@ -674,7 +674,7 @@ const renderProductInventory = () => {
   }
 
   const imageUrl = currentItem?.ProductImage?.[0] 
-    ? `https://api.avessecurity.com/${currentItem.ProductImage[0]}`
+    ? `https://codeaves.avessecurity.com/${currentItem.ProductImage[0]}`
     : null;
 
   return (

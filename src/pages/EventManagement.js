@@ -14,7 +14,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
 
-const API_BASE_URL = 'https://api.avessecurity.com/api/event';
+const API_BASE_URL = 'https://codeaves.avessecurity.com/api/event';
 const token = localStorage.getItem("access_token");
 
 // Department Dropdown Component
@@ -26,7 +26,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/Department/getAll', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setDepartments(response.data);
@@ -87,7 +87,7 @@ const LocationDropdown = ({ value, onChange }) => {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+        const { data } = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const nested = data?.Location || [];
@@ -298,7 +298,7 @@ const EventInchargeDropdown = ({ value, onChange }) => {
       setLoading(true);
       setError(null);
       const response = await axios.get(
-        `https://api.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
@@ -383,7 +383,7 @@ const EventInchargeDropdown = ({ value, onChange }) => {
 // Event Service Functions
 const fetchEvents = async () => {
   try {
-    const response = await axios.get('https://api.avessecurity.com/api/event/get', {
+    const response = await axios.get('https://codeaves.avessecurity.com/api/event/get', {
       headers: { Authorization: `Bearer ${token}` }
     });
     

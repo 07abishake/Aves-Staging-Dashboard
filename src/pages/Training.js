@@ -15,7 +15,7 @@ function Training() {
   const [error, setError] = useState(null);
   const token = localStorage.getItem('access_token');
 
-  const apiUrl = 'https://api.avessecurity.com/api/Training';
+  const apiUrl = 'https://codeaves.avessecurity.com/api/Training';
 
   const fetchTraining = async () => {
     try {

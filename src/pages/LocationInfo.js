@@ -46,7 +46,7 @@ export function LocationInfo() {
 
   const fetchLocations = async () => {
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/inventory/Locaton-Info', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/inventory/Locaton-Info', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -71,7 +71,7 @@ export function LocationInfo() {
   const fetchLocationOptions = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -153,13 +153,13 @@ export function LocationInfo() {
 
     try {
       if (isEdit) {
-        await axios.put(`https://api.avessecurity.com/api/inventory/Locaton-Info/update/${editId}`, formData, {
+        await axios.put(`https://codeaves.avessecurity.com/api/inventory/Locaton-Info/update/${editId}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
       } else {
-        await axios.post('https://api.avessecurity.com/api/inventory/Locaton-Info/create', formData, {
+        await axios.post('https://codeaves.avessecurity.com/api/inventory/Locaton-Info/create', formData, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -180,7 +180,7 @@ export function LocationInfo() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this location?')) {
       try {
-        await axios.delete(`https://api.avessecurity.com/api/inventory/Locaton-Info/delete/${id}`, {
+        await axios.delete(`https://codeaves.avessecurity.com/api/inventory/Locaton-Info/delete/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

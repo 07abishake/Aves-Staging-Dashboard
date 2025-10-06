@@ -35,7 +35,7 @@ const LocationDropdown = ({ value, onChange, showLabel = true }) => {
     const fetchLocations = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+        const { data } = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setLocations(data.Location || []);
@@ -411,7 +411,7 @@ const UserDropdown = ({ value, onChange, showLabel = true }) => {
       try {
         const token = localStorage.getItem('access_token');
         const response = await axios.get(
-          `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+          `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -512,7 +512,7 @@ const OccurrenceManager = () => {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await axios.get('https://api.avessecurity.com/api/DailyOccurance/get', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/DailyOccurance/get', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data?.DailyOccurance || []);
@@ -535,7 +535,7 @@ const OccurrenceManager = () => {
       // Don't send RecordingDate, RecordingTime, and OccurringTime as they're auto-generated
       const { RecordingDate, RecordingTime, OccurringTime, ...formData } = form;
       
-      await axios.post('https://api.avessecurity.com/api/DailyOccurance/create', formData, {
+      await axios.post('https://codeaves.avessecurity.com/api/DailyOccurance/create', formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowCreate(false);
@@ -563,7 +563,7 @@ const OccurrenceManager = () => {
       // Don't send RecordingDate, RecordingTime, and OccurringTime as they're auto-generated
       const { RecordingDate, RecordingTime, OccurringTime, ...formData } = form;
       
-      await axios.put(`https://api.avessecurity.com/api/DailyOccurance/update/${editId}`, formData, {
+      await axios.put(`https://codeaves.avessecurity.com/api/DailyOccurance/update/${editId}`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowEdit(false);
@@ -578,7 +578,7 @@ const OccurrenceManager = () => {
     if (window.confirm('Are you sure you want to delete this record?')) {
       try {
         const token = localStorage.getItem('access_token');
-        await axios.delete(`https://api.avessecurity.com/api/DailyOccurance/delete/${id}`, {
+        await axios.delete(`https://codeaves.avessecurity.com/api/DailyOccurance/delete/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchData();

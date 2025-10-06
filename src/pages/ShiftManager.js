@@ -23,7 +23,7 @@ const ShiftManager = () => {
 
   const fetchShifts = async () => {
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/shifttime/getAll', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/shifttime/getAll', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -88,14 +88,14 @@ const ShiftManager = () => {
 
       if (isEditMode && selectedShift) {
         await axios.put(
-          `https://api.avessecurity.com/api/shifttime/update/${selectedShift._id}`,
+          `https://codeaves.avessecurity.com/api/shifttime/update/${selectedShift._id}`,
           formattedData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         alert('Shift updated successfully!');
       } else {
         await axios.post(
-          'https://api.avessecurity.com/api/shifttime/create',
+          'https://codeaves.avessecurity.com/api/shifttime/create',
           formattedData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -113,7 +113,7 @@ const ShiftManager = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this shift?')) return;
     try {
-      await axios.delete(`https://api.avessecurity.com/api/shifttime/delete/${id}`, {
+      await axios.delete(`https://codeaves.avessecurity.com/api/shifttime/delete/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchShifts();

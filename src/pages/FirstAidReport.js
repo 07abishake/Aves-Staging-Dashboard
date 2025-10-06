@@ -105,7 +105,7 @@ const FirstAidReport = () => {
     setError(null);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.get('https://api.avessecurity.com/api/firstaidreport/FirstAid/get', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/firstaidreport/FirstAid/get', {
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -122,7 +122,7 @@ const FirstAidReport = () => {
   const fetchDepartments = async () => {
     setLoading(prev => ({ ...prev, departments: true }));
     try {
-      const { data } = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
+      const { data } = await axios.get('https://codeaves.avessecurity.com/api/Department/getAll', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setDepartments(Array.isArray(data) ? data : []);
@@ -150,13 +150,13 @@ const FirstAidReport = () => {
 
       if (editData) {
         await axios.put(
-          `https://api.avessecurity.com/api/firstaidreport/FirstAid/update/${editData._id}`,
+          `https://codeaves.avessecurity.com/api/firstaidreport/FirstAid/update/${editData._id}`,
           formData,
           config
         );
       } else {
         await axios.post(
-          'https://api.avessecurity.com/api/firstaidreport/FirstAid/create',payload,
+          'https://codeaves.avessecurity.com/api/firstaidreport/FirstAid/create',payload,
           config
         );
       }
@@ -178,7 +178,7 @@ const FirstAidReport = () => {
     try {
       const token = localStorage.getItem('access_token');
       await axios.delete(
-        `https://api.avessecurity.com/api/firstaidreport/FirstAid/delete/${reportToDelete._id}`,
+        `https://codeaves.avessecurity.com/api/firstaidreport/FirstAid/delete/${reportToDelete._id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

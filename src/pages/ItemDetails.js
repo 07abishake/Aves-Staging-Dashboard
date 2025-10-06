@@ -43,7 +43,7 @@ function ItemDetails() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get("https://api.avessecurity.com/api/inventory/products",
+      const res = await axios.get("https://codeaves.avessecurity.com/api/inventory/products",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -67,7 +67,7 @@ function ItemDetails() {
     setFormData((prev) => ({ ...prev, Category: value }));
 
     try {
-      const res = await axios.get(`https://api.avessecurity.com/api/inventory/categories?q=${value}`, {
+      const res = await axios.get(`https://codeaves.avessecurity.com/api/inventory/categories?q=${value}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -86,7 +86,7 @@ function ItemDetails() {
     setFormData((prev) => ({ ...prev, Type: value }));
 
     try {
-      const res = await axios.get(`https://api.avessecurity.com/api/inventory/types?q=${value}`, {
+      const res = await axios.get(`https://codeaves.avessecurity.com/api/inventory/types?q=${value}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -122,13 +122,13 @@ function ItemDetails() {
       };
 
       if (editId) {
-        await axios.put(`https://api.avessecurity.com/api/inventory/products/update/${editId}`, data, config, {
+        await axios.put(`https://codeaves.avessecurity.com/api/inventory/products/update/${editId}`, data, config, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
       } else {
-        await axios.post(`https://api.avessecurity.com/api/inventory/products/create`, data, config, {
+        await axios.post(`https://codeaves.avessecurity.com/api/inventory/products/create`, data, config, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -182,7 +182,7 @@ function ItemDetails() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await axios.delete(`https://api.avessecurity.com/api/inventory/products/delete/${id}`, {
+        await axios.delete(`https://codeaves.avessecurity.com/api/inventory/products/delete/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -414,7 +414,7 @@ function ItemDetails() {
                 <h6>Image:</h6>
                 {viewProduct.ProductImage ? (
                   <img 
-                    src={`https://api.avessecurity.com/uploads/${viewProduct.ProductImage}`} 
+                    src={`https://codeaves.avessecurity.com/uploads/${viewProduct.ProductImage}`} 
                     className="img-thumbnail rounded border-primary"
                     style={{ 
                       width: '200px', 

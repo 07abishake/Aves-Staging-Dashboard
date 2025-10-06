@@ -19,13 +19,16 @@ function Teams() {
     const [editTeamId, setEditTeamId] = useState(null);
     const [addUsers, setAddUsers] = useState([]);
     const [showUserList, setShowUserList] = useState(false);
+    
+    // NEW: State for main search
+    const [searchQuery, setSearchQuery] = useState("");
 
     const token = localStorage.getItem("access_token");
     
     // Memoize fetch functions with useCallback to prevent unnecessary recreations
     const fetchLeads = useCallback(async () => {
         try {
-            const response = await axios.get("https://api.avessecurity.com/api/Department/getDropdown", {
+            const response = await axios.get("https://codeaves.avessecurity.com/api/Department/getDropdown", {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -41,7 +44,7 @@ function Teams() {
     const fetchTeam = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`https://api.avessecurity.com/api/firebase/getAllTeamName/Dashbard`, {
+            const response = await axios.get(`https://codeaves.avessecurity.com/api/firebase/getAllTeamName/Dashbard`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -72,11 +75,14 @@ function Teams() {
         );
     };
 
-    // Fetch users with debounce
-    const fetchUsers = debounce(async (query) => {
-        if (!query) return;
+    // Fetch users with debounce - FIXED: use useCallback to prevent recreation
+    const fetchUsers = useCallback(debounce(async (query) => {
+        if (!query) {
+            setUsers([]);
+            return;
+        }
         try {
-            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`, {
+            const response = await axios.get(`https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -91,11 +97,16 @@ function Teams() {
         } catch (error) {
             console.error("Error fetching users:", error);
         }
-    }, 500);
+    }, 500), [token]);
 
     useEffect(() => {
         fetchUsers(inputValue);
     }, [inputValue, fetchUsers]);
+
+    // NEW: Filter teams based on search query
+    const filteredTeams = teams.filter(team =>
+        team.TeamName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     // Handle form submission for creating a team
     const handleSubmit = async (e) => {
@@ -111,7 +122,7 @@ function Teams() {
         };
 
         try {
-            await axios.post("https://api.avessecurity.com/api/firebase/create-team", payload, {
+            await axios.post("https://codeaves.avessecurity.com/api/firebase/create-team", payload, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }   
@@ -135,7 +146,7 @@ function Teams() {
             await Promise.all(
                 selectedUsers.map(userId =>
                     axios.post(
-                        "https://api.avessecurity.com/api/firebase/AddUser-toTeam",
+                        "https://codeaves.avessecurity.com/api/firebase/AddUser-toTeam",
                         {
                             _id: selectedDesignation?._id,
                             userId,
@@ -155,7 +166,7 @@ function Teams() {
             
             // Update the selected designation with new users
             const updatedTeamResponse = await axios.get(
-                `https://api.avessecurity.com/api/firebase/getTeamNew/${selectedDesignation._id}`,
+                `https://codeaves.avessecurity.com/api/firebase/getTeamNew/${selectedDesignation._id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             
@@ -189,7 +200,7 @@ function Teams() {
         setLoading(true);
         try {
             await axios.put(
-                `https://api.avessecurity.com/api/firebase/update/${editTeamId}`, 
+                `https://codeaves.avessecurity.com/api/firebase/update/${editTeamId}`, 
                 { TeamName: editTeamName },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -213,7 +224,7 @@ function Teams() {
         if (!confirmDelete) return;
 
         try {
-            await axios.delete(`https://api.avessecurity.com/api/firebase/delete/${teamId}`, {
+            await axios.delete(`https://codeaves.avessecurity.com/api/firebase/delete/${teamId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -254,6 +265,8 @@ function Teams() {
                             type="text"
                             className="form-control me-2"
                             placeholder="Search..."
+                            value={searchQuery} // NEW: Connected to state
+                            onChange={(e) => setSearchQuery(e.target.value)} // NEW: Update search query
                         />
                     </div>
                     <button className="btn btn-primary h-50" onClick={() => setShowCreateCanvas(true)}>
@@ -274,8 +287,8 @@ function Teams() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {teams.length > 0 ? (
-                                                teams.map((team) => (
+                                            {filteredTeams.length > 0 ? ( // CHANGED: Use filteredTeams instead of teams
+                                                filteredTeams.map((team) => (
                                                     <tr key={team._id} style={{ cursor: "pointer" }}>
                                                         <td>{team.TeamName}</td>
                                                         <td>
@@ -303,7 +316,7 @@ function Teams() {
                                             ) : (
                                                 <tr>
                                                     <td colSpan="2" className="text-center">
-                                                        No Teams found
+                                                        {searchQuery ? "No teams match your search" : "No Teams found"}
                                                     </td>
                                                 </tr>
                                             )}
@@ -335,6 +348,7 @@ function Teams() {
                                 setShowViewCanvas(false); 
                                 setShowUserList(false); 
                                 setSelectedUsers([]);
+                                setSearchUser(""); // NEW: Reset user search when closing
                             }}
                             style={{ position: "absolute", right: "30px" }}
                         ></button>
@@ -419,6 +433,7 @@ function Teams() {
                     ) : null}
                 </div>
 
+                {/* Rest of your code remains the same */}
                 {/* Create Canvas */}
                 <div className={`p-4 offcanvas-custom ${showCreateCanvas ? 'show' : ""}`}>
                     <div className="offcanvas-header mb-3">

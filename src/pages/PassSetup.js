@@ -64,7 +64,7 @@ const handleSearch = debounce((value) => {
   const fetchLocations = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const nested = res.data?.Location || [];
@@ -181,7 +181,7 @@ const flattenLocations = (data) => {
   const fetchPasses = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/Color/get', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/Color/get', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPasses(res.data.CustomColorSet || []);
@@ -205,7 +205,7 @@ const flattenLocations = (data) => {
 //       const selectedLabel = locations.find(loc => loc.id === selectedLocation)?.label || 'Untitled';
       
 //       // await axios.post(
-//       //   'https://api.avessecurity.com/api/Color/create',
+//       //   'https://codeaves.avessecurity.com/api/Color/create',
 //       //   {
 //       //     title: selectedLabel,
 //       //     CustomColor: color,
@@ -218,7 +218,7 @@ const flattenLocations = (data) => {
 //       // );
 
 //       await axios.post(
-//   'https://api.avessecurity.com/api/Color/create',
+//   'https://codeaves.avessecurity.com/api/Color/create',
 //   {
 //     title: selectedLoc.label,
 //     CustomColor: color,
@@ -263,7 +263,7 @@ const handleCreate = async () => {
     }
     
     await axios.post(
-      'https://api.avessecurity.com/api/Color/create',
+      'https://codeaves.avessecurity.com/api/Color/create',
       {
         title: selectedLoc.label,
         CustomColor: color,
@@ -304,7 +304,7 @@ const handleCreate = async () => {
     setLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com/api/Color/delete/${passToDelete._id}`,
+        `https://codeaves.avessecurity.com/api/Color/delete/${passToDelete._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Pass deleted successfully!');
@@ -336,7 +336,7 @@ const handleCreate = async () => {
 //       const selectedLabel = locations.find(loc => loc.id === editLocation)?.label || editPass.title;
       
 //       // await axios.put(
-//       //   `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+//       //   `https://codeaves.avessecurity.com/api/Color/update/${editPass._id}`,
 //       //   {
 //       //     title: selectedLabel,
 //       //     CustomColor: color,
@@ -349,7 +349,7 @@ const handleCreate = async () => {
 //       // );
 
 //       await axios.put(
-//   `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+//   `https://codeaves.avessecurity.com/api/Color/update/${editPass._id}`,
 //   {
 //     title: selectedLoc.label,
 //     CustomColor: color,
@@ -387,7 +387,7 @@ const handleUpdate = async () => {
     }
     
     await axios.put(
-      `https://api.avessecurity.com/api/Color/update/${editPass._id}`,
+      `https://codeaves.avessecurity.com/api/Color/update/${editPass._id}`,
       {
         title: selectedLoc.label,
         CustomColor: color,

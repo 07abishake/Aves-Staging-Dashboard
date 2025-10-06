@@ -38,7 +38,7 @@ export function PersonnelLog() {
     setIsLoadingUsers(true);
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`
       );
       
       if (response.data?.Report) {
@@ -64,7 +64,7 @@ export function PersonnelLog() {
     setIsLoadingChecklists(true);
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/collection/getModule/${query}`
+        `https://codeaves.avessecurity.com/api/collection/getModule/${query}`
       );
       
       if (response.data) {

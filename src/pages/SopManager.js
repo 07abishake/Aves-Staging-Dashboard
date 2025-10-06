@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE = 'https://api.avessecurity.com/api/Sop';
+const API_BASE = 'https://codeaves.avessecurity.com/api/Sop';
 
 const SopManager = () => {
   const [sops, setSops] = useState([]);
@@ -48,10 +48,10 @@ const SopManager = () => {
   const fetchDropdowns = async () => {
     try {
       const [userRes, deptRes] = await Promise.all([
-        axios.get(`https://api.avessecurity.com/api/Department/getDropdown`, {
+        axios.get(`https://codeaves.avessecurity.com/api/Department/getDropdown`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get(`https://api.avessecurity.com/api/Department/getDataDepartment`, {
+        axios.get(`https://codeaves.avessecurity.com/api/Department/getDataDepartment`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -236,7 +236,7 @@ const SopManager = () => {
                 <td>
                   {sop.UploadFile?.[0] && (
                     <a
-                      href={`https://api.avessecurity.com/${sop.UploadFile[0]}`}
+                      href={`https://codeaves.avessecurity.com/${sop.UploadFile[0]}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm btn-outline-info"

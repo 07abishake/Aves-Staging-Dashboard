@@ -134,7 +134,7 @@ const sendPushNotification = async ({ userId, title, body }) => {
   const token = localStorage.getItem("access_token");
   try {
     await axios.post(
-      "https://api.avessecurity.com/api/firebase/send-notification",
+      "https://codeaves.avessecurity.com/api/firebase/send-notification",
       {
         userIds: userId,
         title,
@@ -280,7 +280,7 @@ function Patrol() {
   const fetchShifts = async () => {
     try {
       const res = await axios.get(
-        "https://api.avessecurity.com/api/shift/get/ShiftName",
+        "https://codeaves.avessecurity.com/api/shift/get/ShiftName",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -294,7 +294,7 @@ function Patrol() {
   const fetchUsersForShift = async (actualShiftId) => {
     try {
       const res = await axios.get(
-        `https://api.avessecurity.com/api/shift/getUserPatrol/${actualShiftId}`,
+        `https://codeaves.avessecurity.com/api/shift/getUserPatrol/${actualShiftId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShiftAssignedUsers(res.data.users || []);
@@ -307,7 +307,7 @@ function Patrol() {
   const fetchLocations = async () => {
     try {
       const res = await axios.get(
-        "https://api.avessecurity.com/api/Location/getLocations",
+        "https://codeaves.avessecurity.com/api/Location/getLocations",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -321,7 +321,7 @@ function Patrol() {
   const fetchPatrols = async () => {
     try {
       const res = await axios.get(
-        "https://api.avessecurity.com/api/Patrol/getAllcreatedPatroll",
+        "https://codeaves.avessecurity.com/api/Patrol/getAllcreatedPatroll",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -341,7 +341,7 @@ function Patrol() {
   const fetchAssignedPatrols = async () => {
     try {
       const res = await axios.get(
-        "https://api.avessecurity.com/api/Patrol/getAllPatrol",
+        "https://codeaves.avessecurity.com/api/Patrol/getAllPatrol",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -435,7 +435,7 @@ function Patrol() {
     setIsLoading(true);
     try {
       const response = await axios.post(
-        "https://api.avessecurity.com/api/Patrol/Assign",
+        "https://codeaves.avessecurity.com/api/Patrol/Assign",
         data,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -622,7 +622,7 @@ function Patrol() {
       };
 
       await axios.post(
-        "https://api.avessecurity.com/api/Patrol/create",
+        "https://codeaves.avessecurity.com/api/Patrol/create",
         payload,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -649,7 +649,7 @@ function Patrol() {
     setIsLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com/api/Patrol/deletePatrol/${patrolId}`,
+        `https://codeaves.avessecurity.com/api/Patrol/deletePatrol/${patrolId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert("Patrol deleted successfully");
@@ -671,7 +671,7 @@ function Patrol() {
     setIsLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
+        `https://codeaves.avessecurity.com/api/Patrol/deleteAssignPatrol/${assignmentId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert("Patrol assignment deleted successfully");

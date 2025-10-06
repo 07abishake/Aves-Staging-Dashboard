@@ -38,7 +38,7 @@ function OrganizationSettings() {
 
         // Fetch organization data
         setLoading(prev => ({...prev, org: true}));
-        const orgResponse = await axios.get('https://api.avessecurity.com/api/oraganisation/dashboard', {
+        const orgResponse = await axios.get('https://codeaves.avessecurity.com/api/oraganisation/dashboard', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setOrganization(orgResponse.data);
@@ -47,7 +47,7 @@ function OrganizationSettings() {
         // Fetch user status if on members tab or overview
         if (activeTab === 'members' || activeTab === 'overview') {
           setLoading(prev => ({...prev, users: true}));
-          const userResponse = await axios.get('https://api.avessecurity.com/api/users/Status', {
+          const userResponse = await axios.get('https://codeaves.avessecurity.com/api/users/Status', {
             headers: { Authorization: `Bearer ${token}` },
           });
           setUserStatus(userResponse.data);
@@ -57,7 +57,7 @@ function OrganizationSettings() {
         // Fetch teams if on overview tab
         if (activeTab === 'overview') {
           setLoading(prev => ({...prev, teams: true}));
-          const teamsResponse = await axios.get('https://api.avessecurity.com/api/firebase/getAllTeamName/Dashbard', {
+          const teamsResponse = await axios.get('https://codeaves.avessecurity.com/api/firebase/getAllTeamName/Dashbard', {
             headers: { Authorization: `Bearer ${token}` },
           });
           setTeams(teamsResponse.data);

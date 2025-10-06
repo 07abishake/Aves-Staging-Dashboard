@@ -7,7 +7,7 @@ import {
 } from 'react-bootstrap';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api.avessecurity.com/api/termandcondition';
+const API_BASE_URL = 'https://codeaves.avessecurity.com/api/termandcondition';
 
 const token = localStorage.getItem("access_token");
 if (!token) {
@@ -82,7 +82,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get('https://api.avessecurity.com/api/Department/getAll', {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/Department/getAll', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
@@ -156,7 +156,7 @@ const LocationDropdown = ({ value, onChange }) => {
     const fetchLocations = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+        const { data } = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setLocations(data.Location || []);

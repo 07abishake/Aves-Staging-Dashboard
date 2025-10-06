@@ -73,7 +73,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`https://api.avessecurity.com/api/collection/getModule`, {
+      const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -93,7 +93,7 @@ function Reports() {
   const fetchDepartments = async () => {
     try {
       const response = await axios.get(
-        'https://api.avessecurity.com/api/Department/getAll',
+        'https://codeaves.avessecurity.com/api/Department/getAll',
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -129,7 +129,7 @@ function Reports() {
   const fetchLocations = async () => {
     try {
       const response = await axios.get(
-        'https://api.avessecurity.com/api/Location/getLocations',
+        'https://codeaves.avessecurity.com/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -229,7 +229,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        'https://api.avessecurity.com/api/Location/getLocations',
+        'https://codeaves.avessecurity.com/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -311,7 +311,7 @@ function Reports() {
   const fetchAllUsers = async () => {
     try {
       const response = await axios.get(
-        "https://api.avessecurity.com/api/Designation/getDropdown",
+        "https://codeaves.avessecurity.com/api/Designation/getDropdown",
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -334,7 +334,7 @@ function Reports() {
     if (!query) return;
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -460,7 +460,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://api.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
         formData,
         {
           responseType: "blob",
@@ -515,7 +515,7 @@ function Reports() {
     return images.map((src, index) => {
       // Remove any leading "uploads/" from src to avoid duplication
       const cleanSrc = src.replace(/^uploads\//, '');
-      const imgSrc = src.startsWith('http') ? src : `https://api.avessecurity.com/uploads/${cleanSrc}`;
+      const imgSrc = src.startsWith('http') ? src : `https://codeaves.avessecurity.com/uploads/${cleanSrc}`;
       
       return (
         <div key={index} className="mb-2 me-2 d-inline-block">

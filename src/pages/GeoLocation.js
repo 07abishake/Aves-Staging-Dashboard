@@ -204,6 +204,7 @@ function GeoFenceManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAssignmentCanvas, setShowAssignmentCanvas] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [assignmentError, setAssignmentError] = useState('');
   
   const featureGroupRef = useRef(null);
   const mapRef = useRef(null);
@@ -218,7 +219,7 @@ function GeoFenceManagement() {
   const fetchGeoFences = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('https://api.avessecurity.com/api/GeoFence/get-All', {
+      const res = await axios.get('https://codeaves.avessecurity.com/api/GeoFence/get-All', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -238,7 +239,7 @@ function GeoFenceManagement() {
     }
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -261,7 +262,7 @@ function GeoFenceManagement() {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/GeoFence/user-assignments`,
+        `https://codeaves.avessecurity.com/api/GeoFence/user-assignments`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -274,6 +275,21 @@ function GeoFenceManagement() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Function to check for duplicate assignments
+  const checkDuplicateAssignments = (userId, geoFenceIds) => {
+    const existingAssignmentsForUser = userAssignments.filter(
+      assignment => assignment.userId === userId
+    );
+
+    const duplicateGeoFences = geoFenceIds.filter(geoFenceId => 
+      existingAssignmentsForUser.some(assignment => 
+        assignment.GeoFenceDetails?._id === geoFenceId
+      )
+    );
+
+    return duplicateGeoFences;
   };
 
   const onCreated = (e) => {
@@ -321,7 +337,7 @@ function GeoFenceManagement() {
 
     try {
       await axios.post(
-        "https://api.avessecurity.com/api/GeoFence/create",
+        "https://codeaves.avessecurity.com/api/GeoFence/create",
         geoFenceData,
         {
           headers: {
@@ -353,7 +369,7 @@ function GeoFenceManagement() {
 
     setIsLoading(true);
     try {
-      await axios.delete(`https://api.avessecurity.com/api/GeoFence/delete/${id}`, {
+      await axios.delete(`https://codeaves.avessecurity.com/api/GeoFence/delete/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -375,10 +391,27 @@ function GeoFenceManagement() {
       return;
     }
 
+    // Check for duplicate assignments
+    const duplicateGeoFences = checkDuplicateAssignments(selectedUserId, selectedGeoFences);
+    
+    if (duplicateGeoFences.length > 0) {
+      const duplicateNames = duplicateGeoFences.map(geoFenceId => {
+        const geoFence = allGeoFences.find(gf => gf._id === geoFenceId);
+        return geoFence ? geoFence.GeoFencename : 'Unknown';
+      });
+      
+      setAssignmentError(
+        `User is already assigned to the following GeoFences: ${duplicateNames.join(', ')}. Please remove duplicates and try again.`
+      );
+      return;
+    }
+
     setIsLoading(true);
+    setAssignmentError('');
+    
     try {
       await axios.post(
-        'https://api.avessecurity.com/api/GeoFence/Assign-User',
+        'https://codeaves.avessecurity.com/api/GeoFence/Assign-User',
         { userId: selectedUserId, GeoFenceId: selectedGeoFences },
         {
           headers: {
@@ -422,7 +455,7 @@ function GeoFenceManagement() {
     setIsLoading(true);
     try {
       await axios.put(
-        `https://api.avessecurity.com/api/GeoFence/UnAssign-User/${userId}`,
+        `https://codeaves.avessecurity.com/api/GeoFence/UnAssign-User/${userId}`,
         { GeoFenceId: geoFenceId },
         {
           headers: {
@@ -445,6 +478,9 @@ function GeoFenceManagement() {
     setSelectedUserName(user.label);
     setSearchQuery(user.label);
     setShowUserDropdown(false);
+    setAssignmentError('');
+    // Clear selected geo-fences when user changes to prevent cross-user assignment issues
+    setSelectedGeoFences([]);
   };
 
   const handleGeoFenceSelect = (geoFenceId) => {
@@ -452,9 +488,40 @@ function GeoFenceManagement() {
       if (prev.includes(geoFenceId)) {
         return prev.filter(id => id !== geoFenceId);
       } else {
+        // Check if this geo-fence is already assigned to the selected user
+        if (selectedUserId) {
+          const isAlreadyAssigned = userAssignments.some(
+            assignment => 
+              assignment.userId === selectedUserId && 
+              assignment.GeoFenceDetails?._id === geoFenceId
+          );
+          
+          if (isAlreadyAssigned) {
+            setAssignmentError(
+              `This user is already assigned to the selected GeoFence. Please choose a different GeoFence.`
+            );
+            return prev;
+          }
+        }
+        
+        setAssignmentError('');
         return [...prev, geoFenceId];
       }
     });
+  };
+
+  // Filter available geo-fences to exclude those already assigned to the selected user
+  const getAvailableGeoFences = () => {
+    if (!selectedUserId) {
+      return allGeoFences;
+    }
+
+    const assignedGeoFenceIds = userAssignments
+      .filter(assignment => assignment.userId === selectedUserId)
+      .map(assignment => assignment.GeoFenceDetails?._id)
+      .filter(id => id); // Remove undefined/null values
+
+    return allGeoFences.filter(geoFence => !assignedGeoFenceIds.includes(geoFence._id));
   };
 
   const renderGeoFenceDetails = (geoFence) => {
@@ -527,7 +594,7 @@ function GeoFenceManagement() {
     
     try {
       const response = await axios.get(
-        'https://api.avessecurity.com/api/Location/getLocations',
+        'https://codeaves.avessecurity.com/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -994,27 +1061,53 @@ function GeoFenceManagement() {
                 <p><strong>Selected User:</strong> {selectedUserName}</p>
               </div>
 
+              {assignmentError && (
+                <div className="alert alert-warning" role="alert">
+                  {assignmentError}
+                </div>
+              )}
+
               <div className="mb-3">
                 <label className="form-label">Select GeoFences to Assign</label>
                 <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px' }}>
-                  {allGeoFences.map(geoFence => (
-                    <div key={geoFence._id} className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id={`geoFence-${geoFence._id}`}
-                        checked={selectedGeoFences.includes(geoFence._id)}
-                        onChange={() => handleGeoFenceSelect(geoFence._id)}
-                      />
-                      <label className="form-check-label" htmlFor={`geoFence-${geoFence._id}`}>
-                        {geoFence.GeoFencename} ({geoFence.type})
-                      </label>
-                    </div>
-                  ))}
+                  {getAvailableGeoFences().length > 0 ? (
+                    getAvailableGeoFences().map(geoFence => (
+                      <div key={geoFence._id} className="form-check">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id={`geoFence-${geoFence._id}`}
+                          checked={selectedGeoFences.includes(geoFence._id)}
+                          onChange={() => handleGeoFenceSelect(geoFence._id)}
+                          disabled={userAssignments.some(
+                            assignment => 
+                              assignment.userId === selectedUserId && 
+                              assignment.GeoFenceDetails?._id === geoFence._id
+                          )}
+                        />
+                        <label className="form-check-label" htmlFor={`geoFence-${geoFence._id}`}>
+                          {geoFence.GeoFencename} ({geoFence.type})
+                          {userAssignments.some(
+                            assignment => 
+                              assignment.userId === selectedUserId && 
+                              assignment.GeoFenceDetails?._id === geoFence._id
+                          ) && (
+                            <span className="badge bg-warning ms-2">Already Assigned</span>
+                          )}
+                        </label>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted">No available GeoFences to assign. This user may already be assigned to all GeoFences.</p>
+                  )}
                 </div>
               </div>
 
-              <button className="btn btn-primary mb-4" onClick={assignGeoFences}>
+              <button 
+                className="btn btn-primary mb-4" 
+                onClick={assignGeoFences}
+                disabled={selectedGeoFences.length === 0 || assignmentError}
+              >
                 Assign Selected GeoFences
               </button> 
             </>

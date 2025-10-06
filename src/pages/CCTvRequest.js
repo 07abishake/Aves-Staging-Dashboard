@@ -315,7 +315,7 @@ const CCTvRequest = () => {
     setError(null);
     try {
       const token = localStorage.getItem('access_token');
-      const { data } = await axios.get('https://api.avessecurity.com/api/CCTV/getAll', {
+      const { data } = await axios.get('https://codeaves.avessecurity.com/api/CCTV/getAll', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRequests(data.cctv || []);
@@ -330,7 +330,7 @@ const CCTvRequest = () => {
   const fetchLocations = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const { data } = await axios.get('https://api.avessecurity.com/api/Location/getLocations', {
+      const { data } = await axios.get('https://codeaves.avessecurity.com/api/Location/getLocations', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const processedLocations = processLocations(data.Location || []);
@@ -344,7 +344,7 @@ const CCTvRequest = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const { data } = await axios.get('https://api.avessecurity.com/api/users/User-List', {
+      const { data } = await axios.get('https://codeaves.avessecurity.com/api/users/User-List', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(data.User || []);
@@ -390,14 +390,14 @@ const CCTvRequest = () => {
 
       if (editData) {
         await axios.put(
-          `https://api.avessecurity.com/api/CCTV/update/${editData._id}`,
+          `https://codeaves.avessecurity.com/api/CCTV/update/${editData._id}`,
           formData,
           config
         );
         setSuccess('Request updated successfully!');
       } else {
         await axios.post(
-          'https://api.avessecurity.com/api/CCTV/create',
+          'https://codeaves.avessecurity.com/api/CCTV/create',
           formData,
           config
         );
@@ -434,7 +434,7 @@ const CCTvRequest = () => {
       };
 
       await axios.put(
-        `https://api.avessecurity.com/api/CCTV/update/${requestToUpdate._id}`,
+        `https://codeaves.avessecurity.com/api/CCTV/update/${requestToUpdate._id}`,
         updateData,
         config
       );
@@ -458,7 +458,7 @@ const CCTvRequest = () => {
     try {
       const token = localStorage.getItem('access_token');
       await axios.delete(
-        `https://api.avessecurity.com/api/CCTV/delete/${requestToDelete._id}`,
+        `https://codeaves.avessecurity.com/api/CCTV/delete/${requestToDelete._id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

@@ -22,7 +22,8 @@ function Designation() {
     const [editInputValue, setEditInputValue] = useState("");
     const [editMenuOpen, setEditMenuOpen] = useState(false);
     const [designations, setDesignations] = useState([]);
-    const [searchTerm, setSearchTerm] = useState(""); // Add sear
+    const [searchTerm, setSearchTerm] = useState("");
+    const [editUsers, setEditUsers] = useState([]); // Separate users state for edit form
 
     const token = localStorage.getItem("access_token");
     
@@ -30,7 +31,7 @@ function Designation() {
     const fetchUsers = useCallback(debounce(async (query) => {
         if (!query) return;
         try {
-            const response = await axios.get(`https://api.avessecurity.com/api/Designation/getDropdown/${query}`, {
+            const response = await axios.get(`https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -47,10 +48,31 @@ function Designation() {
         }
     }, 500), [token]);
 
+    // Separate fetch function for edit form
+    const fetchEditUsers = useCallback(debounce(async (query) => {
+        if (!query) return;
+        try {
+            const response = await axios.get(`https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if (response.data && response.data.Report) {
+                const userOptions = response.data.Report.map((user) => ({
+                    value: user._id,
+                    label: user.username,
+                }));
+                setEditUsers(userOptions);
+            }
+        } catch (error) {
+            console.error("Error fetching users for edit:", error);
+        }
+    }, 500), [token]);
+
     const fetchDesignations = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await axios.get("https://api.avessecurity.com/api/Designation/getDataDesignation", {
+            const response = await axios.get("https://codeaves.avessecurity.com/api/Designation/getDataDesignation", {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -75,6 +97,13 @@ function Designation() {
         }
     }, [inputValue, fetchUsers]);
 
+    // Add useEffect for edit form user fetching
+    useEffect(() => {
+        if (editInputValue) {
+            fetchEditUsers(editInputValue);
+        }
+    }, [editInputValue, fetchEditUsers]);
+
     // Add filtered designations based on search term
     const filteredDesignations = designations.filter(designation => 
         designation.Name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -94,6 +123,8 @@ function Designation() {
                 label: user.username
             }));
             setEditSelectedUsers(formattedUsers);
+        } else {
+            setEditSelectedUsers([]);
         }
         setShowEditCanvas(true);
     };
@@ -113,7 +144,7 @@ function Designation() {
         };
 
         try {
-            await axios.post("https://api.avessecurity.com/api/Designation/create", payload, {
+            await axios.post("https://codeaves.avessecurity.com/api/Designation/create", payload, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -151,7 +182,7 @@ function Designation() {
         try {
             setLoading(true);
             await axios.put(
-                `https://api.avessecurity.com/api/Designation/update/${editDesignationId}`,
+                `https://codeaves.avessecurity.com/api/Designation/update/${editDesignationId}`,
                 payload,
                 {
                     headers: { Authorization: `Bearer ${token}` }
@@ -175,7 +206,7 @@ function Designation() {
         if (!confirmDelete) return;
 
         try {
-            await axios.delete(`https://api.avessecurity.com/api/Designation/delete/${designationId}`, {
+            await axios.delete(`https://codeaves.avessecurity.com/api/Designation/delete/${designationId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -416,7 +447,7 @@ function Designation() {
                             <div className="mb-3 d-flex justify-content-around">
                                 <label className="form-label me-2 mb-0 mt-1 w-50">Assign Users</label>
                                 <Select
-                                    options={users}
+                                    options={editUsers}
                                     value={editSelectedUsers}
                                     onChange={setEditSelectedUsers}
                                     onInputChange={(value) => {

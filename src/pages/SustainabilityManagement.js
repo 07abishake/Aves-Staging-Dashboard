@@ -35,7 +35,7 @@ const SustainabilityBuilder = () => {
   });
 
   const token = localStorage.getItem('access_token');
-  const BASE_API = "https://api.avessecurity.com/api/sustainabiity";
+  const BASE_API = "https://codeaves.avessecurity.com/api/sustainabiity";
 
   const config = {
     headers: {

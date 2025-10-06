@@ -54,7 +54,7 @@ function Departments() {
       try {
         setLoading(true);
         const response = await axios.get(
-          "https://api.avessecurity.com/api/Department/getDataDepartment",
+          "https://codeaves.avessecurity.com/api/Department/getDataDepartment",
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -79,7 +79,7 @@ function Departments() {
     const fetchLeads = async () => {
       try {
         const response = await axios.get(
-          "https://api.avessecurity.com/api/Department/getDropdown",
+          "https://codeaves.avessecurity.com/api/Department/getDropdown",
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -112,7 +112,7 @@ function Departments() {
     if (!query) return;
     try {
       const response = await axios.get(
-        `https://api.avessecurity.com/api/Designation/getDropdown/${query}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -139,7 +139,7 @@ function Departments() {
     try {
       setLoading(true);
       const response = await fetch(
-        "https://api.avessecurity.com/api/Department/getAll",
+        "https://codeaves.avessecurity.com/api/Department/getAll",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -191,7 +191,7 @@ function Departments() {
 
     try {
       const response = await fetch(
-        "https://api.avessecurity.com/api/Department/Create",
+        "https://codeaves.avessecurity.com/api/Department/Create",
         {
           method: "POST",
           headers: {
@@ -231,7 +231,7 @@ function Departments() {
 
     try {
       const response = await axios.delete(
-        `https://api.avessecurity.com/api/Department/delete/${userId}`,
+        `https://codeaves.avessecurity.com/api/Department/delete/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -263,7 +263,7 @@ function Departments() {
 
     try {
       const response = await fetch(
-        `https://api.avessecurity.com/api/Department/update/${editDepartmentData.id}`,
+        `https://codeaves.avessecurity.com/api/Department/update/${editDepartmentData.id}`,
         {
           method: "PUT",
           headers: {
@@ -554,13 +554,6 @@ function Departments() {
         {/* Assigned Users Section */}
         <div>
             <h6 className="border-bottom pb-2">Assigned Users</h6>
-            <input
-                type="text"
-                className="form-control mb-3"
-                placeholder="Search user..."
-                value={searchUser}
-                onChange={(e) => setSearchUser(e.target.value)}
-            />
 
             {selectedDepartmentData && selectedDepartmentData.assignUsers ? (
                 <ul className="list-group">

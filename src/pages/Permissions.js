@@ -54,7 +54,7 @@ function Permissions() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`https://api.avessecurity.com/api/Roles/getRole`, {
+      const response = await axios.get(`https://codeaves.avessecurity.com/api/Roles/getRole`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -76,7 +76,7 @@ function Permissions() {
     const fetchPermissions = async () => {
       try {
         const response = await axios.get(
-          `https://api.avessecurity.com/api/users/UserFullData/${selectedRoleId}`,
+          `https://codeaves.avessecurity.com/api/users/UserFullData/${selectedRoleId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -187,7 +187,7 @@ function Permissions() {
 
     try {
       await axios.put(
-        `https://api.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
+        `https://codeaves.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
         payload,
         {
           headers: {
@@ -210,7 +210,7 @@ function Permissions() {
   if (!confirmDelete) return;
 
   try {
-    await axios.delete(`https://api.avessecurity.com/api/Roles/deleteRole/${roleId}`, {
+    await axios.delete(`https://codeaves.avessecurity.com/api/Roles/deleteRole/${roleId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -235,7 +235,7 @@ function Permissions() {
     e.preventDefault();
     const payload = { name: roleName };
     try {
-      await axios.post(`https://api.avessecurity.com/api/Roles/createRole`, payload, {
+      await axios.post(`https://codeaves.avessecurity.com/api/Roles/createRole`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

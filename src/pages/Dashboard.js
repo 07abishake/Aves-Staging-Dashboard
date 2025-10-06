@@ -63,7 +63,7 @@ function Dashboard() {
     const fetchData = async () => {
       try {
         // Fetch User Status
-        const statusRes = await fetch('https://api.avessecurity.com/api/users/Status', {
+        const statusRes = await fetch('https://codeaves.avessecurity.com/api/users/Status', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -77,7 +77,7 @@ function Dashboard() {
         });
 
         // Fetch Notification Analytics
-        const notifRes = await fetch('https://api.avessecurity.com/api/users/Notification-Status', {
+        const notifRes = await fetch('https://codeaves.avessecurity.com/api/users/Notification-Status', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -101,7 +101,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const response = await axios.get(`https://api.avessecurity.com/api/users/Count`, {
+        const response = await axios.get(`https://codeaves.avessecurity.com/api/users/Count`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -117,7 +117,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchModuleStats = async () => {
       try {
-        const response = await axios.get('https://api.avessecurity.com/api/collection/module-wise-user-monthly', {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/collection/module-wise-user-monthly', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -333,7 +333,7 @@ function Dashboard() {
             icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'
           },
           { 
-            title: "GATEPASS", 
+            title: "GATE PASS", 
             value: `${userStatistics.todayGatePass}/${userStatistics.totalGatePass}`,
             bgColor: '#AB95D8',
             icon: 'M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4'

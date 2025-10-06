@@ -74,7 +74,7 @@ const ShiftAssignmentManager = () => {
   const fetchDepartments = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get("https://api.avessecurity.com/api/Department/getAll", {
+      const res = await axios.get("https://codeaves.avessecurity.com/api/Department/getAll", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDepartments(res.data);
@@ -87,7 +87,7 @@ const ShiftAssignmentManager = () => {
 
   const fetchShifts = async () => {
     try {
-      const res = await axios.get("https://api.avessecurity.com/api/shift/get/ShiftName", {
+      const res = await axios.get("https://codeaves.avessecurity.com/api/shift/get/ShiftName", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShifts(res.data.Shifts || []);
@@ -99,7 +99,7 @@ const ShiftAssignmentManager = () => {
   const fetchAssignedShifts = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+      const res = await axios.get("https://codeaves.avessecurity.com/api/shift/getAll", {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -122,7 +122,7 @@ const ShiftAssignmentManager = () => {
       setIsLoading(true);
       setSelectedDept(deptName);
       const res = await axios.post(
-        `https://api.avessecurity.com/api/shift/create/${deptName}`, 
+        `https://codeaves.avessecurity.com/api/shift/create/${deptName}`, 
         {}, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -137,7 +137,7 @@ const ShiftAssignmentManager = () => {
 
   const sendPushNotification = async (userIds, title, body) => {
     try {
-      await axios.post('https://api.avessecurity.com/api/firebase/send-notification', {
+      await axios.post('https://codeaves.avessecurity.com/api/firebase/send-notification', {
         userIds,
         title,
         body,
@@ -156,7 +156,7 @@ const ShiftAssignmentManager = () => {
     try {
       setIsLoading(true);
       const res = await axios.post(
-        `https://api.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
+        `https://codeaves.avessecurity.com/api/shift/get/${selectedDept}/${createdShiftId}/shift`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -228,7 +228,7 @@ const ShiftAssignmentManager = () => {
   //   if (!userId || !startDate || !endDate) return false;
     
   //   try {
-  //     const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+  //     const res = await axios.get("https://codeaves.avessecurity.com/api/shift/getAll", {
   //       headers: { Authorization: `Bearer ${token}` }
   //     });
 
@@ -266,7 +266,7 @@ const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate)
   if (!userId || !startDate || !endDate) return false;
   
   try {
-    const res = await axios.get("https://api.avessecurity.com/api/shift/getAll", {
+    const res = await axios.get("https://codeaves.avessecurity.com/api/shift/getAll", {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -365,7 +365,7 @@ const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate)
       };
 
       await axios.put(
-        `https://api.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
+        `https://codeaves.avessecurity.com/api/shift/update/${createdShiftId}/DepartmentUser/${selectedDeptId}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -411,7 +411,7 @@ const checkExistingShiftAssignment = async (userId, shiftId, startDate, endDate)
     try {
       setIsLoading(true);
       await axios.delete(
-        `https://api.avessecurity.com/api/shift/delete/${shiftToDelete._id}`,
+        `https://codeaves.avessecurity.com/api/shift/delete/${shiftToDelete._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

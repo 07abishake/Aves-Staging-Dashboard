@@ -24,7 +24,7 @@ const Login = () => {
 
         try {
             const response = await axios.post(
-                'https://api.avessecurity.com/api/auth/login',
+                'https://codeaves.avessecurity.com/api/auth/login',
                 { name, password },
                 { headers: { 'Content-Type': 'application/json' } }
             );

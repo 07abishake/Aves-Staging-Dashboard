@@ -41,7 +41,7 @@ const ProductManager = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('https://api.avessecurity.com/api/AddProducts/products', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/AddProducts/products', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -54,7 +54,7 @@ const ProductManager = () => {
         ...product,
         ProductImage: Array.isArray(product.ProductImage) 
           ? product.ProductImage.map(img => 
-              img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`)
+              img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`)
           : []
       }));
       
@@ -165,7 +165,7 @@ const ProductManager = () => {
     // Set image previews from existing product images
     setImagePreview(
       product.ProductImage?.map(img => 
-        img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`) || []
+        img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`) || []
     );
     setShowFormModal(true);
   };
@@ -205,7 +205,7 @@ const ProductManager = () => {
         }
         
         const response = await axios.put(
-          `https://api.avessecurity.com/api/AddProducts/products/update/${productToUpdate._id}`,
+          `https://codeaves.avessecurity.com/api/AddProducts/products/update/${productToUpdate._id}`,
           formDataToSend,
           {
             headers: {
@@ -249,7 +249,7 @@ const ProductManager = () => {
       if (currentProduct) {
         // Update existing product
         response = await axios.put(
-          `https://api.avessecurity.com/api/AddProducts/products/update/${currentProduct._id}`,
+          `https://codeaves.avessecurity.com/api/AddProducts/products/update/${currentProduct._id}`,
           formDataToSend,
           {
             headers: {
@@ -293,7 +293,7 @@ const ProductManager = () => {
     setIsLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com/api/AddProducts/products/${id}`,
+        `https://codeaves.avessecurity.com/api/AddProducts/products/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -660,7 +660,7 @@ const ProductManager = () => {
                         {currentProduct.ProductImage.map((img, index) => (
                           <Image
                             key={index}
-                            src={img.startsWith('http') ? img : `https://api.avessecurity.com/${img}`}
+                            src={img.startsWith('http') ? img : `https://codeaves.avessecurity.com/${img}`}
                             alt={`${currentProduct.ItemName}-${index}`}
                             thumbnail
                             style={{ width: '70px', height: '70px', objectFit: 'cover' }}
