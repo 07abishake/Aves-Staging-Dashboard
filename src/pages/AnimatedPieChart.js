@@ -134,7 +134,7 @@ const AnimatedPieChart = ({ moduleDistribution }) => {
                           <div className="fw-bold">{name}</div>
                           <div className="text-muted small">
                             {value} activities ({((props.payload.percent || 0) * 100).toFixed(1)}%)
-                          </div>
+                        </div>
                         </div>
                       </div>
                     ]}
