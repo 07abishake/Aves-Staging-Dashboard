@@ -20,11 +20,14 @@ function Reports() {
   const [loading, setLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  const [reportData, setReportData] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [error, setError] = useState('');
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [detailHtml, setDetailHtml] = useState('');
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [reportPreviews, setReportPreviews] = useState([]);
+  const [showPreviewList, setShowPreviewList] = useState(false);
+  const [selectedPreview, setSelectedPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Dropdown options state
   const [departments, setDepartments] = useState([]);
@@ -44,6 +47,7 @@ function Reports() {
   ];
 
   const token = localStorage.getItem("access_token");
+  console.log(token)
   
   useEffect(() => {
     // Decode token to get company domain
@@ -53,8 +57,6 @@ function Reports() {
         // Set company name from domain in token
         if (decodedToken.userDomain) {
           setCompanyName(decodedToken.userDomain);
-          console.log('Token Decoded Sucessfully',decodedToken)
-          console.log(decodedToken.userDomain);
         }
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -69,11 +71,35 @@ function Reports() {
     fetchDepartments();
     fetchLocations();
     fetchAllUsers();
+
+    // Add message listener for iframe communication
+    const handleMessage = (event) => {
+      console.log('Message received from iframe:', event.data);
+      
+      if (event.data && event.data.type === 'RECORD_CLICK') {
+        const { recordId, module } = event.data;
+        console.log('Record clicked - ID:', recordId, 'Module:', module);
+        fetchRecordDetails(recordId, module);
+      }
+      
+      // Handle preview row clicks from the new table
+      if (event.data && event.data.type === 'PREVIEW_ROW_CLICK') {
+        const { recordId, module } = event.data;
+        console.log('Preview row clicked - ID:', recordId, 'Module:', module);
+        handlePreviewRowClick(recordId, module);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, [token]);
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
+      const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -318,12 +344,32 @@ function Reports() {
           }
         }
       );
+      console.log('All users API response:', response.data);
+      console.log('Response keys:', Object.keys(response.data));
+      
+      let userData = null;
       if (response.data && response.data.Report) {
-        const userOptions = response.data.Report.map(user => ({
-          value: user._id,
-          label: user.username
+        userData = response.data.Report;
+        console.log('Using response.data.Report, sample user:', userData[0]);
+      } else if (response.data && Array.isArray(response.data)) {
+        userData = response.data;
+        console.log('Using response.data as array, sample user:', userData[0]);
+      } else if (response.data && response.data.users) {
+        userData = response.data.users;
+        console.log('Using response.data.users, sample user:', userData[0]);
+      }
+      
+      if (userData && userData.length > 0) {
+        const userOptions = userData.map(user => ({
+          value: user.username || user.name, // Use username as value for filtering
+          label: user.username || user.name,
+          id: user._id || user.id // Keep ID for reference
         }));
         setUsers(userOptions);
+        console.log('User options set:', userOptions);
+      } else {
+        console.log('No user data found in response structure');
+        setUsers([]); // Clear users if no data found
       }
     } catch (error) {
       console.error("Error fetching all users:", error);
@@ -331,25 +377,48 @@ function Reports() {
   };
 
   const fetchUsers = debounce(async (query) => {
-    if (!query) return;
+    if (!query) {
+      // If no query, load all users
+      fetchAllUsers();
+      return;
+    }
     try {
+      console.log('Fetching users with query:', query);
       const response = await axios.get(
-        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         }
       );
+      console.log('User search response:', response.data);
+      
+      let userData = null;
       if (response.data && response.data.Report) {
-        const userOptions = response.data.Report.map((user) => ({
-          value: user.username,
-          label: user.username,
+        userData = response.data.Report;
+      } else if (response.data && Array.isArray(response.data)) {
+        userData = response.data;
+      } else if (response.data && response.data.users) {
+        userData = response.data.users;
+      }
+      
+      if (userData && userData.length > 0) {
+        const userOptions = userData.map((user) => ({
+          value: user.username || user.name,
+          label: user.username || user.name,
+          id: user._id || user.id
         }));
         setUsers(userOptions);
+        console.log('Filtered user options:', userOptions);
+      } else {
+        console.log('No user data found in search response');
+        setUsers([]); // Clear users if no search results
       }
     } catch (error) {
       console.error("Error fetching users:", error);
+      // Fallback to all users if search fails
+      fetchAllUsers();
     }
   }, 500);
 
@@ -380,7 +449,7 @@ function Reports() {
     }
   };
 
- const handlePreview = async () => {         
+  const handlePreview = async () => {         
     if (!validateDates()) return;
     if (!selectedModule) {
       setError("Please select a module");
@@ -390,15 +459,9 @@ function Reports() {
     setLoading(true);
     setError('');
 
-    // Format dates for backend - DON'T convert to ISO string and split
-    // Just use the original date strings as they're already in YYYY-MM-DD format
-    const formattedStartDate = startDate;
-    const formattedEndDate = endDate;
-
-    // Create FormData to handle file upload for preview
     const formData = new FormData();
-    formData.append('startDate', formattedStartDate);
-    formData.append('endDate', formattedEndDate);
+    formData.append('startDate', startDate);
+    formData.append('endDate', endDate);
     formData.append('username', username?.value || '');
     formData.append('userId', userId?.value || '');
     formData.append('LocationId', LocationId?.value || '');
@@ -406,6 +469,7 @@ function Reports() {
     formData.append('Department', Department?.value || '');
     formData.append('companyName', companyName);
     formData.append('Location', LocationId?.label || '');
+    formData.append('module', selectedModule.value); // Add module to filters
     
     if (companyLogo) {
       formData.append('companyLogo', companyLogo);
@@ -413,7 +477,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `http://localhost:3393/api/ReportGenrate/data/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
@@ -423,10 +487,9 @@ function Reports() {
         }
       );
 
-      console.log('Reponse and Preview Data',response.data)
       setPreviewHtml(response.data);
-      setReportData(response.data);
       setShowPreview(true);
+      
     } catch (error) {
       console.error("Error previewing report:", error);
       setError(error.response?.data?.message || "Failed to preview report");
@@ -434,6 +497,179 @@ function Reports() {
       setLoading(false);
     }
   };
+
+  // New function to get report previews
+  const handleGetPreviews = async () => {
+    if (!validateDates()) return;
+    if (!selectedModule) {
+      setError("Please select a module");
+      return;
+    }
+
+    setPreviewLoading(true);
+    setError('');
+
+    try {
+      const requestData = {
+        startDate: startDate,
+        endDate: endDate,
+        selectedModule: selectedModule.value,
+        // Include all filter parameters
+        username: username?.value || null, // Username for text-based search
+        userId: username?.id || null, // User ID for ObjectId-based search
+        Location: LocationId?.label || null,
+        LocationId: LocationId?.value || null,
+        Department: Department?.label || null,
+        DepartmentId: Department?.value || null,
+        Status: Status?.value || null
+      };
+      
+      console.log('Sending preview request with filters:', requestData);
+      
+      const response = await axios.post(
+        `http://localhost:6378/api/ReportGenrate/preview`,
+        requestData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setReportPreviews(response.data.data);
+        setShowPreviewList(true);
+      } else {
+        setError("Failed to fetch previews");
+      }
+    } catch (error) {
+      console.error("Error fetching previews:", error);
+      setError(error.response?.data?.message || "Failed to fetch previews");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Function to handle preview item click and get detailed view
+  const handlePreviewClick = async (preview) => {
+    setDetailLoading(true);
+    setSelectedPreview(preview);
+    
+    try {
+      const response = await axios.get(
+        `http://localhost:6378/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setSelectedPreview({
+          ...preview,
+          details: response.data.data
+        });
+        setShowDetailModal(true);
+      } else {
+        setError("Failed to fetch preview details");
+      }
+    } catch (error) {
+      console.error("Error fetching preview details:", error);
+      setError(error.response?.data?.message || "Failed to fetch preview details");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Function to close preview list
+  const handleClosePreviewList = () => {
+    setShowPreviewList(false);
+    setReportPreviews([]);
+  };
+
+  // Function to clear all filters
+  const handleClearFilters = () => {
+    setUsername(null);
+    setLocationId(null);
+    setDepartment(null);
+    setStatus(null);
+    console.log('All filters cleared');
+  };
+
+  // Function to get applied filters summary
+  const getAppliedFilters = () => {
+    const filters = [];
+    if (username) filters.push(`User: ${username.label}`);
+    if (LocationId) filters.push(`Location: ${LocationId.label}`);
+    if (Department) filters.push(`Department: ${Department.label}`);
+    if (Status) filters.push(`Status: ${Status.label}`);
+    return filters;
+  };
+
+  // Function to handle row click from preview table
+  const handlePreviewRowClick = async (recordId, module) => {
+    setDetailLoading(true);
+    setError('');
+    
+    try {
+      const response = await axios.get(
+        `http://localhost:6378/api/ReportGenrate/preview/${recordId}?module=${module}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Create a preview object similar to the card-based approach
+        const previewData = {
+          id: recordId,
+          reportNo: response.data.data.ReportNo || 'N/A',
+          module: module,
+          details: response.data.data
+        };
+        setSelectedPreview(previewData);
+        setShowDetailModal(true);
+      } else {
+        setError("Failed to fetch record details");
+      }
+    } catch (error) {
+      console.error("Error fetching record details:", error);
+      setError(error.response?.data?.message || "Failed to fetch record details");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Function to fetch individual record details from backend
+  const fetchRecordDetails = async (recordId, module) => {
+    try {
+      setLoading(true);
+      console.log('Fetching record details for:', recordId, module);
+      
+      const response = await axios.get(
+        `http://localhost:6378/api/ReportGenrate/preview-single/${module}/${recordId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+      
+      console.log('Record details HTML received');
+      setDetailHtml(response.data);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error('Error fetching record details:', error);
+      setError('Failed to load record details: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGeneratePdf = async () => {
     if (!validateDates()) return;
     if (!selectedModule) {
@@ -500,53 +736,294 @@ function Reports() {
     setShowLocationSuggestions(false);
   };
 
-  // Function to handle row click and show detailed view
-  const handleRowClick = (record) => {
-    setSelectedRecord(record);
-    setShowDetailModal(true);
-  };
+  // Function to render module-specific fields
+  const renderModuleSpecificFields = (detailsData) => {
+    const details = detailsData.data || detailsData;
+    const metadata = detailsData.fieldMetadata || {};
+    
+    const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString() : 'N/A';
+    const formatDateTime = (dateStr) => dateStr ? new Date(dateStr).toLocaleString() : 'N/A';
+    const safe = (value) => value || 'N/A';
+    
+    console.log('Details received:', details);
+    console.log('Field metadata:', metadata);
+    
+    // Debug: Check for problematic object fields
+    Object.keys(details).forEach(key => {
+      const value = details[key];
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        console.log(`Object field '${key}':`, value);
+      }
+    });
+    
+    // Create dynamic fields using backend metadata - completely backend driven
+    const excludeFields = new Set([
+      '_id', '__v', 'module', 
+      ...(metadata.excludeFields || []),
+      ...(metadata.imageFields || [])
+    ]);
+    
+    const allFields = Object.keys(details)
+      .filter(key => {
+        const value = details[key];
+        return (
+          !excludeFields.has(key) &&
+          !key.startsWith('_') &&
+          value !== null && 
+          value !== undefined &&
+          value !== '' &&
+          // Exclude complex nested objects that would be hard to display
+          !(typeof value === 'object' && value !== null && 
+            !Array.isArray(value) && 
+            Object.keys(value).length > 3 &&
+            !value.name && !value.Name && !value.title && !value.Title)
+        );
+      })
+      .sort((a, b) => {
+        // Sort priority fields first
+        const priorityFields = metadata.priorityFields || [];
+        const aPriority = priorityFields.indexOf(a);
+        const bPriority = priorityFields.indexOf(b);
+        
+        if (aPriority !== -1 && bPriority !== -1) {
+          return aPriority - bPriority;
+        }
+        if (aPriority !== -1) return -1;
+        if (bPriority !== -1) return 1;
+        return a.localeCompare(b);
+      })
+      .map(key => ({
+        label: key.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()),
+        key: key,
+        uniqueKey: `field-${key}`,
+        isDate: (metadata.dateFields || []).includes(key),
+        isTime: (metadata.timeFields || []).includes(key),
+        isDateTime: key === 'createdAt' || key === 'updatedAt',
+        isBadge: (metadata.statusFields || []).includes(key) || key === 'module',
+        isImage: (metadata.imageFields || []).includes(key)
+      }));
 
-  // Function to render images in the detail view
-  const renderImages = (images) => {
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      return <div>No Images Available</div>;
+    const renderField = (field) => {
+      let value = details[field.key];
+      
+      // Handle null, undefined, or empty values
+      if (value === null || value === undefined || value === '') {
+        value = 'N/A';
+      }
+      // Special handling for image fields - show as thumbnails
+      else if ((metadata.imageFields || []).includes(field.key)) {
+        const renderImages = (imageValue) => {
+          // Handle array of images
+          if (Array.isArray(imageValue)) {
+            if (imageValue.length === 0) {
+              return <span className="text-muted">No images</span>;
+            }
+            return (
+              <div className="d-flex flex-wrap gap-2">
+                {imageValue.map((img, index) => {
+                  const imageUrl = img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img.replace(/^uploads\//, '')}`;
+                  return (
+                    <div key={index} className="position-relative">
+                      <img 
+                        src={imageUrl} 
+                        alt={`${field.label} ${index + 1}`}
+                        className="img-thumbnail" 
+                        style={{ width: '60px', height: '60px', objectFit: 'cover', cursor: 'pointer' }}
+                        onClick={() => window.open(imageUrl, '_blank')}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'inline';
+                        }}
+                      />
+                      <span style={{ display: 'none', color: '#666', fontSize: '0.8em' }}>📷 Image {index + 1}</span>
+                    </div>
+                  );
+                })}
+                <small className="text-muted align-self-end">{imageValue.length} image(s) - Click to view</small>
+              </div>
+            );
+          }
+          // Handle single image URL
+          else if (typeof imageValue === 'string' && imageValue !== 'N/A' && imageValue.trim() !== '') {
+            const imageUrl = imageValue.startsWith('http') ? imageValue : `https://codeaves.avessecurity.com/uploads/${imageValue.replace(/^uploads\//, '')}`;
+            return (
+              <div>
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <img 
+                    src={imageUrl} 
+                    alt={field.label}
+                    className="img-thumbnail" 
+                    style={{ width: '60px', height: '60px', objectFit: 'cover', cursor: 'pointer' }}
+                    onClick={() => window.open(imageUrl, '_blank')}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'inline';
+                    }}
+                  />
+                  <div>
+                    <div>
+                      <small className="text-primary" style={{ cursor: 'pointer' }} onClick={() => window.open(imageUrl, '_blank')}>
+                        🖼️ Click to view full size
+                      </small>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.8em', wordBreak: 'break-all' }}>
+                      {imageValue.length > 50 ? imageValue.substring(0, 50) + '...' : imageValue}
+                    </div>
+                  </div>
+                </div>
+                <span style={{ display: 'none', color: '#666', fontSize: '0.9em' }}>📷 {imageValue}</span>
+              </div>
+            );
+          }
+          // No valid image
+          else {
+            return <span className="text-muted">No image</span>;
+          }
+        };
+        
+        return (
+          <tr key={field.uniqueKey}>
+            <td className="fw-bold">{field.label}:</td>
+            <td>{renderImages(value)}</td>
+          </tr>
+        );
+      }
+      // Handle complex objects and arrays
+      else if (typeof value === 'object') {
+        if (Array.isArray(value)) {
+          // Handle arrays - join them or show count
+          if (value.length === 0) {
+            value = 'N/A';
+          } else if (value.every(item => typeof item === 'string' || typeof item === 'number')) {
+            value = value.join(', ');
+          } else {
+            value = `${value.length} item(s)`;
+          }
+        } else {
+          // Handle objects - convert to readable string
+          try {
+            if (value.name || value.Name) {
+              value = value.name || value.Name;
+            } else if (value.title || value.Title) {
+              value = value.title || value.Title;
+            } else if (value.Addmodule) {
+              // Handle specific Addmodule object pattern
+              value = value.Addmodule;
+            } else if (value.classes) {
+              // Handle classes object
+              if (Array.isArray(value.classes)) {
+                value = value.classes.join(', ');
+              } else {
+                value = value.classes.toString();
+              }
+            } else if (Object.keys(value).length === 1) {
+              // If object has only one key, use its value
+              const singleKey = Object.keys(value)[0];
+              const singleValue = value[singleKey];
+              // Ensure the single value is also renderable
+              if (typeof singleValue === 'object' && singleValue !== null) {
+                value = JSON.stringify(singleValue);
+              } else {
+                value = singleValue;
+              }
+            } else {
+              // For complex objects, show a summary
+              const keys = Object.keys(value);
+              if (keys.length <= 3) {
+                value = keys.map(k => `${k}: ${value[k]}`).join(', ');
+              } else {
+                value = `Object with ${keys.length} properties`;
+              }
+            }
+          } catch (e) {
+            value = '[Complex Object]';
+          }
+        }
+      }
+      // Handle dates
+      else if (field.isDate && value) {
+        value = formatDate(value);
+      } else if (field.isDateTime && value) {
+        value = formatDateTime(value);
+      } else if (field.isTime && value) {
+        // Handle time fields - convert to string
+        value = value.toString();
+      } else {
+        // Convert everything else to string to be safe
+        value = safe(value.toString());
+      }
+
+      // Final safety check - ensure value is renderable
+      if (typeof value === 'object' && value !== null && !React.isValidElement(value)) {
+        console.warn(`Warning: Converting object value for field '${field.key}' to string:`, value);
+        value = '[Object - Could not display]';
+      }
+      
+      // Apply badge styling for status fields
+      if (field.isBadge && value !== 'N/A' && typeof value === 'string') {
+        const badgeClass = 
+          (value === 'Good' ? 'bg-success' :
+           value === 'Faulty' ? 'bg-danger' :
+           value === 'Fixed' ? 'bg-success' :
+           value === 'Pending' ? 'bg-warning' : 
+           field.key === 'module' ? 'bg-info' : 'bg-secondary');
+        value = <span className={`badge ${badgeClass}`}>{value}</span>;
+      }
+
+      return (
+        <tr key={field.uniqueKey}>
+          <td className="fw-bold">{field.label}:</td>
+          <td>{value}</td>
+        </tr>
+      );
+    };
+
+    // Split fields into two columns for better layout
+    const midpoint = Math.ceil(allFields.length / 2);
+    const leftFields = allFields.slice(0, midpoint);
+    const rightFields = allFields.slice(midpoint);
+
+    // Add module badge at the end if not already present
+    if (details.module && !rightFields.some(f => f.key === 'module')) {
+      rightFields.push({
+        label: 'Module',
+        key: 'module',
+        uniqueKey: 'field-module',
+        isBadge: true
+      });
     }
 
-    return images.map((src, index) => {
-      // Remove any leading "uploads/" from src to avoid duplication
-      const cleanSrc = src.replace(/^uploads\//, '');
-      const imgSrc = src.startsWith('http') ? src : `https://codeaves.avessecurity.com/uploads/${cleanSrc}`;
-      
-      return (
-        <div key={index} className="mb-2 me-2 d-inline-block">
-          <img 
-            src={imgSrc} 
-            alt={`Evidence ${index + 1}`} 
-            style={{ 
-              maxWidth: '200px', 
-              maxHeight: '150px', 
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }} 
-            className="img-thumbnail"
-          />
+    return (
+      <>
+        <div className="alert alert-info mb-3">
+          <i className="bi bi-database me-2"></i>
+          <strong>Dynamic Fields:</strong> Showing all available fields from {details.module || 'Unknown'} module
         </div>
-      );
-    });
-  };
-
-  // Function to format date
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    return !isNaN(d) ? d.toLocaleDateString() : 'N/A';
-  };
-
-  // Function to format time
-  const formatTime = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    return !isNaN(d) ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+        
+        <div className="row">
+          <div className="col-md-6">
+            <h5 className="text-primary border-bottom pb-2">
+              Record Details (Part 1)
+            </h5>
+            <table className="table table-sm table-borderless">
+              <tbody>
+                {leftFields.map(renderField)}
+              </tbody>
+            </table>
+          </div>
+          <div className="col-md-6">
+            <h5 className="text-primary border-bottom pb-2">
+              Record Details (Part 2)
+            </h5>
+            <table className="table table-sm table-borderless">
+              <tbody>
+                {rightFields.map(renderField)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    );
   };
 
   return (
@@ -712,28 +1189,80 @@ function Reports() {
               />
             </div>
 
-            <div className="col-md-12 mt-4 d-flex justify-content-end gap-2">
-              <button 
-                type="button" 
-                className="btn btn-primary px-4" 
-                onClick={handlePreview}
-                disabled={!selectedModule || loading}
-              >
-                <i className="bi bi-eye me-1"></i> Preview Report
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-success px-4" 
-                onClick={handleGeneratePdf}
-                disabled={!selectedModule || loading}
-              >
-                <i className="bi bi-file-earmark-pdf me-1"></i> Generate PDF
-              </button>
+            {/* Applied Filters Summary */}
+            {getAppliedFilters().length > 0 && (
+              <div className="col-md-12">
+                <div className="alert alert-info d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong><i className="bi bi-funnel me-2"></i>Applied Filters:</strong> 
+                    <span className="ms-2">{getAppliedFilters().join(' • ')}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={handleClearFilters}
+                    title="Clear all filters"
+                  >
+                    <i className="bi bi-x-circle me-1"></i> Clear Filters
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="col-md-12 mt-4 d-flex justify-content-between align-items-center">
+              <div className="d-flex gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-outline-secondary" 
+                  onClick={handleClearFilters}
+                  disabled={getAppliedFilters().length === 0}
+                  title="Clear all filters"
+                >
+                  <i className="bi bi-funnel-fill me-1"></i> Clear Filters
+                </button>
+              </div>
+              
+              <div className="d-flex gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-info px-4" 
+                  onClick={handleGetPreviews}
+                  disabled={!selectedModule || previewLoading}
+                >
+                  {previewLoading ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-1" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-list-ul me-1"></i> Get Previews
+                    </>
+                  )}
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary px-4" 
+                  onClick={handlePreview}
+                  disabled={!selectedModule || loading}
+                >
+                  <i className="bi bi-eye me-1"></i> Preview Report
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success px-4" 
+                  onClick={handleGeneratePdf}
+                  disabled={!selectedModule || loading}
+                >
+                  <i className="bi bi-file-earmark-pdf me-1"></i> Generate PDF
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Preview Modal with Iframe */}
       <Modal show={showPreview} onHide={() => setShowPreview(false)} size="xl" centered scrollable>
         <Modal.Header closeButton className="bg-light">
           <Modal.Title>
@@ -741,110 +1270,247 @@ function Reports() {
             {selectedModule?.label} Report Preview
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
-          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto", padding: 0 }}>
+          <iframe 
+            srcDoc={previewHtml}
+            style={{ 
+              width: '100%', 
+              height: '60vh', 
+              border: 'none',
+              borderRadius: '8px'
+            }}
+            title="Report Preview"
+            sandbox="allow-scripts allow-same-origin"
+            onLoad={() => console.log('Preview iframe loaded successfully')}
+          />
         </Modal.Body>
         <Modal.Footer>
+          <div className="text-muted small">
+            <i className="bi bi-info-circle me-1"></i>
+            Click on any row to view detailed information
+          </div>
           <Button variant="secondary" onClick={() => setShowPreview(false)}>
             <i className="bi bi-x-circle me-1"></i> Close
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Detail View Modal */}
-      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg" centered>
-        <Modal.Header closeButton className="bg-light">
+      {/* Preview List Modal */}
+      <Modal show={showPreviewList} onHide={handleClosePreviewList} size="xl" centered scrollable>
+        <Modal.Header closeButton className="bg-info text-white">
           <Modal.Title>
-            <i className="bi bi-info-circle me-2"></i>
-            Report Details
+            <div>
+              <i className="bi bi-list-ul me-2"></i>
+              {selectedModule?.label || 'Report'} Previews ({reportPreviews.length} found)
+              {getAppliedFilters().length > 0 && (
+                <div className="small mt-1">
+                  <i className="bi bi-funnel me-1"></i>
+                  Filtered by: {getAppliedFilters().join(' • ')}
+                </div>
+              )}
+            </div>
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
-          {selectedRecord ? (
-            <div className="container-fluid">
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <h6 className="text-muted">Location</h6>
-                  <p>{selectedRecord.Location || 'N/A'}</p>
-                </div>
-                <div className="col-md-6">
-                  <h6 className="text-muted">Status</h6>
-                  <p>
-                    <span className={`badge ${
-                      selectedRecord.Status === 'Good' ? 'bg-success' : 
-                      selectedRecord.Status === 'Faulty' ? 'bg-danger' : 'bg-secondary'
-                    }`}>
-                      {selectedRecord.Status || 'N/A'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <h6 className="text-muted">Reported By</h6>
-                  <p>{selectedRecord.ReportedBy || 'N/A'}</p>
-                </div>
-                <div className="col-md-6">
-                  <h6 className="text-muted">Reported Date & Time</h6>
-                  <p>{formatDate(selectedRecord.ReportedDate)} {selectedRecord.ReportedTime || ''}</p>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <h6 className="text-muted">Reported To</h6>
-                  <p>{selectedRecord.ReportedTo || 'N/A'}</p>
-                </div>
-                <div className="col-md-6">
-                  <h6 className="text-muted">Action Reason</h6>
-                  <p>{selectedRecord.ActionReason || 'N/A'}</p>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-12">
-                  <h6 className="text-muted">Fault Images</h6>
-                  <div className="d-flex flex-wrap">
-                    {renderImages(selectedRecord.FaultImage)}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <h6 className="text-muted">Action By</h6>
-                  <p>{selectedRecord.ActionBy || 'N/A'}</p>
-                </div>
-                <div className="col-md-6">
-                  <h6 className="text-muted">Action Date & Time</h6>
-                  <p>{formatDate(selectedRecord.ActionDate)} {selectedRecord.ActionTime || ''}</p>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-12">
-                  <h6 className="text-muted">Acknowledged Images</h6>
-                  <div className="d-flex flex-wrap">
-                    {renderImages(selectedRecord.AcknowledgedImage)}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <h6 className="text-muted">Reviewed By</h6>
-                  <p>{selectedRecord.ReviewedBy || 'N/A'}</p>
-                </div>
-                <div className="col-md-6">
-                  <h6 className="text-muted">Reviewed Date & Time</h6>
-                  <p>{formatDate(selectedRecord.ReviewedDate)} {selectedRecord.ReviewedTime || ''}</p>
-                </div>
-              </div>
+          {reportPreviews.length === 0 ? (
+            <div className="text-center py-4">
+              <i className="bi bi-inbox display-4 text-muted"></i>
+              <p className="mt-3 text-muted">No reports found for the selected date range and module.</p>
             </div>
           ) : (
-            <div className="text-center py-4">
-              <p>No record selected</p>
+            <div className="row">
+              {reportPreviews.map((preview, index) => (
+                <div key={preview.id} className="col-md-6 col-lg-4 mb-3">
+                  <div 
+                    className="card h-100 shadow-sm" 
+                    style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                    onClick={() => handlePreviewClick(preview)}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
+                  >
+                    <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                      <small className="text-muted">#{index + 1}</small>
+                      <span className={`badge ${
+                        preview.status === 'Good' ? 'bg-success' :
+                        preview.status === 'Faulty' ? 'bg-danger' : 'bg-secondary'
+                      }`}>
+                        {preview.status}
+                      </span>
+                    </div>
+                    <div className="card-body">
+                      <h6 className="card-title text-truncate" title={preview.reportNo}>
+                        <i className="bi bi-file-earmark-text me-1"></i>
+                        {preview.reportNo}
+                      </h6>
+                      <p className="card-text small mb-2">
+                        <i className="bi bi-geo-alt me-1"></i>
+                        <span className="text-truncate" title={preview.location}>{preview.location}</span>
+                      </p>
+                      <p className="card-text small mb-2">
+                        <i className="bi bi-person me-1"></i>
+                        {preview.reportedBy}
+                      </p>
+                      <p className="card-text small mb-0 text-muted">
+                        <i className="bi bi-calendar me-1"></i>
+                        {preview.reportedDate}
+                      </p>
+                      {preview.hasImages && (
+                        <div className="mt-2">
+                          <span className="badge bg-warning text-dark">
+                            <i className="bi bi-images me-1"></i>
+                            Has Images
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="card-footer bg-transparent">
+                      <small className="text-primary">
+                        <i className="bi bi-arrow-right-circle me-1"></i>
+                        Click to view details
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <div className="me-auto text-muted small">
+            <i className="bi bi-info-circle me-1"></i>
+            Click any preview card to view detailed information
+          </div>
+          <Button variant="secondary" onClick={handleClosePreviewList}>
+            <i className="bi bi-x-circle me-1"></i> Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Detail View Modal - Updated for new preview details */}
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="xl" centered scrollable>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>
+            <i className="bi bi-info-circle me-2"></i>
+            Record Details - {selectedPreview?.reportNo || 'N/A'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
+          {detailLoading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-3">Loading detailed information...</p>
+            </div>
+          ) : selectedPreview?.details ? (
+            <div className="container-fluid">
+              {renderModuleSpecificFields(selectedPreview.details)}
+              
+              {/* Images Section */}
+              {(() => {
+                const data = selectedPreview.details.data || selectedPreview.details;
+                return (data.FaultImage?.length > 0 || data.AcknowledgedImage?.length > 0 || 
+                        data.Images?.length > 0 || data.Imageold?.length > 0);
+              })() && (
+                <div className="row mt-4">
+                  <div className="col-12">
+                    <h5 className="text-primary border-bottom pb-2">Images</h5>
+                    <div className="row">
+                      {(() => {
+                        const data = selectedPreview.details.data || selectedPreview.details;
+                        return (
+                          <>
+                            {data.FaultImage?.length > 0 && (
+                              <div className="col-md-6 mb-3">
+                                <h6 className="text-danger">Fault Images</h6>
+                                <div className="d-flex flex-wrap gap-2">
+                                  {data.FaultImage.map((img, index) => (
+                                    <img 
+                                      key={index} 
+                                      src={img} 
+                                      alt={`Fault ${index + 1}`} 
+                                      className="img-thumbnail" 
+                                      style={{ width: '100px', height: '80px', objectFit: 'cover', cursor: 'pointer' }}
+                                      onClick={() => window.open(img, '_blank')}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {data.AcknowledgedImage?.length > 0 && (
+                              <div className="col-md-6 mb-3">
+                                <h6 className="text-success">Acknowledged Images</h6>
+                                <div className="d-flex flex-wrap gap-2">
+                                  {data.AcknowledgedImage.map((img, index) => (
+                                    <img 
+                                      key={index} 
+                                      src={img} 
+                                      alt={`Acknowledged ${index + 1}`} 
+                                      className="img-thumbnail" 
+                                      style={{ width: '100px', height: '80px', objectFit: 'cover', cursor: 'pointer' }}
+                                      onClick={() => window.open(img, '_blank')}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {data.Images?.length > 0 && (
+                              <div className="col-md-6 mb-3">
+                                <h6 className="text-info">General Images</h6>
+                                <div className="d-flex flex-wrap gap-2">
+                                  {data.Images.map((img, index) => (
+                                    <img 
+                                      key={index} 
+                                      src={img} 
+                                      alt={`Image ${index + 1}`} 
+                                      className="img-thumbnail" 
+                                      style={{ width: '100px', height: '80px', objectFit: 'cover', cursor: 'pointer' }}
+                                      onClick={() => window.open(img, '_blank')}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {data.Imageold?.length > 0 && (
+                              <div className="col-md-6 mb-3">
+                                <h6 className="text-warning">Archive Images</h6>
+                                <div className="d-flex flex-wrap gap-2">
+                                  {data.Imageold.map((img, index) => (
+                                    <img 
+                                      key={index} 
+                                      src={img} 
+                                      alt={`Archive ${index + 1}`} 
+                                      className="img-thumbnail" 
+                                      style={{ width: '100px', height: '80px', objectFit: 'cover', cursor: 'pointer' }}
+                                      onClick={() => window.open(img, '_blank')}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : detailHtml ? (
+            <iframe 
+              srcDoc={detailHtml}
+              style={{ 
+                width: '100%', 
+                height: '60vh', 
+                border: 'none',
+                borderRadius: '8px'
+              }}
+              title="Record Details"
+              sandbox="allow-scripts allow-same-origin"
+              onLoad={() => console.log('Detail iframe loaded successfully')}
+            />
+          ) : (
+            <div className="text-center py-5">
+              <i className="bi bi-exclamation-triangle display-4 text-warning"></i>
+              <p className="mt-3">No details available</p>
             </div>
           )}
         </Modal.Body>

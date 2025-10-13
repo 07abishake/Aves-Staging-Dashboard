@@ -697,6 +697,7 @@ const OccurrenceManager = () => {
               <p><strong>Occurring Time:</strong> {viewData?.OccurringTime}</p>
               <p><strong>Location:</strong> {viewData?.Location}</p>
               <p><strong>Reported By:</strong> {viewData?.ReportedBy}</p>
+              <p><strong>Supervisor Name:</strong> {viewData?.SupervisorName || 'N/A'}</p>
               <p><strong>Nature of Incident:</strong> {viewData?.NatureOfIncident}</p>
               <p><strong>Description:</strong> {viewData?.Description}</p>
               <p><strong>Action Taken:</strong> {viewData?.ActionTaken}</p>
@@ -744,6 +745,10 @@ const OccurrenceManager = () => {
                 <div className="row detail-row">
                   <div className="col-4 detail-label">Reported By:</div>
                   <div className="col-8">{printData?.ReportedBy}</div>
+                </div>
+                <div className="row detail-row">
+                  <div className="col-4 detail-label">Supervisor Name:</div>
+                  <div className="col-8">{printData?.SupervisorName || 'N/A'}</div>
                 </div>
                 <div className="row detail-row">
                   <div className="col-4 detail-label">Nature of Incident:</div>
@@ -828,6 +833,16 @@ const OccurrenceManager = () => {
                 <UserDropdown 
                   value={form.ReportedBy || ''}
                   onChange={handleInputChange}
+                  showLabel={false}
+                />
+              </Form.Group>
+              
+              {/* Supervisor Name User Dropdown */}
+              <Form.Group className="mb-3">
+                <Form.Label>Supervisor Name</Form.Label>
+                <UserDropdown 
+                  value={form.SupervisorName || ''}
+                  onChange={(e) => setForm({ ...form, SupervisorName: e.target.value })}
                   showLabel={false}
                 />
               </Form.Group>

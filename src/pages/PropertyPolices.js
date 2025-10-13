@@ -689,7 +689,7 @@ const PropertyPolices = () => {
                 {selectedPolicy.Policy}
               </div>
               <p className="text-muted mt-3">
-                <small>Created: {new Date(selectedPolicy.createdAt).toLocaleString()}</small>
+                <small>Created: {new Date(selectedPolicy.createdAt).toLocaleDateString('en-GB')} at {new Date(selectedPolicy.createdAt).toLocaleTimeString('en-GB')}</small>
               </p>
             </div>
           )}
