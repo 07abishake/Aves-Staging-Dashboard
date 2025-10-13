@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import logo from '../components/Images/Logo.png';
-import { Form, Button, InputGroup } from 'react-bootstrap'; // Import React-Bootstrap components
+import { Form, Button, InputGroup } from 'react-bootstrap'; 
 
 const Login = () => {
     const navigate = useNavigate();

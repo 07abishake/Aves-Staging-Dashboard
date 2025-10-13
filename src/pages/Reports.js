@@ -99,7 +99,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
+      const response = await axios.get(`https://codeaves.avessecurity.com/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -477,7 +477,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        `https://codeaves.avessecurity.com/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
@@ -527,7 +527,7 @@ function Reports() {
       console.log('Sending preview request with filters:', requestData);
       
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/preview`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview`,
         requestData,
         {
           headers: {
@@ -558,7 +558,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -615,7 +615,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview/${recordId}?module=${module}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${recordId}?module=${module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -651,7 +651,7 @@ function Reports() {
       console.log('Fetching record details for:', recordId, module);
       
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview-single/${module}/${recordId}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview-single/${module}/${recordId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
