@@ -55,8 +55,8 @@ function Reports() {
       try {
         const decodedToken = jwtDecode(token);
         // Set company name from domain in token
-        if (decodedToken.userDomain) {
-          setCompanyName(decodedToken.userDomain);
+        if (decodedToken.domain) {
+          setCompanyName(decodedToken.domain);
         }
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -99,7 +99,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`https://codeaves.avessecurity.com/collection/getModule`, {
+      const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

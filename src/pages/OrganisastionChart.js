@@ -66,14 +66,15 @@ const CreateSubOrganization = () => {
   // ✅ Get parent domain from token
   useEffect(() => {
     const token = localStorage.getItem("access_token");
+    console.log('Token',token)
     if (!token) {
       setError("Authentication token is missing. Please log in again.");
       return;
     }
     try {
       const decoded = jwtDecode(token);
-      if (decoded?.userDomain) {
-        setParentDomain(decoded.userDomain);
+      if (decoded?.domain) {
+        setParentDomain(decoded.domain);
       } else {
         setError("Parent domain not found in token.");
       }
@@ -208,6 +209,7 @@ const CreateSubOrganization = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("access_token");
+      console.log('Submitting with token:', token);
       if (!token) throw new Error("Authentication token is missing.");
 
       const payload = buildPayload();
