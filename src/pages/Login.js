@@ -13,48 +13,64 @@ const Login = () => {
     const [invalidInput, setInvalidInput] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+   const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        if (!name.trim() || !password.trim()) {
-            setInvalidInput(true);
-            setError('Both fields are required.');
-            return;
-        }
+    if (!name.trim() || !password.trim()) {
+        setInvalidInput(true);
+        setError('Both fields are required.');
+        return;
+    }
 
-        try {
-            const response = await axios.post(
-                'https://codeaves.avessecurity.com/api/auth/login',
-                { name, password },
-                { headers: { 'Content-Type': 'application/json' } }
-            );
+    try {
+        const response = await axios.post(
+            'http://localhost:3393/api/auth/login',
+            { name, password },
+            { headers: { 'Content-Type': 'application/json' } }
+        );
 
-            const { token } = response.data;
+        console.log('Full response:', response); // Debug log
+
+        // Check if login was successful
+        if (response.data.success) {
+            const { token } = response.data.data; // Access token from data.data
 
             if (token) {
                 const decoded = jwtDecode(token);
-                const { email, name, OrganizationId, planId } = decoded;
+                console.log('Decoded token:', decoded); // Debug log
 
+                // Store token and user data
                 localStorage.setItem('access_token', token);
-                localStorage.setItem('email', email || '');
-                localStorage.setItem('name', name || '');
-                localStorage.setItem('OrganizationId', OrganizationId || '');
+                localStorage.setItem('email', decoded.email || '');
+                localStorage.setItem('name', decoded.name || '');
+                localStorage.setItem('OrganizationId', decoded.OrganizationId || '');
+                localStorage.setItem('role', decoded.role || '');
+                
+                // Store the complete user data from response
+                localStorage.setItem('userData', JSON.stringify(response.data.data.user));
+                localStorage.setItem('organizationData', JSON.stringify(response.data.data.organization));
 
-                if (planId?.features) {
-                    localStorage.setItem('planFeatures', JSON.stringify(planId.features));
+                if (decoded.planId?.features) {
+                    localStorage.setItem('planFeatures', JSON.stringify(decoded.planId.features));
                 }
 
-                if (planId) {
-                    localStorage.setItem('userPlan', JSON.stringify(planId));
+                if (decoded.planId) {
+                    localStorage.setItem('userPlan', JSON.stringify(decoded.planId));
                 }
 
+                console.log('Login successful, navigating to dashboard...');
                 navigate('/dashboard');
+            } else {
+                setError('No token received from server');
             }
-        } catch (err) {
-            console.error('Login error:', err);
-            setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+        } else {
+            setError(response.data.message || 'Login failed');
         }
-    };
+    } catch (err) {
+        console.error('Login error:', err);
+        setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+    }
+};
 
     return (
         <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
