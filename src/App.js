@@ -44,6 +44,7 @@ import OshaInvite from './pages/OshaInvite';
 import Training from './pages/Training';
 import PageNotFound from './pages/PageNotFound';
 import OrganizationManagement from './pages/OrganisationManagement';
+import { SocketProvider } from './Utils/SocketContext';
 
 function App() {
   const location = useLocation();
@@ -82,6 +83,7 @@ function App() {
   }, []);
 
   return (
+        <SocketProvider>
     <div className="container-fluid">
       <div className="row">
         {!shouldHideLayout && <Sidebar />}
@@ -143,6 +145,7 @@ function App() {
         </main>
       </div>
     </div>
+    </SocketProvider>
   );
 }
 
