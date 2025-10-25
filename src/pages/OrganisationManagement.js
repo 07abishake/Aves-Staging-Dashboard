@@ -12,7 +12,7 @@ const OrganizationDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('hierarchy'); // 'hierarchy' or 'list'
 
-  const BASE_URL = 'http://localhost:3393/api';
+  const BASE_URL = 'https://codeaves.avessecurity.com/api';
   const navigate = useNavigate();
 
   useEffect(() => {
