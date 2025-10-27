@@ -93,7 +93,7 @@ export const stockAPI = {
 export const organizationAPI = {
   getHierarchy: () => api.get('/organization/hierarchy'),
   getChildOrgs: () => api.get('/organization/child-orgs'),
-  getLocations: () => api.get('/organization/locations'),
+  getLocations: () => api.get('/Location/getLocations'),
   createLocation: (data) => api.post('/organization/locations/create', data)
 };
 

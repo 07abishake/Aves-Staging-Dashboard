@@ -41,7 +41,7 @@ import {
   ExclamationTriangle
 } from "react-bootstrap-icons";
 
-const API_BASE_URL = "http://localhost:3393/api";
+const API_BASE_URL = "https://codeaves.avessecurity.com/api";
 
 const CreateSubOrganization = () => {
   const [formData, setFormData] = useState({
