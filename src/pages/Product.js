@@ -17,11 +17,16 @@ import {
   Badge,
   Dropdown
 } from 'react-bootstrap';
-import { productAPI, moduleAPI } from '../service/api';
+import { productAPI, moduleAPI, productSharingAPI,organizationAPI } from '../service/api';
 
 const ProductCreation = () => {
   const [activeTab, setActiveTab] = useState('create');
   const [products, setProducts] = useState([]);
+  const [accessibleProducts, setAccessibleProducts] = useState({
+    fromDirectParent: [],
+    fromAncestors: [],
+    ownProducts: []
+  });
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -53,42 +58,69 @@ const ProductCreation = () => {
   const [pendingCategory, setPendingCategory] = useState('');
   const [pendingType, setPendingType] = useState('');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showSharingModal, setShowSharingModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const [createdProduct, setCreatedProduct] = useState(null);
+  const [selectedProductForSharing, setSelectedProductForSharing] = useState(null);
+  const [selectedProductForRequest, setSelectedProductForRequest] = useState(null);
   const [existingModules, setExistingModules] = useState([]);
+  const [childOrganizations, setChildOrganizations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
     fetchProducts();
+    fetchAccessibleProducts();
     fetchExistingModules();
     fetchDropdownSuggestions();
+    fetchChildOrganizations();
   }, []);
 
   const fetchProducts = async () => {
     try {
       const response = await productAPI.getAll({ limit: 1000 });
-      setProducts(response.data.data);
+      setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchAccessibleProducts = async () => {
+    try {
+      const response = await productSharingAPI.getAccessibleProducts();
+      setAccessibleProducts(response.data.data || {
+        fromDirectParent: [],
+        fromAncestors: [],
+        ownProducts: []
+      });
+    } catch (error) {
+      console.error('Error fetching accessible products:', error);
     }
   };
 
   const fetchExistingModules = async () => {
     try {
       const response = await moduleAPI.getAll({ limit: 50 });
-      setExistingModules(response.data.data);
+      setExistingModules(response.data.data || []);
     } catch (error) {
       console.error('Error fetching modules:', error);
     }
   };
 
-  // Fetch dropdown suggestions for categories and types
+  const fetchChildOrganizations = async () => {
+    try {
+      const response = await organizationAPI.getChildOrgs();
+      setChildOrganizations(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching child organizations:', error);
+    }
+  };
+
   const fetchDropdownSuggestions = async () => {
     try {
-      // Fetch all products to extract unique categories and types
       const response = await productAPI.getAll({ limit: 1000 });
-      const allProducts = response.data.data;
+      const allProducts = response.data.data || [];
       
       const uniqueCategories = [...new Set(allProducts.map(p => p.category).filter(Boolean))];
       const uniqueTypes = [...new Set(allProducts.map(p => p.type).filter(Boolean))];
@@ -108,7 +140,7 @@ const ProductCreation = () => {
         const response = await productAPI.getSuggestions(field, value);
         setSuggestions(prev => ({
           ...prev,
-          [field]: response.data.data
+          [field]: response.data.data || []
         }));
       } catch (error) {
         console.error('Error fetching suggestions:', error);
@@ -155,7 +187,6 @@ const ProductCreation = () => {
     }));
   };
 
-  // Handle dropdown selection for categories and types
   const handleDropdownSelect = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -193,8 +224,9 @@ const ProductCreation = () => {
         setCreatedProduct(response.data.data);
         setSuccess('Product created successfully!');
         setShowAssignmentModal(true);
-        fetchProducts(); // Refresh the list
-        fetchDropdownSuggestions(); // Refresh dropdown suggestions
+        fetchProducts();
+        fetchDropdownSuggestions();
+        fetchAccessibleProducts();
       }
     } catch (error) {
       if (error.response?.status === 409) {
@@ -222,10 +254,41 @@ const ProductCreation = () => {
         setShowAssignmentModal(false);
         resetForm();
         fetchProducts();
-        fetchExistingModules(); // Refresh modules list
+        fetchExistingModules();
+        fetchAccessibleProducts();
       }
     } catch (error) {
       setError('Failed to assign product: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleShareProduct = async (productId, shareData) => {
+    try {
+      const response = await productSharingAPI.shareProduct(productId, shareData);
+      
+      if (response.data.success) {
+        setSuccess(`Product shared with ${response.data.data.totalShared} organizations successfully!`);
+        setShowSharingModal(false);
+        setSelectedProductForSharing(null);
+        fetchAccessibleProducts();
+      }
+    } catch (error) {
+      setError('Failed to share product: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleRequestProduct = async (requestData) => {
+    try {
+      const response = await productSharingAPI.requestProduct(requestData);
+      
+      if (response.data.success) {
+        setSuccess('Product request submitted successfully!');
+        setShowRequestModal(false);
+        setSelectedProductForRequest(null);
+        fetchAccessibleProducts();
+      }
+    } catch (error) {
+      setError('Failed to request product: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -252,11 +315,22 @@ const ProductCreation = () => {
         await productAPI.delete(productId);
         setSuccess('Product deleted successfully!');
         fetchProducts();
-        fetchDropdownSuggestions(); // Refresh dropdown suggestions
+        fetchDropdownSuggestions();
+        fetchAccessibleProducts();
       } catch (error) {
         setError('Failed to delete product: ' + error.response?.data?.message);
       }
     }
+  };
+
+  const openSharingModal = (product) => {
+    setSelectedProductForSharing(product);
+    setShowSharingModal(true);
+  };
+
+  const openRequestModal = (product, targetOrg) => {
+    setSelectedProductForRequest({ product, targetOrg });
+    setShowRequestModal(true);
   };
 
   return (
@@ -290,10 +364,17 @@ const ProductCreation = () => {
                     onSubmit={handleSubmit}
                   />
                 </Tab>
-                <Tab eventKey="list" title="📦 Product List">
+                <Tab eventKey="shared" title="🔄 Accessible Products">
+                  <AccessibleProducts 
+                    accessibleProducts={accessibleProducts}
+                    onRequest={openRequestModal}
+                  />
+                </Tab>
+                <Tab eventKey="list" title="📦 My Products">
                   <ProductList 
                     products={products}
                     onDelete={handleProductDelete}
+                    onShare={openSharingModal}
                   />
                 </Tab>
               </Tabs>
@@ -335,11 +416,38 @@ const ProductCreation = () => {
           existingModules={existingModules}
         />
       )}
+
+      {/* Product Sharing Modal */}
+      {selectedProductForSharing && (
+        <ProductSharingModal
+          show={showSharingModal}
+          onHide={() => {
+            setShowSharingModal(false);
+            setSelectedProductForSharing(null);
+          }}
+          onShare={handleShareProduct}
+          product={selectedProductForSharing}
+          childOrganizations={childOrganizations}
+        />
+      )}
+
+      {/* Product Request Modal */}
+      {selectedProductForRequest && (
+        <ProductRequestModal
+          show={showRequestModal}
+          onHide={() => {
+            setShowRequestModal(false);
+            setSelectedProductForRequest(null);
+          }}
+          onRequest={handleRequestProduct}
+          productData={selectedProductForRequest}
+        />
+      )}
     </Container>
   );
 };
 
-// Enhanced Product Creation Form Component with Dropdowns
+// Product Creation Form Component
 const ProductCreationForm = ({
   formData,
   suggestions,
@@ -634,8 +742,157 @@ const ProductCreationForm = ({
   </Form>
 );
 
+// Accessible Products Component
+const AccessibleProducts = ({ accessibleProducts, onRequest }) => {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const allProducts = [
+    ...accessibleProducts.fromDirectParent,
+    ...accessibleProducts.fromAncestors
+  ];
+
+  const filteredProducts = selectedCategory === 'all' 
+    ? allProducts 
+    : allProducts.filter(product => product.relationship === selectedCategory);
+
+  const categories = [
+    { value: 'all', label: 'All Products', count: allProducts.length },
+    { value: 'DIRECT_PARENT', label: 'From Direct Parent', count: accessibleProducts.fromDirectParent.length },
+    { value: 'ANCESTOR', label: 'From Ancestors', count: accessibleProducts.fromAncestors.length }
+  ];
+
+  return (
+    <div>
+      <Card className="mb-3">
+        <Card.Body>
+          <Row>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Filter by Source</Form.Label>
+                <Form.Select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  {categories.map(cat => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label} ({cat.count})
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={6} className="d-flex align-items-end">
+              <Badge bg="primary" className="fs-6">
+                Total Accessible: {allProducts.length} products
+              </Badge>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {filteredProducts.length === 0 ? (
+        <Alert variant="info" className="text-center">
+          <h5>No accessible products found</h5>
+          <p>Products shared by parent organizations will appear here.</p>
+        </Alert>
+      ) : (
+        <div className="table-responsive">
+          <Table striped hover>
+            <thead className="table-dark">
+              <tr>
+                <th>Product</th>
+                <th>Source Organization</th>
+                <th>Relationship</th>
+                <th>Available Stock</th>
+                <th>Access Level</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((product, index) => (
+                <tr key={index}>
+                  <td>
+                    <div>
+                      <strong>{product.name}</strong>
+                      <br />
+                      <small className="text-muted">
+                        {product.brand} • {product.category}
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    {product.sourceOrgName}
+                    <br />
+                    <small className="text-muted">{product.sourceOrg}</small>
+                  </td>
+                  <td>
+                    <Badge 
+                      bg={
+                        product.relationship === 'DIRECT_PARENT' ? 'info' :
+                        product.relationship === 'ANCESTOR' ? 'warning' : 'secondary'
+                      }
+                    >
+                      {product.relationship}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge 
+                      bg={product.availableStock > 0 ? 'success' : 'danger'}
+                    >
+                      {product.availableStock}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg="outline-primary">
+                      {product.accessLevel}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!product.canRequest || product.availableStock === 0}
+                      onClick={() => onRequest(product, product.sourceOrg)}
+                    >
+                      📥 Request
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
+
+      {/* Own Products Section */}
+      {accessibleProducts.ownProducts.length > 0 && (
+        <Card className="mt-4">
+          <Card.Header>
+            <h5 className="mb-0">My Products ({accessibleProducts.ownProducts.length})</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              {accessibleProducts.ownProducts.slice(0, 6).map((product, index) => (
+                <Col md={4} key={product._id} className="mb-3">
+                  <Card>
+                    <Card.Body>
+                      <h6>{product.name}</h6>
+                      <p className="text-muted mb-1">{product.brand}</p>
+                      <Badge bg="success">{product.currentQuantity} in stock</Badge>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // Product List Component
-const ProductList = ({ products, onDelete }) => {
+const ProductList = ({ products, onDelete, onShare }) => {
   const [filter, setFilter] = useState({
     category: '',
     assignmentType: ''
@@ -735,13 +992,22 @@ const ProductList = ({ products, onDelete }) => {
                 </Badge>
               </td>
               <td>
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={() => onDelete(product._id)}
-                >
-                  Delete
-                </Button>
+                <div className="d-flex gap-1">
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => onShare(product)}
+                  >
+                    Share
+                  </Button>
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={() => onDelete(product._id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
@@ -758,7 +1024,7 @@ const ProductList = ({ products, onDelete }) => {
   );
 };
 
-// Enhanced Assignment Modal Component with Create New Module Confirmation
+// Enhanced Assignment Modal Component
 const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModules }) => {
   const [assignmentType, setAssignmentType] = useState('');
   const [showModuleOptions, setShowModuleOptions] = useState(false);
@@ -796,7 +1062,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
       return;
     }
 
-    // Validate that all fields have names
     const invalidFields = moduleData.fields.filter(field => !field.fieldName.trim());
     if (invalidFields.length > 0) {
       alert('Please provide names for all fields');
@@ -857,7 +1122,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Convert to base64 for preview (in real app, upload to server)
       const reader = new FileReader();
       reader.onload = (e) => {
         setModuleData(prev => ({
@@ -1166,6 +1430,197 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
             )}
           </div>
         )}
+      </Modal.Body>
+    </Modal>
+  );
+};
+
+// Product Sharing Modal Component
+const ProductSharingModal = ({ show, onHide, onShare, product, childOrganizations }) => {
+  const [shareData, setShareData] = useState({
+    childOrganizations: [],
+    accessLevel: 'REQUEST_ACCESS',
+    shareWithAllChildren: false
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await onShare(product._id, shareData);
+  };
+
+  const toggleOrganization = (orgId) => {
+    setShareData(prev => {
+      const isSelected = prev.childOrganizations.includes(orgId);
+      return {
+        ...prev,
+        childOrganizations: isSelected
+          ? prev.childOrganizations.filter(id => id !== orgId)
+          : [...prev.childOrganizations, orgId]
+      };
+    });
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Share Product with Child Organizations</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Product to Share</Form.Label>
+            <Card>
+              <Card.Body>
+                <strong>{product.name}</strong> - {product.brand}
+                <br />
+                <small className="text-muted">Category: {product.category}</small>
+              </Card.Body>
+            </Card>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Check
+              type="switch"
+              label="Share with all child organizations"
+              checked={shareData.shareWithAllChildren}
+              onChange={(e) => setShareData(prev => ({
+                ...prev,
+                shareWithAllChildren: e.target.checked,
+                childOrganizations: e.target.checked ? childOrganizations.map(org => org.OrganizationId) : []
+              }))}
+            />
+          </Form.Group>
+
+          {!shareData.shareWithAllChildren && (
+            <Form.Group className="mb-3">
+              <Form.Label>Select Child Organizations</Form.Label>
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {childOrganizations.map(org => (
+                  <Form.Check
+                    key={org.OrganizationId}
+                    type="checkbox"
+                    label={`${org.companyName || org.name} (${org.domain})`}
+                    checked={shareData.childOrganizations.includes(org.OrganizationId)}
+                    onChange={() => toggleOrganization(org.OrganizationId)}
+                    className="mb-2"
+                  />
+                ))}
+              </div>
+            </Form.Group>
+          )}
+
+          <Form.Group className="mb-3">
+            <Form.Label>Access Level</Form.Label>
+            <Form.Select
+              value={shareData.accessLevel}
+              onChange={(e) => setShareData(prev => ({ ...prev, accessLevel: e.target.value }))}
+            >
+              <option value="VIEW_ONLY">View Only</option>
+              <option value="REQUEST_ACCESS">Request Access</option>
+              <option value="DIRECT_ACCESS">Direct Access</option>
+            </Form.Select>
+          </Form.Group>
+
+          <div className="d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+              disabled={!shareData.shareWithAllChildren && shareData.childOrganizations.length === 0}
+            >
+              Share Product
+            </Button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+
+// Product Request Modal Component
+const ProductRequestModal = ({ show, onHide, onRequest, productData }) => {
+  const [requestData, setRequestData] = useState({
+    quantity: 1,
+    reason: ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await onRequest({
+      productId: productData.product.productId,
+      targetOrganizationId: productData.targetOrg,
+      quantity: requestData.quantity,
+      reason: requestData.reason
+    });
+  };
+
+  return (
+    <Modal show={show} onHide={onHide}>
+      <Modal.Header closeButton>
+        <Modal.Title>Request Product</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Product</Form.Label>
+            <Card>
+              <Card.Body>
+                <strong>{productData.product.name}</strong>
+                <br />
+                <small className="text-muted">
+                  From: {productData.product.sourceOrgName}
+                  <br />
+                  Available: {productData.product.availableStock}
+                </small>
+              </Card.Body>
+            </Card>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Quantity *</Form.Label>
+            <Form.Control
+              type="number"
+              min="1"
+              max={productData.product.availableStock}
+              value={requestData.quantity}
+              onChange={(e) => setRequestData(prev => ({ 
+                ...prev, 
+                quantity: parseInt(e.target.value) || 1 
+              }))}
+              required
+            />
+            <Form.Text className="text-muted">
+              Maximum available: {productData.product.availableStock}
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Reason for Request *</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={requestData.reason}
+              onChange={(e) => setRequestData(prev => ({ ...prev, reason: e.target.value }))}
+              placeholder="Explain why you need this product..."
+              required
+            />
+          </Form.Group>
+
+          <div className="d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+              disabled={requestData.quantity > productData.product.availableStock || !requestData.reason}
+            >
+              Submit Request
+            </Button>
+          </div>
+        </Form>
       </Modal.Body>
     </Modal>
   );

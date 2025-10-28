@@ -42,7 +42,7 @@ function EmergencyCodeManager() {
   setLoading(true);
   setError(null);
   try {
-    const res = await axios.get('https://api.avessecurity.com/api/DrillCode/get', {
+    const res = await axios.get('https://codeaves.avessecurity.com/api/DrillCode/get', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -91,7 +91,7 @@ function EmergencyCodeManager() {
       };
 
       const codeRes = await axios.post(
-        "https://api.avessecurity.com/api/DrillCode/create",
+        "https://codeaves.avessecurity.com/api/DrillCode/create",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -121,7 +121,7 @@ function EmergencyCodeManager() {
     setLoading(true);
     try {
       await axios.delete(
-        `https://api.avessecurity.com/api/DrillCode/delete/${codeToDelete._id}`,
+        `https://codeaves.avessecurity.com/api/DrillCode/delete/${codeToDelete._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess('Emergency code deleted successfully!');

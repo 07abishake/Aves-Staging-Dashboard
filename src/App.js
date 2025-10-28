@@ -44,6 +44,7 @@ import OshaInvite from './pages/OshaInvite';
 import Training from './pages/Training';
 import PageNotFound from './pages/PageNotFound';
 import OrganizationManagement from './pages/OrganisationManagement';
+import NotificationCenter from './pages/NotificationBell';
 import { SocketProvider } from './Utils/SocketContext';
 
 function App() {
@@ -135,6 +136,7 @@ function App() {
                 <Route path='/SustainablityManager' element={<SustainabilityManagement />} />
                 <Route path='/osha-invite' element={<OshaInvite />} />
                 <Route path='/Training' element={<Training />} />
+                <Route path='/notifications' element={<NotificationCenter />} />
              
                 
                 {/* Catch all unknown routes - show 404 page */}

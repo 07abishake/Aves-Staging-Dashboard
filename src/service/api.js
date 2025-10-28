@@ -1,7 +1,6 @@
-// src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = 'https://codeaves.avessecurity.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3393/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -22,34 +21,26 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors (optional but recommended)
+// Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
       localStorage.removeItem('access_token');
-      // Redirect to login page or refresh token
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
 
-
+// Notification API
 export const notificationAPI = {
-  getNotifications: (params = {}) => 
-    api.get('/notifications', { params }),
-  
-  markAsRead: (notificationId) => 
-    api.post(`/notifications/${notificationId}/read`),
-  
-  markAllAsRead: () => 
-    api.post('/notifications/read-all'),
-  
-  getUnreadCount: () => 
-    api.get('/notifications/unread-count')
+  getNotifications: (params = {}) => api.get('/notifications', { params }),
+  markAsRead: (notificationId) => api.post(`/notifications/${notificationId}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
 };
+
 // Product API
 export const productAPI = {
   create: (data) => api.post('/AddProducts/create', data),
@@ -60,16 +51,22 @@ export const productAPI = {
   getSuggestions: (field, search) => 
     api.get(`/AddProducts/suggestions?field=${field}&search=${search}`),
   delete: (id) => api.delete(`/AddProducts/${id}`),
-   getAuthorizationRequests: (params = {}) => 
+  getAuthorizationRequests: (params = {}) => 
     api.get('/AddProducts/authorization-requests', { params }),
-  
   handleAuthorization: (requestId, data) => 
     api.post(`/AddProducts/authorization-requests/${requestId}/handle`, data),
-  
   getOrganizationInfo: () => api.get('/AddProducts/organization-info'),
 };
 
-
+// Product Sharing API
+export const productSharingAPI = {
+  shareProduct: (productId, data) => api.post(`/product-sharing/share/${productId}`, data),
+  getAccessibleProducts: (params = {}) => api.get('/product-sharing/accessible-products', { params }),
+  requestProduct: (data) => api.post('/product-sharing/request', data),
+  approveRequest: (productId, requestId, data) => 
+    api.post(`/product-sharing/approve-request/${productId}/${requestId}`, data),
+  getPendingRequests: (params = {}) => api.get('/product-sharing/pending-requests', { params }),
+};
 
 // Module API
 export const moduleAPI = {
@@ -85,8 +82,10 @@ export const stockAPI = {
   add: (data) => api.post('/stock/add', data),
   remove: (data) => api.post('/stock/remove', data),
   transfer: (data) => api.post('/stock/transfer', data),
-  getByLocation: (locationId, params = {}) => 
-    api.get(`/stock/location/${locationId}`, { params })
+  getApprovals: (params) => api.get('/stock/approvals', { params }),
+  handleApproval: (transactionId, data) => api.post(`/stock/approvals/${transactionId}`, data),
+  getStockByLocation: (locationId) => api.get(`/stock/location/${locationId}`),
+  getStockHistory: (productId, params) => api.get(`/stock/history/${productId}`, { params }),
 };
 
 // Organization API
@@ -94,7 +93,10 @@ export const organizationAPI = {
   getHierarchy: () => api.get('/organization/hierarchy'),
   getChildOrgs: () => api.get('/organization/child-orgs'),
   getLocations: () => api.get('/Location/getLocations'),
-  createLocation: (data) => api.post('/organization/locations/create', data)
+  createLocation: (data) => api.post('/organization/locations/create', data),
+  getAllOrganizations: (params = {}) => api.get('/organization/list', { params }),
+  getOrganizationDetails: (orgId) => api.get(`/organization/${orgId}`),
+  toggleStatus: (orgId, data) => api.patch(`/organization/${orgId}/status`, data),
 };
 
 export default api;

@@ -61,7 +61,6 @@ const StockManagement = () => {
   const fetchLocations = async () => {
     try {
       const response = await organizationAPI.getLocations();
-      // Transform the nested location structure to flat array
       const flattenedLocations = flattenLocations(response.data.Location || []);
       setLocations(flattenedLocations);
     } catch (error) {
@@ -80,88 +79,40 @@ const StockManagement = () => {
     }
   };
 
-  // Helper function to flatten nested location structure
   const flattenLocations = (locationData) => {
     const flattened = [];
     
     if (!Array.isArray(locationData)) return flattened;
 
     locationData.forEach(location => {
-      // Add primary location
       if (location.PrimaryLocation) {
         flattened.push({
-          _id: `primary_${location._id}`,
+          _id: location._id,
           name: location.PrimaryLocation,
           level: 'primary',
           parentId: null
         });
       }
 
-      // Process sub-locations
       if (Array.isArray(location.SubLocation)) {
         location.SubLocation.forEach(subLoc => {
-          // Add primary sub-location
           if (subLoc.PrimarySubLocation) {
             flattened.push({
-              _id: `primary_sub_${subLoc._id}`,
+              _id: subLoc._id,
               name: subLoc.PrimarySubLocation,
               level: 'primary_sub',
               parentId: location._id
             });
           }
 
-          // Process secondary locations
           if (Array.isArray(subLoc.SecondaryLocation)) {
             subLoc.SecondaryLocation.forEach(secLoc => {
-              // Add secondary location
               if (secLoc.SecondaryLocation) {
                 flattened.push({
-                  _id: `secondary_${secLoc._id}`,
+                  _id: secLoc._id,
                   name: secLoc.SecondaryLocation,
                   level: 'secondary',
                   parentId: subLoc._id
-                });
-              }
-
-              // Process secondary sub-locations
-              if (Array.isArray(secLoc.SecondarySubLocation)) {
-                secLoc.SecondarySubLocation.forEach(secSubLoc => {
-                  if (secSubLoc.SecondarySubLocation) {
-                    flattened.push({
-                      _id: `secondary_sub_${secSubLoc._id}`,
-                      name: secSubLoc.SecondarySubLocation,
-                      level: 'secondary_sub',
-                      parentId: secLoc._id
-                    });
-                  }
-
-                  // Process third locations
-                  if (Array.isArray(secSubLoc.ThirdLocation)) {
-                    secSubLoc.ThirdLocation.forEach(thirdLoc => {
-                      if (thirdLoc.ThirdLocation) {
-                        flattened.push({
-                          _id: `third_${thirdLoc._id}`,
-                          name: thirdLoc.ThirdLocation,
-                          level: 'third',
-                          parentId: secSubLoc._id
-                        });
-                      }
-                    });
-                  }
-                });
-              }
-
-              // Process direct third locations (if any)
-              if (Array.isArray(secLoc.ThirdLocation)) {
-                secLoc.ThirdLocation.forEach(thirdLoc => {
-                  if (thirdLoc.ThirdLocation) {
-                    flattened.push({
-                      _id: `third_direct_${thirdLoc._id}`,
-                      name: thirdLoc.ThirdLocation,
-                      level: 'third',
-                      parentId: secLoc._id
-                    });
-                  }
                 });
               }
             });
@@ -243,7 +194,7 @@ const StockManagement = () => {
                 variant="primary"
                 onClick={() => setActiveTab('add')}
               >
-                + Add Stock
+                Add Stock to Location
               </Button>
             </Card.Header>
             <Card.Body>
@@ -255,27 +206,28 @@ const StockManagement = () => {
                 onSelect={(tab) => setActiveTab(tab)}
                 className="mb-3"
               >
-                <Tab eventKey="view" title="📦 View Stock">
+                <Tab eventKey="view" title="📊 View Stock">
                   <StockView 
                     products={products}
+                    locations={locations}
                     onEdit={handleEditProduct}
                     onDelete={handleDeleteProduct}
                     getStockLevelVariant={getStockLevelVariant}
                   />
                 </Tab>
-                <Tab eventKey="add" title="➕ Add Stock">
+                <Tab eventKey="add" title="➕ Add to Location">
                   <AddStock 
                     products={products || []}
                     locations={locations}
-                    onSuccess={() => handleSuccess('Stock added successfully!')}
+                    onSuccess={() => handleSuccess('Stock added to location successfully!')}
                     onError={setError}
                   />
                 </Tab>
-                <Tab eventKey="remove" title="➖ Remove Stock">
+                <Tab eventKey="remove" title="➖ Remove from Location">
                   <RemoveStock 
                     products={products || []}
                     locations={locations}
-                    onSuccess={() => handleSuccess('Stock removed successfully!')}
+                    onSuccess={() => handleSuccess('Stock removed from location successfully!')}
                     onError={setError}
                   />
                 </Tab>
@@ -302,7 +254,6 @@ const StockManagement = () => {
         </Col>
       </Row>
 
-      {/* Edit Product Modal */}
       <EditProductModal
         show={showEditModal}
         onHide={() => {
@@ -313,7 +264,6 @@ const StockManagement = () => {
         onUpdate={handleUpdateProduct}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         show={showDeleteModal}
         onHide={() => {
@@ -327,14 +277,38 @@ const StockManagement = () => {
   );
 };
 
-// Stock View Component with Actions
-const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) => {
+// Enhanced Stock View Component with Location Stock
+const StockView = ({ products = [], locations = [], onEdit, onDelete, getStockLevelVariant }) => {
   const [filter, setFilter] = useState({
     category: '',
     assignmentType: '',
     lowStock: false
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [locationStock, setLocationStock] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLocationStock = async (locationId) => {
+    try {
+      setLoading(true);
+      const response = await stockAPI.getStockByLocation(locationId);
+      setLocationStock(response.data.data?.stock || []);
+    } catch (error) {
+      console.error('Error fetching location stock:', error);
+      setLocationStock([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedLocation) {
+      fetchLocationStock(selectedLocation);
+    } else {
+      setLocationStock([]);
+    }
+  }, [selectedLocation]);
 
   const filteredProducts = products.filter(product => {
     const matchesCategory = !filter.category || product.category === filter.category;
@@ -352,7 +326,6 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
 
   return (
     <div>
-      {/* Filters */}
       <Card className="mb-3">
         <Card.Body>
           <Row>
@@ -395,7 +368,23 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={2}>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>View Location Stock</Form.Label>
+                <Form.Select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                >
+                  <option value="">All Locations (Main Stock)</option>
+                  {locations.map(location => (
+                    <option key={location._id} value={location._id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={2} className="d-flex align-items-end">
               <Form.Group>
                 <Form.Check
                   type="switch"
@@ -405,31 +394,55 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
                 />
               </Form.Group>
             </Col>
-            <Col md={3} className="d-flex align-items-end">
-              <Badge bg="info" className="ms-auto">
-                {filteredProducts.length} products
-              </Badge>
-            </Col>
           </Row>
         </Card.Body>
       </Card>
 
-      {/* Products Table */}
-      <Table responsive striped>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th>Current Stock</th>
-            <th>Min Stock</th>
-            <th>Assignment</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredProducts.map(product => (
+      {loading && selectedLocation ? (
+        <div className="text-center py-4">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2">Loading location stock...</p>
+        </div>
+      ) : !selectedLocation ? (
+        <MainStockView 
+          products={filteredProducts} 
+          getStockLevelVariant={getStockLevelVariant}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ) : (
+        <LocationStockView 
+          locationStock={locationStock}
+          getStockLevelVariant={getStockLevelVariant}
+        />
+      )}
+    </div>
+  );
+};
+
+const MainStockView = ({ products, getStockLevelVariant, onEdit, onDelete }) => (
+  <div className="table-responsive">
+    <Table striped hover>
+      <thead className="table-dark">
+        <tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Current Stock</th>
+          <th>Min Stock</th>
+          <th>Total Location Stock</th>
+          <th>Total System</th>
+          <th>Assignment</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {products.map(product => {
+          const totalLocationStock = product.locationStock?.reduce((sum, stock) => sum + (stock.quantity || 0), 0) || 0;
+          const totalSystemStock = product.currentQuantity + totalLocationStock;
+          
+          return (
             <tr key={product._id}>
               <td>
                 <div>
@@ -447,6 +460,12 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
               </td>
               <td>{product.minimumStock}</td>
               <td>
+                <Badge bg="secondary">{totalLocationStock}</Badge>
+              </td>
+              <td>
+                <strong>{totalSystemStock}</strong>
+              </td>
+              <td>
                 <Badge 
                   bg={
                     product.assignmentType === 'Authorized Inventory' ? 'warning' :
@@ -454,7 +473,7 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
                     product.assignmentType === 'Regular' ? 'success' : 'secondary'
                   }
                 >
-                  {product.assignmentType}
+                  {product.assignmentType || 'Unassigned'}
                 </Badge>
               </td>
               <td>
@@ -485,16 +504,889 @@ const StockView = ({ products = [], onEdit, onDelete, getStockLevelVariant }) =>
                 </Dropdown>
               </td>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          );
+        })}
+        {products.length === 0 && (
+          <tr>
+            <td colSpan="10" className="text-center text-muted py-4">
+              No products found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
+  </div>
+);
 
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-5 text-muted">
-          <h5>No products found</h5>
-          <p>Try adjusting your filters or search terms.</p>
-        </div>
+const LocationStockView = ({ locationStock, getStockLevelVariant }) => (
+  <div className="table-responsive">
+    <Table striped hover>
+      <thead className="table-dark">
+        <tr>
+          <th>Product</th>
+          <th>Location Stock</th>
+          <th>Min Location Stock</th>
+          <th>Main Stock</th>
+          <th>Total System</th>
+          <th>Status</th>
+          <th>Last Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {locationStock.map((item, index) => (
+          <tr key={index}>
+            <td>
+              <div>
+                <strong>{item.product?.name}</strong>
+                <br />
+                <small className="text-muted">{item.product?.brand}</small>
+              </div>
+            </td>
+            <td>
+              <Badge bg={getStockLevelVariant({ currentQuantity: item.locationStock, minimumStock: item.minimumStock })}>
+                {item.locationStock}
+              </Badge>
+            </td>
+            <td>{item.minimumStock || 0}</td>
+            <td>
+              <Badge bg="outline-primary">{item.mainStock}</Badge>
+            </td>
+            <td>
+              <strong>{item.locationStock + item.mainStock}</strong>
+            </td>
+            <td>
+              <Badge bg={item.isLowStock ? 'warning' : 'success'}>
+                {item.isLowStock ? 'Low Stock' : 'Adequate'}
+              </Badge>
+            </td>
+            <td>
+              {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A'}
+            </td>
+          </tr>
+        ))}
+        {locationStock.length === 0 && (
+          <tr>
+            <td colSpan="7" className="text-center text-muted py-4">
+              No stock found at this location
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
+  </div>
+);
+
+// Enhanced AddStock Component with Stock Conservation Logic
+const AddStock = ({ products = [], locations = [], onSuccess, onError }) => {
+  const [formData, setFormData] = useState({
+    productId: '',
+    quantity: 1,
+    destinationLocation: '',
+    price: '',
+    batchNumber: '',
+    reason: 'Stock addition to location'
+  });
+  const [loading, setLoading] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    onError('');
+
+    try {
+      const response = await stockAPI.add(formData);
+      
+      if (response.data.success) {
+        const message = response.data.data.requiresApproval 
+          ? 'Stock add request submitted for approval' 
+          : 'Stock added to location successfully';
+        
+        onSuccess(message);
+        setFormData({
+          productId: '',
+          quantity: 1,
+          destinationLocation: '',
+          price: '',
+          batchNumber: '',
+          reason: 'Stock addition to location'
+        });
+        setRequiresApproval(response.data.data.requiresApproval);
+      }
+    } catch (error) {
+      onError(error.response?.data?.message || 'Failed to add stock');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedProduct = products.find(p => p._id === formData.productId);
+  const currentLocationStock = selectedProduct ? 
+    (selectedProduct.locationStock?.find(stock => stock.location === formData.destinationLocation)?.quantity || 0) : 0;
+
+  const insufficientStock = selectedProduct && selectedProduct.currentQuantity < formData.quantity;
+
+  return (
+    <div>
+      {requiresApproval && (
+        <Alert variant="warning" className="mb-3">
+          <strong>⚠️ Approval Required:</strong> Your stock request has been sent for approval. You will be notified when it's processed.
+        </Alert>
       )}
+      
+      <Form onSubmit={handleSubmit}>
+        <Row>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Product *</Form.Label>
+              <Form.Select
+                value={formData.productId}
+                onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+                required
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.name} - {product.brand} (Main Stock: {product.currentQuantity})
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Destination Location *</Form.Label>
+              <Form.Select
+                value={formData.destinationLocation}
+                onChange={(e) => setFormData({ ...formData, destinationLocation: e.target.value })}
+                required
+              >
+                <option value="">Select Location</option>
+                {locations.map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Reason *</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                placeholder="Reason for adding stock to location"
+                required
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+
+        {selectedProduct && (
+          <Alert variant="info" className="mb-3">
+            <h6>Stock Movement Preview</h6>
+            <Row>
+              <Col md={4}>
+                <strong>Main Stock:</strong><br />
+                {selectedProduct.currentQuantity} → <span className={insufficientStock ? 'text-danger' : ''}>
+                  {selectedProduct.currentQuantity - formData.quantity}
+                </span>
+              </Col>
+              <Col md={4}>
+                <strong>Location Stock:</strong><br />
+                {currentLocationStock} → {currentLocationStock + formData.quantity}
+              </Col>
+              <Col md={4}>
+                <strong>Total System:</strong><br />
+                {selectedProduct.currentQuantity + currentLocationStock} →{' '}
+                {(selectedProduct.currentQuantity - formData.quantity) + (currentLocationStock + formData.quantity)}
+                <br />
+                <Badge bg="success" className="mt-1">No Change</Badge>
+              </Col>
+            </Row>
+            {insufficientStock && (
+              <Alert variant="danger" className="mt-2">
+                ❌ Insufficient main stock! Available: {selectedProduct.currentQuantity}
+              </Alert>
+            )}
+          </Alert>
+        )}
+
+        <div className="d-grid">
+          <Button 
+            variant="success" 
+            type="submit" 
+            disabled={loading || insufficientStock}
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                {requiresApproval ? 'Submitting for Approval...' : 'Adding Stock to Location...'}
+              </>
+            ) : (
+              'Add Stock to Location'
+            )}
+          </Button>
+        </div>
+      </Form>
+    </div>
+  );
+};
+
+// Enhanced RemoveStock Component with Stock Conservation Logic
+const RemoveStock = ({ products = [], locations = [], onSuccess, onError }) => {
+  const [formData, setFormData] = useState({
+    productId: '',
+    quantity: 1,
+    sourceLocation: '',
+    reason: 'Stock removal from location'
+  });
+  const [loading, setLoading] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    onError('');
+
+    try {
+      const response = await stockAPI.remove(formData);
+      
+      if (response.data.success) {
+        const message = response.data.data.requiresApproval 
+          ? 'Stock removal request submitted for approval' 
+          : 'Stock removed from location successfully';
+        
+        onSuccess(message);
+        setFormData({
+          productId: '',
+          quantity: 1,
+          sourceLocation: '',
+          reason: 'Stock removal from location'
+        });
+        setRequiresApproval(response.data.data.requiresApproval);
+      }
+    } catch (error) {
+      onError(error.response?.data?.message || 'Failed to remove stock');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedProduct = products.find(p => p._id === formData.productId);
+  const currentLocationStock = selectedProduct ? 
+    (selectedProduct.locationStock?.find(stock => stock.location === formData.sourceLocation)?.quantity || 0) : 0;
+
+  const insufficientStock = selectedProduct && currentLocationStock < formData.quantity;
+
+  return (
+    <div>
+      {requiresApproval && (
+        <Alert variant="warning" className="mb-3">
+          <strong>⚠️ Approval Required:</strong> Your stock removal request has been sent for approval. You will be notified when it's processed.
+        </Alert>
+      )}
+
+      <Form onSubmit={handleSubmit}>
+        <Row>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Product *</Form.Label>
+              <Form.Select
+                value={formData.productId}
+                onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+                required
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.name} - {product.brand}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Source Location *</Form.Label>
+              <Form.Select
+                value={formData.sourceLocation}
+                onChange={(e) => setFormData({ ...formData, sourceLocation: e.target.value })}
+                required
+              >
+                <option value="">Select Location</option>
+                {locations.map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                required
+              />
+            </Form.Group>
+          </Col>
+
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Reason *</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                required
+                placeholder="Reason for removing stock from location (e.g., Damaged, Used, Expired, etc.)"
+              />
+            </Form.Group>
+
+            {selectedProduct && formData.sourceLocation && (
+              <Alert variant="info">
+                <strong>Current Location Stock:</strong> {currentLocationStock}
+                <br />
+                <strong>Main Stock:</strong> {selectedProduct.currentQuantity}
+              </Alert>
+            )}
+          </Col>
+        </Row>
+
+        {selectedProduct && formData.sourceLocation && (
+          <Alert variant="info" className="mb-3">
+            <h6>Stock Movement Preview</h6>
+            <Row>
+              <Col md={4}>
+                <strong>Location Stock:</strong><br />
+                {currentLocationStock} → <span className={insufficientStock ? 'text-danger' : ''}>
+                  {currentLocationStock - formData.quantity}
+                </span>
+              </Col>
+              <Col md={4}>
+                <strong>Main Stock:</strong><br />
+                {selectedProduct.currentQuantity} → {selectedProduct.currentQuantity + formData.quantity}
+              </Col>
+              <Col md={4}>
+                <strong>Total System:</strong><br />
+                {selectedProduct.currentQuantity + currentLocationStock} →{' '}
+                {(selectedProduct.currentQuantity + formData.quantity) + (currentLocationStock - formData.quantity)}
+                <br />
+                <Badge bg="success" className="mt-1">No Change</Badge>
+              </Col>
+            </Row>
+            {insufficientStock && (
+              <Alert variant="danger" className="mt-2">
+                ❌ Insufficient location stock! Available: {currentLocationStock}
+              </Alert>
+            )}
+          </Alert>
+        )}
+
+        <div className="d-grid">
+          <Button 
+            variant="warning" 
+            type="submit" 
+            disabled={loading || insufficientStock}
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                {requiresApproval ? 'Submitting for Approval...' : 'Removing Stock from Location...'}
+              </>
+            ) : (
+              'Remove Stock from Location'
+            )}
+          </Button>
+        </div>
+      </Form>
+    </div>
+  );
+};
+
+// Enhanced TransferStock Component with Stock Conservation Logic
+const TransferStock = ({ products = [], locations = [], organizations = [], onSuccess, onError }) => {
+  const [formData, setFormData] = useState({
+    productId: '',
+    quantity: 1,
+    sourceLocation: '',
+    destinationLocation: '',
+    destinationOrganization: '',
+    reason: 'Stock transfer between locations'
+  });
+  const [loading, setLoading] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    onError('');
+
+    try {
+      const response = await stockAPI.transfer(formData);
+      
+      if (response.data.success) {
+        const message = response.data.data.requiresApproval 
+          ? 'Stock transfer request submitted for approval' 
+          : 'Stock transferred successfully';
+        
+        onSuccess(message);
+        setFormData({
+          productId: '',
+          quantity: 1,
+          sourceLocation: '',
+          destinationLocation: '',
+          destinationOrganization: '',
+          reason: 'Stock transfer between locations'
+        });
+        setRequiresApproval(response.data.data.requiresApproval);
+      }
+    } catch (error) {
+      onError(error.response?.data?.message || 'Failed to transfer stock');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedProduct = products.find(p => p._id === formData.productId);
+  const sourceLocationStock = selectedProduct ? 
+    (selectedProduct.locationStock?.find(stock => stock.location === formData.sourceLocation)?.quantity || 0) : 0;
+  const destLocationStock = selectedProduct ? 
+    (selectedProduct.locationStock?.find(stock => stock.location === formData.destinationLocation)?.quantity || 0) : 0;
+
+  const insufficientStock = selectedProduct && sourceLocationStock < formData.quantity;
+  const isCrossOrgTransfer = !!formData.destinationOrganization;
+  const isSameLocation = formData.sourceLocation && formData.destinationLocation && 
+    formData.sourceLocation === formData.destinationLocation;
+
+  return (
+    <div>
+      {requiresApproval && (
+        <Alert variant="warning" className="mb-3">
+          <strong>⚠️ Approval Required:</strong> Your stock transfer request has been sent for approval. You will be notified when it's processed.
+        </Alert>
+      )}
+
+      <Form onSubmit={handleSubmit}>
+        <Row>
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Product *</Form.Label>
+              <Form.Select
+                value={formData.productId}
+                onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+                required
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product._id} value={product._id}>
+                    {product.name} - {product.brand}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Source Location *</Form.Label>
+              <Form.Select
+                value={formData.sourceLocation}
+                onChange={(e) => setFormData({ ...formData, sourceLocation: e.target.value })}
+                required
+              >
+                <option value="">Select Source Location</option>
+                {locations.map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                required
+              />
+            </Form.Group>
+          </Col>
+
+          <Col md={6}>
+            <Form.Group className="mb-3">
+              <Form.Label>Destination Organization</Form.Label>
+              <Form.Select
+                value={formData.destinationOrganization}
+                onChange={(e) => setFormData({ ...formData, destinationOrganization: e.target.value })}
+              >
+                <option value="">Same Organization</option>
+                {organizations.map(org => (
+                  <option key={org._id} value={org._id}>
+                    {org.name} ({org.domain})
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                {isCrossOrgTransfer ? 
+                  "🔄 Cross-organization transfer requires approval" : 
+                  "🏠 Same organization transfer is immediate"
+                }
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Destination Location *</Form.Label>
+              <Form.Select
+                value={formData.destinationLocation}
+                onChange={(e) => setFormData({ ...formData, destinationLocation: e.target.value })}
+                required
+              >
+                <option value="">Select Destination Location</option>
+                {locations.map(location => (
+                  <option key={location._id} value={location._id}>
+                    {location.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                placeholder="Reason for transferring stock between locations"
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+
+        {selectedProduct && formData.sourceLocation && formData.destinationLocation && (
+          <Alert variant="info" className="mb-3">
+            <h6>Stock Transfer Preview</h6>
+            {isSameLocation ? (
+              <Alert variant="warning">
+                ⚠️ Source and destination locations are the same!
+              </Alert>
+            ) : (
+              <Row>
+                <Col md={4}>
+                  <strong>Source Location:</strong><br />
+                  {sourceLocationStock} → <span className={insufficientStock ? 'text-danger' : ''}>
+                    {sourceLocationStock - formData.quantity}
+                  </span>
+                </Col>
+                <Col md={4}>
+                  <strong>Destination Location:</strong><br />
+                  {destLocationStock} → {destLocationStock + formData.quantity}
+                </Col>
+                <Col md={4}>
+                  <strong>Total System:</strong><br />
+                  {selectedProduct.currentQuantity + sourceLocationStock + destLocationStock} →{' '}
+                  {selectedProduct.currentQuantity + (sourceLocationStock - formData.quantity) + (destLocationStock + formData.quantity)}
+                  <br />
+                  <Badge bg="success" className="mt-1">No Change</Badge>
+                </Col>
+              </Row>
+            )}
+            {insufficientStock && (
+              <Alert variant="danger" className="mt-2">
+                ❌ Insufficient source location stock! Available: {sourceLocationStock}
+              </Alert>
+            )}
+            {isCrossOrgTransfer && (
+              <Alert variant="warning" className="mt-2">
+                ⚠️ This cross-organization transfer will require approval
+              </Alert>
+            )}
+          </Alert>
+        )}
+
+        <div className="d-grid">
+          <Button 
+            variant="info" 
+            type="submit" 
+            disabled={loading || isSameLocation || insufficientStock}
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                {requiresApproval ? 'Submitting for Approval...' : 'Processing Transfer...'}
+              </>
+            ) : (
+              'Transfer Stock Between Locations'
+            )}
+          </Button>
+        </div>
+      </Form>
+    </div>
+  );
+};
+
+// Enhanced ApprovalList Component with Modal
+const ApprovalList = ({ onAction }) => {
+  const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [actionData, setActionData] = useState({ action: '', notes: '' });
+
+  useEffect(() => {
+    fetchApprovals();
+  }, []);
+
+  const fetchApprovals = async () => {
+    try {
+      setLoading(true);
+      const response = await stockAPI.getApprovals();
+      setApprovals(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching approvals:', error);
+      setApprovals([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async () => {
+    if (!selectedTransaction || !actionData.action) return;
+
+    setActionLoading(selectedTransaction._id);
+    try {
+      const payload = {
+        action: actionData.action,
+        notes: actionData.notes
+      };
+
+      if (actionData.action === 'REJECT') {
+        payload.rejectionReason = actionData.notes;
+      }
+
+      await stockAPI.handleApproval(selectedTransaction._id, payload);
+      
+      await fetchApprovals();
+      setShowActionModal(false);
+      setSelectedTransaction(null);
+      setActionData({ action: '', notes: '' });
+      onAction();
+      
+      alert(`Transaction ${actionData.action.toLowerCase()}d successfully!`);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to process approval');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const openActionModal = (transaction, action) => {
+    setSelectedTransaction(transaction);
+    setActionData({ action, notes: '' });
+    setShowActionModal(true);
+  };
+
+  const getStatusVariant = (status) => {
+    switch (status) {
+      case 'PENDING': return 'warning';
+      case 'APPROVED': return 'success';
+      case 'REJECTED': return 'danger';
+      case 'COMPLETED': return 'info';
+      default: return 'secondary';
+    }
+  };
+
+  const getTypeVariant = (type) => {
+    switch (type) {
+      case 'ADD_TO_LOCATION': return 'success';
+      case 'REMOVE_FROM_LOCATION': return 'warning';
+      case 'TRANSFER': return 'info';
+      default: return 'secondary';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading approvals...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Card>
+        <Card.Header className="d-flex justify-content-between align-items-center">
+          <h4 className="mb-0">Pending Stock Approvals</h4>
+          <Badge bg="primary">{approvals.length} requests</Badge>
+        </Card.Header>
+        <Card.Body>
+          {approvals.length === 0 ? (
+            <Alert variant="info" className="text-center">
+              <h5>No pending approvals</h5>
+              <p>All stock requests have been processed.</p>
+            </Alert>
+          ) : (
+            <div className="table-responsive">
+              <Table striped hover>
+                <thead className="table-dark">
+                  <tr>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Requested By</th>
+                    <th>Approval Level</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {approvals.map(transaction => (
+                    <tr key={transaction._id}>
+                      <td>
+                        <strong>{transaction.product?.name}</strong>
+                        <br />
+                        <small className="text-muted">{transaction.product?.brand}</small>
+                      </td>
+                      <td>
+                        <Badge bg={getTypeVariant(transaction.transactionType)}>
+                          {transaction.transactionType?.replace(/_/g, ' ')}
+                        </Badge>
+                      </td>
+                      <td>
+                        <strong>{transaction.quantity}</strong>
+                      </td>
+                      <td>
+                        {transaction.sourceLocation?.PrimaryLocation || 'Main Stock'}
+                      </td>
+                      <td>
+                        {transaction.destinationLocation?.PrimaryLocation || 'Main Stock'}
+                      </td>
+                      <td>
+                        {transaction.requestedBy?.name}
+                        <br />
+                        <small className="text-muted">
+                          {transaction.requestedBy?.email}
+                        </small>
+                      </td>
+                      <td>
+                        <Badge bg="info">
+                          Level {transaction.currentApprovalLevel} of {transaction.totalApprovalLevels}
+                        </Badge>
+                      </td>
+                      <td>
+                        {new Date(transaction.createdAt).toLocaleDateString()}
+                        <br />
+                        <small className="text-muted">
+                          {new Date(transaction.createdAt).toLocaleTimeString()}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="d-flex gap-1">
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => openActionModal(transaction, 'APPROVE')}
+                          >
+                            ✓ Approve
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => openActionModal(transaction, 'REJECT')}
+                          >
+                            ✗ Reject
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+
+      {/* Action Modal */}
+      <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {actionData.action === 'APPROVE' ? 'Approve' : 'Reject'} Transaction
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedTransaction && (
+            <div className="mb-3">
+              <p><strong>Product:</strong> {selectedTransaction.product?.name}</p>
+              <p><strong>Type:</strong> {selectedTransaction.transactionType?.replace(/_/g, ' ')}</p>
+              <p><strong>Quantity:</strong> {selectedTransaction.quantity}</p>
+              <p><strong>Requested By:</strong> {selectedTransaction.requestedBy?.name}</p>
+              <p><strong>Approval Level:</strong> Level {selectedTransaction.currentApprovalLevel} of {selectedTransaction.totalApprovalLevels}</p>
+            </div>
+          )}
+          
+          <Form.Group className="mb-3">
+            <Form.Label>
+              {actionData.action === 'APPROVE' ? 'Approval Notes' : 'Rejection Reason'} *
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={actionData.notes}
+              onChange={(e) => setActionData({ ...actionData, notes: e.target.value })}
+              placeholder={actionData.action === 'APPROVE' 
+                ? 'Add any notes for this approval...' 
+                : 'Explain why this request is being rejected...'
+              }
+              required
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowActionModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant={actionData.action === 'APPROVE' ? 'success' : 'danger'}
+            onClick={handleAction}
+            disabled={!actionData.notes || actionLoading}
+          >
+            {actionLoading ? (
+              <Spinner animation="border" size="sm" />
+            ) : (
+              `${actionData.action === 'APPROVE' ? 'Approve' : 'Reject'} Transaction`
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
@@ -711,622 +1603,6 @@ const DeleteConfirmationModal = ({ show, onHide, product, onConfirm }) => {
         </Button>
       </Modal.Footer>
     </Modal>
-  );
-};
-
-// Fixed AddStock component with proper null checks
-const AddStock = ({ products = [], locations = [], onSuccess, onError }) => {
-  const [formData, setFormData] = useState({
-    productId: '',
-    quantity: 1,
-    destinationLocation: '',
-    price: '',
-    batchNumber: '',
-    reason: ''
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    onError('');
-
-    try {
-      const response = await stockAPI.add(formData);
-      
-      if (response.data.success) {
-        onSuccess();
-        // Reset form
-        setFormData({
-          productId: '',
-          quantity: 1,
-          destinationLocation: '',
-          price: '',
-          batchNumber: '',
-          reason: ''
-        });
-      }
-    } catch (error) {
-      onError(error.response?.data?.message || 'Failed to add stock');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectedProduct = products.find(p => p._id === formData.productId);
-
-  return (
-    <Form onSubmit={handleSubmit}>
-      <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Product *</Form.Label>
-            <Form.Select
-              value={formData.productId}
-              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
-              required
-            >
-              <option value="">Select Product</option>
-              {products.map(product => (
-                <option key={product._id} value={product._id}>
-                  {product.name} - {product.brand} (Stock: {product.currentQuantity})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Quantity *</Form.Label>
-            <Form.Control
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-              required
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Destination Location *</Form.Label>
-            <Form.Select
-              value={formData.destinationLocation}
-              onChange={(e) => setFormData({ ...formData, destinationLocation: e.target.value })}
-              required
-            >
-              <option value="">Select Location</option>
-              {locations.map(location => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Col>
-
-        <Col md={6}>
-          {/* Additional fields can be added here */}
-        </Col>
-      </Row>
-
-      {selectedProduct && (
-        <Alert variant="info" className="mb-3">
-          <strong>Current Stock:</strong> {selectedProduct.currentQuantity} | 
-          <strong> Minimum Stock:</strong> {selectedProduct.minimumStock} |
-          <strong> After Addition:</strong> {selectedProduct.currentQuantity + formData.quantity}
-        </Alert>
-      )}
-
-      <Button variant="success" type="submit" disabled={loading} size="lg">
-        {loading ? (
-          <>
-            <Spinner animation="border" size="sm" className="me-2" />
-            Adding Stock...
-          </>
-        ) : (
-          '➕ Add Stock'
-        )}
-      </Button>
-    </Form>
-  );
-};
-
-// Fixed RemoveStock component
-const RemoveStock = ({ products = [], locations = [], onSuccess, onError }) => {
-  const [formData, setFormData] = useState({
-    productId: '',
-    quantity: 1,
-    sourceLocation: '',
-    reason: ''
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    onError('');
-
-    try {
-      const response = await stockAPI.remove(formData);
-      
-      if (response.data.success) {
-        onSuccess();
-        setFormData({
-          productId: '',
-          quantity: 1,
-          sourceLocation: '',
-          reason: ''
-        });
-      }
-    } catch (error) {
-      onError(error.response?.data?.message || 'Failed to remove stock');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectedProduct = products.find(p => p._id === formData.productId);
-  const insufficientStock = selectedProduct && selectedProduct.currentQuantity < formData.quantity;
-
-  return (
-    <Form onSubmit={handleSubmit}>
-      <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Product *</Form.Label>
-            <Form.Select
-              value={formData.productId}
-              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
-              required
-            >
-              <option value="">Select Product</option>
-              {products.map(product => (
-                <option key={product._id} value={product._id}>
-                  {product.name} - {product.brand} (Stock: {product.currentQuantity})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Quantity *</Form.Label>
-            <Form.Control
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-              required
-            />
-          </Form.Group>
-        </Col>
-
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Source Location *</Form.Label>
-            <Form.Select
-              value={formData.sourceLocation}
-              onChange={(e) => setFormData({ ...formData, sourceLocation: e.target.value })}
-              required
-            >
-              <option value="">Select Location</option>
-              {locations.map(location => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Reason *</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              required
-              placeholder="e.g., Damaged, Used in Event, Expired, Sold, etc."
-            />
-          </Form.Group>
-        </Col>
-      </Row>
-
-      {selectedProduct && (
-        <Alert variant={insufficientStock ? 'danger' : 'info'} className="mb-3">
-          <strong>Current Stock:</strong> {selectedProduct.currentQuantity} | 
-          <strong> Remove Quantity:</strong> {formData.quantity} |
-          <strong> After Removal:</strong> {selectedProduct.currentQuantity - formData.quantity}
-          {insufficientStock && (
-            <div className="mt-1">
-              <strong className="text-danger">❌ Insufficient stock available!</strong>
-            </div>
-          )}
-        </Alert>
-      )}
-
-      <Button 
-        variant="warning" 
-        type="submit" 
-        disabled={loading || insufficientStock}
-        size="lg"
-      >
-        {loading ? (
-          <>
-            <Spinner animation="border" size="sm" className="me-2" />
-            Removing Stock...
-          </>
-        ) : (
-          '➖ Remove Stock'
-        )}
-      </Button>
-    </Form>
-  );
-};
-
-// Fixed TransferStock component
-const TransferStock = ({ products = [], locations = [], organizations = [], onSuccess, onError }) => {
-  const [formData, setFormData] = useState({
-    productId: '',
-    quantity: 1,
-    sourceLocation: '',
-    destinationLocation: '',
-    destinationOrganization: '',
-    reason: ''
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    onError('');
-
-    try {
-      const response = await stockAPI.transfer(formData);
-      
-      if (response.data.success) {
-        onSuccess();
-        setFormData({
-          productId: '',
-          quantity: 1,
-          sourceLocation: '',
-          destinationLocation: '',
-          destinationOrganization: '',
-          reason: ''
-        });
-      }
-    } catch (error) {
-      onError(error.response?.data?.message || 'Failed to transfer stock');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectedProduct = products.find(p => p._id === formData.productId);
-  const insufficientStock = selectedProduct && selectedProduct.currentQuantity < formData.quantity;
-  const isCrossOrgTransfer = !!formData.destinationOrganization;
-
-  return (
-    <Form onSubmit={handleSubmit}>
-      <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Product *</Form.Label>
-            <Form.Select
-              value={formData.productId}
-              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
-              required
-            >
-              <option value="">Select Product</option>
-              {products.map(product => (
-                <option key={product._id} value={product._id}>
-                  {product.name} - {product.brand} (Stock: {product.currentQuantity})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Quantity *</Form.Label>
-            <Form.Control
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-              required
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Source Location *</Form.Label>
-            <Form.Select
-              value={formData.sourceLocation}
-              onChange={(e) => setFormData({ ...formData, sourceLocation: e.target.value })}
-              required
-            >
-              <option value="">Select Location</option>
-              {locations.map(location => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Col>
-
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Destination Organization</Form.Label>
-            <Form.Select
-              value={formData.destinationOrganization}
-              onChange={(e) => setFormData({ ...formData, destinationOrganization: e.target.value })}
-            >
-              <option value="">Same Organization</option>
-              {organizations.map(org => (
-                <option key={org._id} value={org._id}>
-                  {org.name} ({org.domain})
-                </option>
-              ))}
-            </Form.Select>
-            <Form.Text className="text-muted">
-              {isCrossOrgTransfer ? 
-                "🔄 Cross-organization transfer requires approval" : 
-                "🏠 Same organization transfer is immediate"
-              }
-            </Form.Text>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Destination Location *</Form.Label>
-            <Form.Select
-              value={formData.destinationLocation}
-              onChange={(e) => setFormData({ ...formData, destinationLocation: e.target.value })}
-              required
-            >
-              <option value="">Select Location</option>
-              {locations.map(location => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Reason (Optional)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              placeholder="e.g., Inventory redistribution, Branch supply, etc."
-            />
-          </Form.Group>
-        </Col>
-      </Row>
-
-      {selectedProduct && (
-        <Alert variant={insufficientStock ? 'danger' : 'info'} className="mb-3">
-          <strong>Current Stock:</strong> {selectedProduct.currentQuantity} | 
-          <strong> Transfer Quantity:</strong> {formData.quantity} |
-          <strong> After Transfer:</strong> {selectedProduct.currentQuantity - formData.quantity}
-          {isCrossOrgTransfer && (
-            <div className="mt-1">
-              <Badge bg="warning" text="dark">⚠️ Requires Approval</Badge>
-            </div>
-          )}
-          {insufficientStock && (
-            <div className="mt-1">
-              <strong className="text-danger">❌ Insufficient stock available!</strong>
-            </div>
-          )}
-        </Alert>
-      )}
-
-      <Button 
-        variant="info" 
-        type="submit" 
-        disabled={loading || insufficientStock}
-        size="lg"
-      >
-        {loading ? (
-          <>
-            <Spinner animation="border" size="sm" className="me-2" />
-            Processing Transfer...
-          </>
-        ) : (
-          '🔄 Transfer Stock'
-        )}
-      </Button>
-    </Form>
-  );
-};
-
-const ApprovalList = ({ onAction }) => {
-  const [approvals, setApprovals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
-
-  useEffect(() => {
-    fetchApprovals();
-  }, []);
-
-  const fetchApprovals = async () => {
-    try {
-      const response = await stockAPI.getApprovals();
-      setApprovals(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching approvals:', error);
-      setApprovals([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApproval = async (transactionId, action) => {
-    setActionLoading(transactionId);
-    
-    try {
-      let notes = '';
-      if (action === 'REJECT') {
-        notes = prompt('Please enter rejection reason:');
-        if (!notes) {
-          setActionLoading(null);
-          return;
-        }
-      }
-
-      await stockAPI.handleApproval(transactionId, {
-        action,
-        ...(action === 'REJECT' && { rejectionReason: notes }),
-        ...(action === 'APPROVE' && { notes: 'Approved by admin' })
-      });
-      
-      await fetchApprovals();
-      onAction();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to process approval');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-4">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-2">Loading approvals...</p>
-      </div>
-    );
-  }
-
-  const getStatusVariant = (status) => {
-    switch (status) {
-      case 'PENDING': return 'warning';
-      case 'APPROVED': return 'success';
-      case 'REJECTED': return 'danger';
-      case 'COMPLETED': return 'info';
-      default: return 'secondary';
-    }
-  };
-
-  const getTypeVariant = (type) => {
-    switch (type) {
-      case 'ADD': return 'success';
-      case 'REMOVE': return 'warning';
-      case 'TRANSFER': return 'info';
-      default: return 'secondary';
-    }
-  };
-
-  return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5>Pending Approvals</h5>
-        <Badge bg="primary">{approvals.length} requests</Badge>
-      </div>
-
-      {approvals.length === 0 ? (
-        <div className="text-center py-5 text-muted">
-          <h6>No pending approvals</h6>
-          <p>All stock requests have been processed.</p>
-        </div>
-      ) : (
-        <Table responsive striped>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Requested By</th>
-              <th>Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {approvals.map(transaction => (
-              <tr key={transaction._id}>
-                <td>
-                  <strong>{transaction.product?.name}</strong>
-                  <br />
-                  <small className="text-muted">{transaction.product?.brand}</small>
-                </td>
-                <td>
-                  <Badge bg={getTypeVariant(transaction.transactionType)}>
-                    {transaction.transactionType}
-                  </Badge>
-                </td>
-                <td>
-                  <strong>{transaction.quantity}</strong>
-                </td>
-                <td>
-                  {transaction.sourceLocation?.name || 'N/A'}
-                  {transaction.sourceOrganization && 
-                    <div>
-                      <small className="text-muted">
-                        {transaction.sourceOrganization.name}
-                      </small>
-                    </div>
-                  }
-                </td>
-                <td>
-                  {transaction.destinationLocation?.name || 'N/A'}
-                  {transaction.destinationOrganization && 
-                    <div>
-                      <small className="text-muted">
-                        {transaction.destinationOrganization.name}
-                      </small>
-                    </div>
-                  }
-                </td>
-                <td>
-                  {transaction.requestedBy?.name}
-                  <br />
-                  <small className="text-muted">
-                    {transaction.requestedBy?.email}
-                  </small>
-                </td>
-                <td>
-                  {new Date(transaction.createdAt).toLocaleDateString()}
-                  <br />
-                  <small className="text-muted">
-                    {new Date(transaction.createdAt).toLocaleTimeString()}
-                  </small>
-                </td>
-                <td>
-                  <div className="d-flex gap-1">
-                    <Button
-                      variant="success"
-                      size="sm"
-                      disabled={actionLoading === transaction._id}
-                      onClick={() => handleApproval(transaction._id, 'APPROVE')}
-                    >
-                      {actionLoading === transaction._id ? (
-                        <Spinner animation="border" size="sm" />
-                      ) : (
-                        '✓ Approve'
-                      )}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      disabled={actionLoading === transaction._id}
-                      onClick={() => handleApproval(transaction._id, 'REJECT')}
-                    >
-                      {actionLoading === transaction._id ? (
-                        <Spinner animation="border" size="sm" />
-                      ) : (
-                        '✗ Reject'
-                      )}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-    </div>
   );
 };
 
