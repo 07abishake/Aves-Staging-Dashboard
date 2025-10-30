@@ -82,6 +82,7 @@ function Dashboard() {
             'Authorization': `Bearer ${token}`
           }
         });
+        console.log('Toeken', token);
         const notifData = await notifRes.json();
 
         setNotificationData(

@@ -10,7 +10,6 @@ import {
   Card,
   Nav
 } from 'react-bootstrap';
-import { useSocket } from '../Utils/SocketContext';
 import { notificationAPI } from '../service/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,36 +23,35 @@ const NotificationBell = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   
   const navigate = useNavigate();
-  const { socket, isConnected, notifications: realTimeNotifications } = useSocket();
 
   useEffect(() => {
     fetchNotifications();
-    requestNotificationPermission();
+    setupSocketListeners();
   }, []);
 
-  // Sync real-time notifications with local state
-  useEffect(() => {
-    if (realTimeNotifications && realTimeNotifications.length > 0) {
-      setNotifications(prev => {
-        const newNotifications = [...realTimeNotifications];
-        const existingIds = new Set(prev.map(n => n._id));
-        const uniqueNew = newNotifications.filter(n => !existingIds.has(n._id));
-        return [...uniqueNew, ...prev];
-      });
-      setUnreadCount(prev => prev + realTimeNotifications.length);
-      
-      // Show browser notification for new real-time notifications
-      if (Notification.permission === 'granted') {
-        realTimeNotifications.forEach(notification => {
+  const setupSocketListeners = () => {
+    // Listen for real-time notifications
+    if (window.socket) {
+      window.socket.on('new_notification', (notification) => {
+        console.log('📨 New real-time notification received:', notification);
+        setNotifications(prev => [notification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+        
+        // Show browser notification
+        if (Notification.permission === 'granted') {
           new Notification(notification.title, {
             body: notification.message,
-            icon: '/favicon.ico',
-            tag: notification._id
+            icon: '/favicon.ico'
           });
-        });
-      }
+        }
+      });
+
+      window.socket.on('notification_count_update', (data) => {
+        console.log('🔔 Notification count update:', data);
+        setUnreadCount(data.unreadCount);
+      });
     }
-  }, [realTimeNotifications]);
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -62,20 +60,13 @@ const NotificationBell = () => {
       if (response.data.success) {
         setNotifications(response.data.data);
         setUnreadCount(response.data.unreadCount);
+        console.log('📋 Notifications loaded:', response.data.data.length);
       }
     } catch (error) {
-      setError('Failed to load notifications');
       console.error('Error fetching notifications:', error);
+      setError('Failed to load notifications');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const requestNotificationPermission = () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('Notification permission:', permission);
-      });
     }
   };
 
@@ -109,28 +100,12 @@ const NotificationBell = () => {
     setShowDropdown(false);
   };
 
-  const handleModalAction = () => {
-    if (selectedNotification?.data?.actionUrl) {
-      // Handle different action URLs
-      const actionUrl = selectedNotification.data.actionUrl;
-      if (actionUrl.startsWith('/')) {
-        navigate(actionUrl);
-      } else {
-        window.location.href = actionUrl;
-      }
-    }
-    setShowModal(false);
-  };
-
   const handleQuickAction = (notification) => {
     markAsRead(notification._id);
     
     switch (notification.type) {
-      case 'STOCK_APPROVAL_REQUEST':
-        navigate('/stock/approvals');
-        break;
-      case 'STOCK_APPROVAL_RESPONSE':
-        navigate('/inventory-manager');
+      case 'PRODUCT_REQUEST':
+        navigate('/products/requests');
         break;
       case 'AUTHORIZATION_REQUEST':
         navigate('/authorization-requests');
@@ -157,34 +132,25 @@ const NotificationBell = () => {
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'danger';
-      case 'medium': return 'warning';
-      case 'low': return 'info';
-      default: return 'secondary';
-    }
-  };
-
   const getNotificationIcon = (type) => {
     switch (type) {
+      case 'PRODUCT_REQUEST': return '📦';
+      case 'PRODUCT_REQUEST_RESPONSE': return '✅';
+      case 'AUTHORIZATION_REQUEST': return '🔐';
+      case 'AUTHORIZATION_RESPONSE': return '📨';
       case 'STOCK_APPROVAL_REQUEST': return '📋';
-      case 'STOCK_APPROVAL_RESPONSE': return '✅';
-      case 'STOCK_TRANSACTION_COMPLETED': return '📦';
-      case 'AUTHORIZATION_REQUEST': return '📨';
-      case 'AUTHORIZATION_RESPONSE': return '🔐';
+      case 'STOCK_APPROVAL_RESPONSE': return '⚡';
       default: return '🔔';
     }
   };
 
   const getNotificationVariant = (type) => {
     switch (type) {
-      case 'STOCK_APPROVAL_REQUEST': return 'warning';
-      case 'STOCK_APPROVAL_RESPONSE': return 'success';
-      case 'STOCK_TRANSACTION_COMPLETED': return 'info';
+      case 'PRODUCT_REQUEST': return 'warning';
+      case 'PRODUCT_REQUEST_RESPONSE': return 'success';
       case 'AUTHORIZATION_REQUEST': return 'primary';
-      case 'AUTHORIZATION_RESPONSE': return 'secondary';
-      default: return 'light';
+      case 'AUTHORIZATION_RESPONSE': return 'info';
+      default: return 'secondary';
     }
   };
 
@@ -214,13 +180,13 @@ const NotificationBell = () => {
             </strong>
             <div className="d-flex align-items-center gap-1">
               <Badge 
-                bg={getPriorityColor(notification.priority)} 
+                bg={notification.priority === 'high' ? 'danger' : 'secondary'} 
                 style={{ fontSize: '0.6rem' }}
               >
                 {notification.priority}
               </Badge>
               {!notification.read && (
-                <Badge bg="primary" pill size="sm">New</Badge>
+                <Badge bg="primary" pill style={{ fontSize: '0.6rem' }}>New</Badge>
               )}
             </div>
           </div>
@@ -231,15 +197,15 @@ const NotificationBell = () => {
             <small className="text-muted">
               {formatTime(notification.createdAt)}
             </small>
-            {notification.data?.approvalLevel && (
+            {notification.data?.quantity && (
               <Badge bg="outline-secondary" text="dark">
-                Level {notification.data.approvalLevel}
+                Qty: {notification.data.quantity}
               </Badge>
             )}
           </div>
           
-          {/* Quick Actions */}
-          {notification.type === 'STOCK_APPROVAL_REQUEST' && (
+          {/* Quick Actions for Product Requests */}
+          {notification.type === 'PRODUCT_REQUEST' && (
             <div className="mt-2 d-flex gap-1">
               <Button 
                 size="sm" 
@@ -247,7 +213,7 @@ const NotificationBell = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   // Handle quick approve
-                  console.log('Quick approve:', notification._id);
+                  console.log('Quick approve product request:', notification._id);
                 }}
               >
                 Approve
@@ -258,7 +224,7 @@ const NotificationBell = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   // Handle quick reject
-                  console.log('Quick reject:', notification._id);
+                  console.log('Quick reject product request:', notification._id);
                 }}
               >
                 Reject
@@ -295,17 +261,6 @@ const NotificationBell = () => {
               style={{ fontSize: '0.7rem' }}
             >
               {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
-          {!isConnected && (
-            <Badge 
-              bg="warning" 
-              pill 
-              className="position-absolute top-100 start-100 translate-middle"
-              style={{ fontSize: '0.6rem' }}
-              title="Disconnected from server"
-            >
-              !
             </Badge>
           )}
         </Dropdown.Toggle>
@@ -356,7 +311,6 @@ const NotificationBell = () => {
             </div>
           ) : (
             <>
-              {/* Notification Tabs */}
               <Nav variant="pills" className="px-3 pt-2" defaultActiveKey="all">
                 <Nav.Item>
                   <Nav.Link eventKey="all" className="py-1 px-2">All</Nav.Link>
@@ -365,9 +319,6 @@ const NotificationBell = () => {
                   <Nav.Link eventKey="unread" className="py-1 px-2">
                     Unread <Badge bg="primary" className="ms-1">{unreadCount}</Badge>
                   </Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="stock" className="py-1 px-2">Stock</Nav.Link>
                 </Nav.Item>
               </Nav>
 
@@ -422,65 +373,42 @@ const NotificationBell = () => {
             <div>
               <Card className="border-0">
                 <Card.Body>
-                  <p className="mb-3 fs-6">{selectedNotification.message}</p>
+                  <p className="mb-3 fs-6">{selectedNotification.body || selectedNotification.message}</p>
                   
-                  {/* Stock Approval Details */}
-                  {selectedNotification.data?.transactionType && (
-                    <div className="row mb-3">
-                      <div className="col-md-6">
-                        <strong>Transaction Type:</strong>
-                        <p className="text-muted mb-0 mt-1 text-capitalize">
-                          {selectedNotification.data.transactionType.replace(/_/g, ' ')}
-                        </p>
-                      </div>
-                      <div className="col-md-6">
-                        <strong>Quantity:</strong>
-                        <p className="text-muted mb-0 mt-1">
-                          {selectedNotification.data.quantity} units
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {selectedNotification.data?.productName && (
-                    <div className="mb-3">
-                      <strong>Product:</strong>
-                      <p className="text-muted mb-0 mt-1">{selectedNotification.data.productName}</p>
-                    </div>
-                  )}
-                  
-                  {selectedNotification.data?.reason && (
-                    <div className="mb-3">
-                      <strong>Reason:</strong>
-                      <p className="text-muted mb-0 mt-1">{selectedNotification.data.reason}</p>
-                    </div>
-                  )}
-                  
-                  {selectedNotification.data?.requestedOrganizationName && (
-                    <div className="mb-3">
-                      <strong>Requested By:</strong>
-                      <p className="text-muted mb-0 mt-1">{selectedNotification.data.requestedOrganizationName}</p>
-                    </div>
-                  )}
-                  
-                  {selectedNotification.data?.approvedOrganizationName && (
-                    <div className="mb-3">
-                      <strong>Approved By:</strong>
-                      <p className="text-muted mb-0 mt-1">{selectedNotification.data.approvedOrganizationName}</p>
-                    </div>
-                  )}
-                  
-                  {selectedNotification.data?.approvalLevel && (
-                    <div className="mb-3">
-                      <strong>Approval Level:</strong>
-                      <p className="text-muted mb-0 mt-1">Level {selectedNotification.data.approvalLevel}</p>
+                  {/* Notification Details */}
+                  {selectedNotification.data && (
+                    <div className="row">
+                      {selectedNotification.data.productName && (
+                        <div className="col-md-6 mb-2">
+                          <strong>Product:</strong>
+                          <p className="text-muted mb-0 mt-1">{selectedNotification.data.productName}</p>
+                        </div>
+                      )}
+                      {selectedNotification.data.quantity && (
+                        <div className="col-md-6 mb-2">
+                          <strong>Quantity:</strong>
+                          <p className="text-muted mb-0 mt-1">{selectedNotification.data.quantity} units</p>
+                        </div>
+                      )}
+                      {selectedNotification.data.requestingOrganizationName && (
+                        <div className="col-12 mb-2">
+                          <strong>Requested By:</strong>
+                          <p className="text-muted mb-0 mt-1">{selectedNotification.data.requestingOrganizationName}</p>
+                        </div>
+                      )}
+                      {selectedNotification.data.reason && (
+                        <div className="col-12 mb-2">
+                          <strong>Reason:</strong>
+                          <p className="text-muted mb-0 mt-1">{selectedNotification.data.reason}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
                   <div className="mt-4 pt-3 border-top">
                     <small className="text-muted">
                       <i className="bi bi-clock me-1"></i>
-                      Received: {new Date(selectedNotification.createdAt).toLocaleString()}
+                      Received: {selectedNotification && new Date(selectedNotification.createdAt).toLocaleString()}
                     </small>
                   </div>
                 </Card.Body>
@@ -492,33 +420,16 @@ const NotificationBell = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Close
           </Button>
-          {selectedNotification?.data?.actionUrl && (
-            <Button variant="primary" onClick={handleModalAction}>
-              <i className="bi bi-arrow-right me-1"></i>
-              View Details
-            </Button>
-          )}
-          {selectedNotification?.type === 'STOCK_APPROVAL_REQUEST' && (
+          {selectedNotification?.type === 'PRODUCT_REQUEST' && (
             <div className="d-flex gap-2">
               <Button 
                 variant="success"
                 onClick={() => {
-                  // Handle approve action
-                  console.log('Approve:', selectedNotification._id);
+                  navigate('/products/requests');
                   setShowModal(false);
                 }}
               >
-                Approve
-              </Button>
-              <Button 
-                variant="danger"
-                onClick={() => {
-                  // Handle reject action
-                  console.log('Reject:', selectedNotification._id);
-                  setShowModal(false);
-                }}
-              >
-                Reject
+                View Request
               </Button>
             </div>
           )}

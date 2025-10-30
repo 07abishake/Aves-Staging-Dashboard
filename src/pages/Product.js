@@ -10,30 +10,49 @@ import {
   Modal,
   InputGroup,
   Spinner,
-  ListGroup,
   Tabs,
   Tab,
   Table,
   Badge,
+  ButtonGroup,
   Dropdown
 } from 'react-bootstrap';
-import { productAPI, moduleAPI, productSharingAPI,organizationAPI } from '../service/api';
+import { productAPI, productSharingAPI, moduleAPI, notificationAPI } from '../service/api';
 
-const ProductCreation = () => {
-  const [activeTab, setActiveTab] = useState('create');
-  const [products, setProducts] = useState([]);
-  const [accessibleProducts, setAccessibleProducts] = useState({
-    fromDirectParent: [],
-    fromAncestors: [],
-    ownProducts: []
+const ProductManagement = () => {
+  const [activeTab, setActiveTab] = useState('myProducts');
+  const [hierarchyData, setHierarchyData] = useState({
+    ownProducts: [],
+    fromParents: [],
+    fromChildren: [],
+    fromSubChildren: [],
+    summary: { grandTotal: 0 }
   });
+  const [authorizationRequests, setAuthorizationRequests] = useState([]);
+  const [parentProductRequests, setParentProductRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showAuthorizationModal, setShowAuthorizationModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [createdProduct, setCreatedProduct] = useState(null);
+  const [requestData, setRequestData] = useState({
+    quantity: 1,
+    reason: ''
+  });
+  
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     type: '',
     brand: '',
     description: '',
-    initialQuantity: 0,
+    currentQuantity: 0,
     minimumStock: 0,
     price: { amount: 0, currency: 'USD' },
     hasExpiry: false,
@@ -44,58 +63,114 @@ const ProductCreation = () => {
   const [suggestions, setSuggestions] = useState({
     category: [],
     type: [],
-    brand: [],
-    names: []
+    brand: []
   });
-  
-  const [dropdownSuggestions, setDropdownSuggestions] = useState({
-    categories: [],
-    types: []
+  const [fieldValues, setFieldValues] = useState({
+    category: [],
+    type: [],
+    brand: []
   });
-  
-  const [showNewCategoryConfirm, setShowNewCategoryConfirm] = useState(false);
-  const [showNewTypeConfirm, setShowNewTypeConfirm] = useState(false);
-  const [pendingCategory, setPendingCategory] = useState('');
-  const [pendingType, setPendingType] = useState('');
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [showSharingModal, setShowSharingModal] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [createdProduct, setCreatedProduct] = useState(null);
-  const [selectedProductForSharing, setSelectedProductForSharing] = useState(null);
-  const [selectedProductForRequest, setSelectedProductForRequest] = useState(null);
+  const [imagePreview, setImagePreview] = useState([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [existingModules, setExistingModules] = useState([]);
-  const [childOrganizations, setChildOrganizations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [showDropdown, setShowDropdown] = useState({
+    category: false,
+    type: false,
+    brand: false
+  });
+  const [realTimeUpdates, setRealTimeUpdates] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-    fetchAccessibleProducts();
+    fetchHierarchyProducts();
+    fetchAuthorizationRequests();
+    fetchParentProductRequests();
+    fetchFieldValues();
     fetchExistingModules();
-    fetchDropdownSuggestions();
-    fetchChildOrganizations();
+    setupRealTimeListeners();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      const response = await productAPI.getAll({ limit: 1000 });
-      setProducts(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
+  // Real-time updates setup
+  const setupRealTimeListeners = () => {
+    // Listen for real-time product updates
+    if (window.socket) {
+      window.socket.on('product_updated', (data) => {
+        console.log('🔄 Real-time product update:', data);
+        setRealTimeUpdates(prev => !prev);
+        fetchHierarchyProducts();
+      });
+
+      window.socket.on('product_request_created', (data) => {
+        console.log('🔄 Real-time product request created:', data);
+        fetchParentProductRequests();
+        fetchAuthorizationRequests();
+      });
+
+      window.socket.on('product_request_updated', (data) => {
+        console.log('🔄 Real-time product request updated:', data);
+        fetchParentProductRequests();
+        fetchAuthorizationRequests();
+      });
+
+      window.socket.on('new_notification', (notification) => {
+        console.log('📨 New real-time notification:', notification);
+        // Refresh requests if it's a product request notification
+        if (notification.type === 'PRODUCT_REQUEST' || notification.type === 'PRODUCT_REQUEST_RESPONSE') {
+          fetchParentProductRequests();
+          fetchAuthorizationRequests();
+        }
+      });
     }
   };
 
-  const fetchAccessibleProducts = async () => {
+  const fetchHierarchyProducts = async () => {
     try {
-      const response = await productSharingAPI.getAccessibleProducts();
-      setAccessibleProducts(response.data.data || {
-        fromDirectParent: [],
-        fromAncestors: [],
-        ownProducts: []
-      });
+      setLoading(true);
+      const response = await productAPI.getAllHierarchyProducts();
+      if (response.data.success) {
+        setHierarchyData(response.data.data);
+      }
     } catch (error) {
-      console.error('Error fetching accessible products:', error);
+      setError('Failed to fetch products: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAuthorizationRequests = async () => {
+    try {
+      const response = await productAPI.getAuthorizationRequests();
+      setAuthorizationRequests(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching authorization requests:', error);
+    }
+  };
+
+  // NEW: Fetch parent product requests
+  const fetchParentProductRequests = async () => {
+    try {
+      const response = await productAPI.getParentProductRequests();
+      if (response.data.success) {
+        setParentProductRequests(response.data.data || []);
+        console.log('📋 Parent product requests:', response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching parent product requests:', error);
+    }
+  };
+
+  const fetchFieldValues = async () => {
+    try {
+      const fields = ['category', 'type', 'brand'];
+      const values = {};
+      
+      for (const field of fields) {
+        const response = await productAPI.getFieldValues(field);
+        values[field] = response.data.data || [];
+      }
+      
+      setFieldValues(values);
+    } catch (error) {
+      console.error('Error fetching field values:', error);
     }
   };
 
@@ -108,141 +183,160 @@ const ProductCreation = () => {
     }
   };
 
-  const fetchChildOrganizations = async () => {
+  const fetchSuggestions = async (field, query) => {
+    if (!query || query.length < 1) {
+      setSuggestions(prev => ({ ...prev, [field]: [] }));
+      setShowDropdown(prev => ({ ...prev, [field]: false }));
+      return;
+    }
+
     try {
-      const response = await organizationAPI.getChildOrgs();
-      setChildOrganizations(response.data.data || []);
+      const response = await productAPI.getSuggestions(field, query);
+      const newSuggestions = response.data.data || [];
+      setSuggestions(prev => ({ ...prev, [field]: newSuggestions }));
+      setShowDropdown(prev => ({ ...prev, [field]: newSuggestions.length > 0 }));
     } catch (error) {
-      console.error('Error fetching child organizations:', error);
+      console.error('Error fetching suggestions:', error);
+      setSuggestions(prev => ({ ...prev, [field]: [] }));
+      setShowDropdown(prev => ({ ...prev, [field]: false }));
     }
   };
 
-  const fetchDropdownSuggestions = async () => {
-    try {
-      const response = await productAPI.getAll({ limit: 1000 });
-      const allProducts = response.data.data || [];
-      
-      const uniqueCategories = [...new Set(allProducts.map(p => p.category).filter(Boolean))];
-      const uniqueTypes = [...new Set(allProducts.map(p => p.type).filter(Boolean))];
-      
-      setDropdownSuggestions({
-        categories: uniqueCategories,
-        types: uniqueTypes
-      });
-    } catch (error) {
-      console.error('Error fetching dropdown suggestions:', error);
-    }
-  };
-
-  const fetchSuggestions = async (field, value) => {
-    if (value.length > 1) {
-      try {
-        const response = await productAPI.getSuggestions(field, value);
-        setSuggestions(prev => ({
-          ...prev,
-          [field]: response.data.data || []
-        }));
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-      }
-    } else {
-      setSuggestions(prev => ({
+  const handleInputChange = async (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData(prev => ({
         ...prev,
-        [field]: []
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
       }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+
+      if (['category', 'type', 'brand'].includes(field)) {
+        if (!value || value.length < 1) {
+          setSuggestions(prev => ({ ...prev, [field]: [] }));
+          setShowDropdown(prev => ({ ...prev, [field]: false }));
+          return;
+        }
+        
+        setTimeout(() => {
+          fetchSuggestions(field, value);
+        }, 300);
+      }
     }
   };
 
-  useEffect(() => {
-    if (formData.category.length > 1) {
-      fetchSuggestions('category', formData.category);
-    }
-    if (formData.type.length > 1) {
-      fetchSuggestions('type', formData.type);
-    }
-    if (formData.brand.length > 1) {
-      fetchSuggestions('brand', formData.brand);
-    }
-    if (formData.name.length > 1) {
-      fetchSuggestions('names', formData.name);
-    }
-  }, [formData.category, formData.type, formData.brand, formData.name]);
-
-  const handleInputChange = (field, value) => {
+  const handleSuggestionSelect = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    setSuggestions(prev => ({ ...prev, [field]: [] }));
+    setShowDropdown(prev => ({ ...prev, [field]: false }));
   };
 
-  const handleSuggestionSelect = (suggestion, field) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: suggestion
-    }));
+  const handleFieldBlur = (field) => {
+    setTimeout(() => {
+      setShowDropdown(prev => ({ ...prev, [field]: false }));
+    }, 200);
+  };
+
+  const handleFieldFocus = (field, value) => {
+    if (value && value.length > 0) {
+      fetchSuggestions(field, value);
+    }
+  };
+
+  const handleImageUpload = async (files) => {
+    setUploadingImages(true);
+    const newImages = [...formData.images];
+    const newPreviews = [...imagePreview];
+
+    try {
+      for (let file of files) {
+        const previewUrl = URL.createObjectURL(file);
+        newPreviews.push(previewUrl);
+        newImages.push({
+          file: file,
+          name: file.name,
+          preview: previewUrl,
+          url: previewUrl
+        });
+      }
+
+      setFormData(prev => ({ ...prev, images: newImages }));
+      setImagePreview(newPreviews);
+    } catch (error) {
+      setError('Failed to upload images: ' + error.message);
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    const newImages = formData.images.filter((_, i) => i !== index);
+    const newPreviews = imagePreview.filter((_, i) => i !== index);
     
-    setSuggestions(prev => ({
-      ...prev,
-      [field]: []
-    }));
+    setFormData(prev => ({ ...prev, images: newImages }));
+    setImagePreview(newPreviews);
   };
 
-  const handleDropdownSelect = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleCategoryBlur = () => {
-    if (formData.category && 
-        !dropdownSuggestions.categories.includes(formData.category) && 
-        dropdownSuggestions.categories.length > 0) {
-      setPendingCategory(formData.category);
-      setShowNewCategoryConfirm(true);
-    }
-  };
-
-  const handleTypeBlur = () => {
-    if (formData.type && 
-        !dropdownSuggestions.types.includes(formData.type) && 
-        dropdownSuggestions.types.length > 0) {
-      setPendingType(formData.type);
-      setShowNewTypeConfirm(true);
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleCreateProduct = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    
+    if (!formData.name?.trim() || !formData.category?.trim() || 
+        !formData.type?.trim() || !formData.brand?.trim()) {
+      setError('Please fill in all required fields: Name, Category, Type, and Brand');
+      setLoading(false);
+      return;
+    }
 
+    if (formData.currentQuantity < 0 || formData.minimumStock < 0) {
+      setError('Quantity values cannot be negative');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const response = await productAPI.create(formData);
-      
+      const submitData = {
+        ...formData,
+        images: formData.images.map(img => img.url || img.preview || img)
+      };
+
+      console.log('Submitting product data:', submitData);
+
+      const response = await productAPI.create(submitData);
       if (response.data.success) {
         setCreatedProduct(response.data.data);
         setSuccess('Product created successfully!');
+        setShowCreateModal(false);
         setShowAssignmentModal(true);
-        fetchProducts();
-        fetchDropdownSuggestions();
-        fetchAccessibleProducts();
+        fetchHierarchyProducts();
+        fetchFieldValues();
+        
+        // Emit real-time update
+        if (window.socket) {
+          window.socket.emit('product_created', response.data.data);
+        }
       }
     } catch (error) {
-      if (error.response?.status === 409) {
-        setError('Product already exists: ' + error.response.data.existingProduct.name);
-      } else {
-        setError(error.response?.data?.message || 'Failed to create product');
-      }
+      setError('Failed to create product: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
   };
 
   const handleAssignment = async (assignmentType, moduleData = null, existingModuleId = null) => {
-    try {
-      if (!createdProduct) return;
+    if (!createdProduct) return;
 
+    try {
       const response = await productAPI.assign(createdProduct._id, {
         assignmentType,
         moduleData,
@@ -253,43 +347,102 @@ const ProductCreation = () => {
         setSuccess(`Product assigned to ${assignmentType} successfully!`);
         setShowAssignmentModal(false);
         resetForm();
-        fetchProducts();
-        fetchExistingModules();
-        fetchAccessibleProducts();
+        fetchHierarchyProducts();
+        fetchAuthorizationRequests();
       }
     } catch (error) {
       setError('Failed to assign product: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  const handleShareProduct = async (productId, shareData) => {
+  const handleEditProduct = async (e) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+
+    if (!formData.name?.trim() || !formData.category?.trim() || 
+        !formData.type?.trim() || !formData.brand?.trim()) {
+      setError('Please fill in all required fields: Name, Category, Type, and Brand');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await productSharingAPI.shareProduct(productId, shareData);
-      
+      const submitData = {
+        ...formData,
+        images: formData.images.map(img => img.url || img.preview || img)
+      };
+
+      const response = await productAPI.update(selectedProduct._id, submitData);
       if (response.data.success) {
-        setSuccess(`Product shared with ${response.data.data.totalShared} organizations successfully!`);
-        setShowSharingModal(false);
-        setSelectedProductForSharing(null);
-        fetchAccessibleProducts();
+        setSuccess('Product updated successfully!');
+        setShowEditModal(false);
+        resetForm();
+        fetchHierarchyProducts();
+        
+        // Emit real-time update
+        if (window.socket) {
+          window.socket.emit('product_updated', response.data.data);
+        }
       }
     } catch (error) {
-      setError('Failed to share product: ' + (error.response?.data?.message || error.message));
+      setError('Failed to update product: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRequestProduct = async (requestData) => {
-    try {
-      const response = await productSharingAPI.requestProduct(requestData);
-      
-      if (response.data.success) {
-        setSuccess('Product request submitted successfully!');
-        setShowRequestModal(false);
-        setSelectedProductForRequest(null);
-        fetchAccessibleProducts();
+  const handleDeleteProduct = async (productId) => {
+    if (window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      try {
+        const response = await productAPI.delete(productId);
+        if (response.data.success) {
+          setSuccess('Product deleted successfully!');
+          fetchHierarchyProducts();
+          
+          // Emit real-time update
+          if (window.socket) {
+            window.socket.emit('product_deleted', { productId });
+          }
+        }
+      } catch (error) {
+        setError('Failed to delete product: ' + (error.response?.data?.message || error.message));
       }
-    } catch (error) {
-      setError('Failed to request product: ' + (error.response?.data?.message || error.message));
     }
+  };
+
+  const handleViewProduct = (product) => {
+    setSelectedProduct(product);
+    setShowViewModal(true);
+  };
+
+  const openEditModal = (product) => {
+    setSelectedProduct(product);
+    setFormData({
+      name: product.name || '',
+      category: product.category || '',
+      type: product.type || '',
+      brand: product.brand || '',
+      description: product.description || '',
+      currentQuantity: product.currentQuantity || 0,
+      minimumStock: product.minimumStock || 0,
+      price: product.price || { amount: 0, currency: 'USD' },
+      hasExpiry: product.hasExpiry || false,
+      expiryDate: product.expiryDate || '',
+      images: product.images || []
+    });
+    
+    if (product.images && product.images.length > 0) {
+      setImagePreview(product.images.map(img => typeof img === 'string' ? img : img.url || img.preview));
+    } else {
+      setImagePreview([]);
+    }
+    
+    setShowEditModal(true);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowCreateModal(true);
   };
 
   const resetForm = () => {
@@ -299,38 +452,148 @@ const ProductCreation = () => {
       type: '',
       brand: '',
       description: '',
-      initialQuantity: 0,
+      currentQuantity: 0,
       minimumStock: 0,
       price: { amount: 0, currency: 'USD' },
       hasExpiry: false,
       expiryDate: '',
       images: []
     });
+    setImagePreview([]);
+    setSelectedProduct(null);
     setCreatedProduct(null);
+    setSuggestions({
+      category: [],
+      type: [],
+      brand: []
+    });
+    setShowDropdown({
+      category: false,
+      type: false,
+      brand: false
+    });
   };
 
-  const handleProductDelete = async (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        await productAPI.delete(productId);
-        setSuccess('Product deleted successfully!');
-        fetchProducts();
-        fetchDropdownSuggestions();
-        fetchAccessibleProducts();
-      } catch (error) {
-        setError('Failed to delete product: ' + error.response?.data?.message);
+  const handleRequestProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      const requestPayload = {
+        productId: selectedProduct.productId || selectedProduct._id,
+        sourceOrg: selectedProduct.sourceOrg,
+        quantity: parseInt(requestData.quantity) || 1,
+        reason: requestData.reason || 'No reason provided'
+      };
+
+      console.log('🔄 Sending product request with payload:', requestPayload);
+
+      const response = await productSharingAPI.requestProduct(requestPayload);
+      
+      if (response.data.success) {
+        setSuccess('Product request submitted successfully!');
+        setShowRequestModal(false);
+        setSelectedProduct(null);
+        setRequestData({ quantity: 1, reason: '' });
+        fetchAuthorizationRequests();
+        fetchParentProductRequests();
+        
+        // Emit real-time update
+        if (window.socket) {
+          window.socket.emit('product_request_created', response.data.data);
+        }
       }
+    } catch (error) {
+      console.error('❌ Request product error:', error);
+      const errorMessage = error.response?.data?.message || error.message;
+      setError(`Failed to request product: ${errorMessage}`);
     }
   };
 
-  const openSharingModal = (product) => {
-    setSelectedProductForSharing(product);
-    setShowSharingModal(true);
+  // NEW: Handle product request actions (Approve/Reject)
+  const handleProductRequestAction = async (requestId, action, notes = '') => {
+    try {
+      const response = await productAPI.handleProductRequest(requestId, {
+        action,
+        notes
+      });
+      
+      if (response.data.success) {
+        setSuccess(`Product request ${action.toLowerCase()}d successfully!`);
+        fetchParentProductRequests();
+        fetchAuthorizationRequests();
+        fetchHierarchyProducts();
+        
+        // Emit real-time update
+        if (window.socket) {
+          window.socket.emit('product_request_updated', {
+            requestId,
+            action,
+            ...response.data.data
+          });
+        }
+      }
+    } catch (error) {
+      setError('Failed to process product request: ' + (error.response?.data?.message || error.message));
+    }
   };
 
-  const openRequestModal = (product, targetOrg) => {
-    setSelectedProductForRequest({ product, targetOrg });
+  const handleAuthorization = async (requestId, action, notes = '') => {
+    try {
+      const response = await productAPI.handleAuthorization(requestId, {
+        action,
+        notes
+      });
+      
+      if (response.data.success) {
+        setSuccess(`Request ${action.toLowerCase()}d successfully!`);
+        setShowAuthorizationModal(false);
+        fetchAuthorizationRequests();
+        fetchHierarchyProducts();
+      }
+    } catch (error) {
+      setError('Failed to process authorization: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const openRequestModal = (product) => {
+    setSelectedProduct(product);
+    setRequestData({
+      quantity: 1,
+      reason: ''
+    });
     setShowRequestModal(true);
+  };
+
+  const openAuthorizationModal = () => {
+    setShowAuthorizationModal(true);
+  };
+
+  const getProductBadgeVariant = (sourceType) => {
+    switch (sourceType) {
+      case 'OWN': return 'success';
+      case 'PARENT': return 'primary';
+      case 'CHILD': return 'warning';
+      case 'SUBCHILD': return 'info';
+      default: return 'secondary';
+    }
+  };
+
+  const getProductSourceText = (sourceType) => {
+    switch (sourceType) {
+      case 'OWN': return 'My Organization';
+      case 'PARENT': return 'From Parent';
+      case 'CHILD': return 'From Child';
+      case 'SUBCHILD': return 'From Sub-Child';
+      default: return sourceType;
+    }
+  };
+
+  // Refresh data manually
+  const refreshData = () => {
+    fetchHierarchyProducts();
+    fetchAuthorizationRequests();
+    fetchParentProductRequests();
+    setSuccess('Data refreshed successfully!');
   };
 
   return (
@@ -338,43 +601,101 @@ const ProductCreation = () => {
       <Row className="justify-content-center">
         <Col lg={12}>
           <Card className="shadow">
-            <Card.Header className="bg-primary text-white">
-              <h4 className="mb-0">Product Management</h4>
+            <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
+              <div>
+                <h4 className="mb-0">Product Management System</h4>
+                <small>Manage products across your organization hierarchy</small>
+              </div>
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="outline-light" 
+                  onClick={refreshData}
+                  className="d-flex align-items-center"
+                  title="Refresh Data"
+                >
+                 Refresh
+                </Button>
+                <Button 
+                  variant="light" 
+                  onClick={openCreateModal}
+                  className="d-flex align-items-center"
+                >
+                  Create Product
+                </Button>
+              </div>
             </Card.Header>
             <Card.Body>
               {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
               {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
+              
+              {/* Real-time Status Indicator */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <small className="text-muted">
+                  {realTimeUpdates ? '🟢 Real-time updates active' : '⚪ Connecting...'}
+                </small>
+                <Badge bg="info">
+                  Last updated: {new Date().toLocaleTimeString()}
+                </Badge>
+              </div>
               
               <Tabs
                 activeKey={activeTab}
                 onSelect={(tab) => setActiveTab(tab)}
                 className="mb-3"
               >
-                <Tab eventKey="create" title="➕ Create Product">
-                  <ProductCreationForm
-                    formData={formData}
-                    suggestions={suggestions}
-                    dropdownSuggestions={dropdownSuggestions}
+                <Tab eventKey="myProducts" title={
+                  <span>
+                    My Products 
+                    {hierarchyData.ownProducts?.length > 0 && (
+                      <Badge bg="primary" className="ms-2">
+                        {hierarchyData.ownProducts.length}
+                      </Badge>
+                    )}
+                  </span>
+                }>
+                  <MyProducts 
+                    products={hierarchyData.ownProducts}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteProduct}
+                    onView={handleViewProduct}
                     loading={loading}
-                    onInputChange={handleInputChange}
-                    onSuggestionSelect={handleSuggestionSelect}
-                    onDropdownSelect={handleDropdownSelect}
-                    onCategoryBlur={handleCategoryBlur}
-                    onTypeBlur={handleTypeBlur}
-                    onSubmit={handleSubmit}
                   />
                 </Tab>
-                <Tab eventKey="shared" title="🔄 Accessible Products">
-                  <AccessibleProducts 
-                    accessibleProducts={accessibleProducts}
+                
+                <Tab eventKey="allProducts" title={
+                  <span>
+                    All Products 
+                    <Badge bg="info" className="ms-2">
+                      {hierarchyData.summary?.grandTotal || 0}
+                    </Badge>
+                  </span>
+                }>
+                  <AllOrganizationProducts 
+                    hierarchyData={hierarchyData}
                     onRequest={openRequestModal}
+                    getProductBadgeVariant={getProductBadgeVariant}
+                    getProductSourceText={getProductSourceText}
                   />
                 </Tab>
-                <Tab eventKey="list" title="📦 My Products">
-                  <ProductList 
-                    products={products}
-                    onDelete={handleProductDelete}
-                    onShare={openSharingModal}
+                
+                <Tab eventKey="requests" title={
+                  <span>
+                    Requests 
+                    {(authorizationRequests.filter(r => r.status === 'pending').length + 
+                      parentProductRequests.filter(r => r.status === 'pending').length) > 0 && (
+                      <Badge bg="danger" className="ms-2">
+                        {authorizationRequests.filter(r => r.status === 'pending').length + 
+                         parentProductRequests.filter(r => r.status === 'pending').length}
+                      </Badge>
+                    )}
+                  </span>
+                }>
+                  <EnhancedAuthorizationRequests 
+                    authorizationRequests={authorizationRequests}
+                    parentProductRequests={parentProductRequests}
+                    onAuthorize={handleAuthorization}
+                    onProductRequestAction={handleProductRequestAction}
+                    onRefresh={fetchParentProductRequests}
                   />
                 </Tab>
               </Tabs>
@@ -383,27 +704,24 @@ const ProductCreation = () => {
         </Col>
       </Row>
 
-      {/* Confirmation Modals */}
-      <NewCategoryModal
-        show={showNewCategoryConfirm}
-        onHide={() => setShowNewCategoryConfirm(false)}
-        category={pendingCategory}
-        onConfirm={() => setShowNewCategoryConfirm(false)}
-        onCancel={() => {
-          setFormData(prev => ({ ...prev, category: '' }));
-          setShowNewCategoryConfirm(false);
-        }}
-      />
-
-      <NewTypeModal
-        show={showNewTypeConfirm}
-        onHide={() => setShowNewTypeConfirm(false)}
-        type={pendingType}
-        onConfirm={() => setShowNewTypeConfirm(false)}
-        onCancel={() => {
-          setFormData(prev => ({ ...prev, type: '' }));
-          setShowNewTypeConfirm(false);
-        }}
+      {/* Create Product Modal */}
+      <ProductCreateModal
+        show={showCreateModal}
+        onHide={() => setShowCreateModal(false)}
+        onSubmit={handleCreateProduct}
+        formData={formData}
+        loading={loading}
+        suggestions={suggestions}
+        fieldValues={fieldValues}
+        onInputChange={handleInputChange}
+        onSuggestionSelect={handleSuggestionSelect}
+        onImageUpload={handleImageUpload}
+        onRemoveImage={removeImage}
+        imagePreview={imagePreview}
+        uploadingImages={uploadingImages}
+        showDropdown={showDropdown}
+        onFieldFocus={handleFieldFocus}
+        onFieldBlur={handleFieldBlur}
       />
 
       {/* Assignment Modal */}
@@ -417,445 +735,401 @@ const ProductCreation = () => {
         />
       )}
 
-      {/* Product Sharing Modal */}
-      {selectedProductForSharing && (
-        <ProductSharingModal
-          show={showSharingModal}
-          onHide={() => {
-            setShowSharingModal(false);
-            setSelectedProductForSharing(null);
-          }}
-          onShare={handleShareProduct}
-          product={selectedProductForSharing}
-          childOrganizations={childOrganizations}
-        />
-      )}
+      {/* Edit Product Modal */}
+      <ProductEditModal
+        show={showEditModal}
+        onHide={() => setShowEditModal(false)}
+        onSubmit={handleEditProduct}
+        formData={formData}
+        product={selectedProduct}
+        loading={loading}
+        suggestions={suggestions}
+        fieldValues={fieldValues}
+        onInputChange={handleInputChange}
+        onSuggestionSelect={handleSuggestionSelect}
+        onImageUpload={handleImageUpload}
+        onRemoveImage={removeImage}
+        imagePreview={imagePreview}
+        uploadingImages={uploadingImages}
+        showDropdown={showDropdown}
+        onFieldFocus={handleFieldFocus}
+        onFieldBlur={handleFieldBlur}
+      />
+
+      {/* View Product Modal */}
+      <ProductViewModal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        product={selectedProduct}
+        onEdit={() => {
+          setShowViewModal(false);
+          openEditModal(selectedProduct);
+        }}
+      />
 
       {/* Product Request Modal */}
-      {selectedProductForRequest && (
-        <ProductRequestModal
-          show={showRequestModal}
-          onHide={() => {
-            setShowRequestModal(false);
-            setSelectedProductForRequest(null);
-          }}
-          onRequest={handleRequestProduct}
-          productData={selectedProductForRequest}
-        />
-      )}
+      <ProductRequestModal
+        show={showRequestModal}
+        onHide={() => {
+          setShowRequestModal(false);
+          setSelectedProduct(null);
+        }}
+        onRequest={handleRequestProduct}
+        product={selectedProduct}
+        requestData={requestData}
+        setRequestData={setRequestData}
+      />
+
+      {/* Authorization Modal */}
+      <AuthorizationModal
+        show={showAuthorizationModal}
+        onHide={() => setShowAuthorizationModal(false)}
+        requests={authorizationRequests}
+        onAuthorization={handleAuthorization}
+      />
     </Container>
   );
 };
 
-// Product Creation Form Component
-const ProductCreationForm = ({
-  formData,
-  suggestions,
-  dropdownSuggestions,
-  loading,
-  onInputChange,
-  onSuggestionSelect,
-  onDropdownSelect,
-  onCategoryBlur,
-  onTypeBlur,
-  onSubmit
-}) => (
-  <Form onSubmit={onSubmit}>
-    <Row>
-      <Col md={6}>
-        <Form.Group className="mb-3">
-          <Form.Label>Item Name *</Form.Label>
-          <Form.Control
-            type="text"
-            value={formData.name}
-            onChange={(e) => onInputChange('name', e.target.value)}
-            required
-            placeholder="Enter product name"
-          />
-          {suggestions.names.length > 0 && (
-            <ListGroup className="mt-2">
-              {suggestions.names.slice(0, 5).map((item, index) => (
-                <ListGroup.Item 
-                  key={index}
-                  action
-                  onClick={() => onSuggestionSelect(item.name, 'name')}
-                  className="py-2"
-                >
-                  <strong>{item.name}</strong> - {item.brand} ({item.type})
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
-        </Form.Group>
+// ENHANCED AUTHORIZATION REQUESTS COMPONENT
+const EnhancedAuthorizationRequests = ({ 
+  authorizationRequests, 
+  parentProductRequests, 
+  onAuthorize, 
+  onProductRequestAction,
+  onRefresh 
+}) => {
+  const [filter, setFilter] = useState('all');
+  const [requestType, setRequestType] = useState('all');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
 
-        <Form.Group className="mb-3">
-          <Form.Label>Category *</Form.Label>
-          <Dropdown>
-            <Dropdown.Toggle 
-              variant="outline-secondary" 
-              id="category-dropdown"
-              className="w-100 text-start"
-              style={{ 
-                borderColor: '#ced4da',
-                backgroundColor: formData.category ? '#fff' : '#f8f9fa'
-              }}
-            >
-              {formData.category || "Select or enter category"}
-            </Dropdown.Toggle>
-            <Dropdown.Menu className="w-100">
-              <div className="px-2 pb-2">
-                <Form.Control
-                  type="text"
-                  placeholder="Search or enter new category..."
-                  value={formData.category}
-                  onChange={(e) => onInputChange('category', e.target.value)}
-                  onBlur={onCategoryBlur}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              <Dropdown.Divider />
-              {dropdownSuggestions.categories.map((category, index) => (
-                <Dropdown.Item 
-                  key={index}
-                  onClick={() => onDropdownSelect('category', category)}
-                  active={formData.category === category}
-                >
-                  {category}
-                </Dropdown.Item>
-              ))}
-              {dropdownSuggestions.categories.length === 0 && (
-                <Dropdown.Item disabled>
-                  No categories found. Start typing to create new ones.
-                </Dropdown.Item>
-              )}
-            </Dropdown.Menu>
-          </Dropdown>
-          {suggestions.category.length > 0 && (
-            <ListGroup className="mt-2">
-              {suggestions.category.map((item, index) => (
-                <ListGroup.Item 
-                  key={index}
-                  action
-                  onClick={() => onSuggestionSelect(item, 'category')}
-                  className="py-2"
-                >
-                  {item}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>Type *</Form.Label>
-          <Dropdown>
-            <Dropdown.Toggle 
-              variant="outline-secondary" 
-              id="type-dropdown"
-              className="w-100 text-start"
-              style={{ 
-                borderColor: '#ced4da',
-                backgroundColor: formData.type ? '#fff' : '#f8f9fa'
-              }}
-            >
-              {formData.type || "Select or enter type"}
-            </Dropdown.Toggle>
-            <Dropdown.Menu className="w-100">
-              <div className="px-2 pb-2">
-                <Form.Control
-                  type="text"
-                  placeholder="Search or enter new type..."
-                  value={formData.type}
-                  onChange={(e) => onInputChange('type', e.target.value)}
-                  onBlur={onTypeBlur}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              <Dropdown.Divider />
-              {dropdownSuggestions.types.map((type, index) => (
-                <Dropdown.Item 
-                  key={index}
-                  onClick={() => onDropdownSelect('type', type)}
-                  active={formData.type === type}
-                >
-                  {type}
-                </Dropdown.Item>
-              ))}
-              {dropdownSuggestions.types.length === 0 && (
-                <Dropdown.Item disabled>
-                  No types found. Start typing to create new ones.
-                </Dropdown.Item>
-              )}
-            </Dropdown.Menu>
-          </Dropdown>
-          {suggestions.type.length > 0 && (
-            <ListGroup className="mt-2">
-              {suggestions.type.map((item, index) => (
-                <ListGroup.Item 
-                  key={index}
-                  action
-                  onClick={() => onSuggestionSelect(item, 'type')}
-                  className="py-2"
-                >
-                  {item}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>Brand *</Form.Label>
-          <Form.Control
-            type="text"
-            value={formData.brand}
-            onChange={(e) => onInputChange('brand', e.target.value)}
-            required
-            placeholder="Enter brand name"
-          />
-          {suggestions.brand.length > 0 && (
-            <ListGroup className="mt-2">
-              {suggestions.brand.map((item, index) => (
-                <ListGroup.Item 
-                  key={index}
-                  action
-                  onClick={() => onSuggestionSelect(item, 'brand')}
-                  className="py-2"
-                >
-                  {item}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
-        </Form.Group>
-      </Col>
-
-      <Col md={6}>
-        <Form.Group className="mb-3">
-          <Form.Label>Description *</Form.Label>
-          <Form.Control
-            as="textarea"
-            rows={3}
-            value={formData.description}
-            onChange={(e) => onInputChange('description', e.target.value)}
-            required
-            placeholder="Enter product description"
-          />
-        </Form.Group>
-
-        <Row>
-          <Col>
-            <Form.Group className="mb-3">
-              <Form.Label>Initial Quantity *</Form.Label>
-              <Form.Control
-                type="number"
-                min="0"
-                value={formData.initialQuantity}
-                onChange={(e) => onInputChange('initialQuantity', parseInt(e.target.value) || 0)}
-                required
-              />
-            </Form.Group>
-          </Col>
-          <Col>
-            <Form.Group className="mb-3">
-              <Form.Label>Minimum Stock *</Form.Label>
-              <Form.Control
-                type="number"
-                min="0"
-                value={formData.minimumStock}
-                onChange={(e) => onInputChange('minimumStock', parseInt(e.target.value) || 0)}
-                required
-              />
-            </Form.Group>
-          </Col>
-        </Row>
-
-        <Form.Group className="mb-3">
-          <Form.Label>Price *</Form.Label>
-          <InputGroup>
-            <Form.Control
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.price.amount}
-              onChange={(e) => onInputChange('price', {
-                ...formData.price,
-                amount: parseFloat(e.target.value) || 0
-              })}
-              required
-            />
-            <Form.Select
-              value={formData.price.currency}
-              onChange={(e) => onInputChange('price', {
-                ...formData.price,
-                currency: e.target.value
-              })}
-            >
-              <option value="USD">USD</option>
-              <option value="INR">INR</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </Form.Select>
-          </InputGroup>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="switch"
-            label="Has Expiry Date"
-            checked={formData.hasExpiry}
-            onChange={(e) => onInputChange('hasExpiry', e.target.checked)}
-          />
-        </Form.Group>
-
-        {formData.hasExpiry && (
-          <Form.Group className="mb-3">
-            <Form.Label>Expiry Date *</Form.Label>
-            <Form.Control
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => onInputChange('expiryDate', e.target.value)}
-              required
-            />
-          </Form.Group>
-        )}
-      </Col>
-    </Row>
-
-    <div className="text-center mt-4">
-      <Button
-        variant="primary"
-        type="submit"
-        disabled={loading}
-        size="lg"
-      >
-        {loading ? (
-          <>
-            <Spinner animation="border" size="sm" className="me-2" />
-            Creating...
-          </>
-        ) : (
-          'Create Product'
-        )}
-      </Button>
-    </div>
-  </Form>
-);
-
-// Accessible Products Component
-const AccessibleProducts = ({ accessibleProducts, onRequest }) => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
-  const allProducts = [
-    ...accessibleProducts.fromDirectParent,
-    ...accessibleProducts.fromAncestors
+  // Combine both types of requests
+  const allRequests = [
+    ...authorizationRequests.map(req => ({ ...req, type: 'authorization' })),
+    ...parentProductRequests.map(req => ({ ...req, type: 'product' }))
   ];
 
-  const filteredProducts = selectedCategory === 'all' 
-    ? allProducts 
-    : allProducts.filter(product => product.relationship === selectedCategory);
+  // Filter and sort requests
+  const filteredRequests = allRequests
+    .filter(request => {
+      const matchesFilter = filter === 'all' || request.status === filter;
+      const matchesType = requestType === 'all' || request.type === requestType;
+      const matchesSearch = searchTerm === '' || 
+        (request.productName && request.productName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.requestingOrganizationName && request.requestingOrganizationName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.reason && request.reason.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      return matchesFilter && matchesType && matchesSearch;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt);
+        case 'oldest':
+          return new Date(a.requestedAt || a.createdAt) - new Date(b.requestedAt || b.createdAt);
+        case 'quantity':
+          return (b.quantity || 0) - (a.quantity || 0);
+        default:
+          return 0;
+      }
+    });
 
-  const categories = [
-    { value: 'all', label: 'All Products', count: allProducts.length },
-    { value: 'DIRECT_PARENT', label: 'From Direct Parent', count: accessibleProducts.fromDirectParent.length },
-    { value: 'ANCESTOR', label: 'From Ancestors', count: accessibleProducts.fromAncestors.length }
-  ];
+  const getStatusVariant = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'warning';
+      case 'approved': return 'success';
+      case 'rejected': return 'danger';
+      default: return 'secondary';
+    }
+  };
+
+  const getTypeVariant = (type) => {
+    switch (type) {
+      case 'authorization': return 'primary';
+      case 'product': return 'info';
+      default: return 'secondary';
+    }
+  };
+
+  const getTypeText = (type) => {
+    switch (type) {
+      case 'authorization': return 'Auth Request';
+      case 'product': return 'Product Request';
+      default: return type;
+    }
+  };
+
+  const handleQuickAction = async (request, action) => {
+    if (window.confirm(`Are you sure you want to ${action.toLowerCase()} this ${request.type} request?`)) {
+      if (request.type === 'authorization') {
+        await onAuthorize(request._id, action, `Quick ${action} by admin`);
+      } else if (request.type === 'product') {
+        await onProductRequestAction(request._id, action, `Quick ${action} by admin`);
+      }
+    }
+  };
+
+  const handleBulkAction = async (action, selectedRequests) => {
+    if (window.confirm(`Are you sure you want to ${action.toLowerCase()} ${selectedRequests.length} requests?`)) {
+      for (const request of selectedRequests) {
+        if (request.type === 'product' && request.status === 'pending') {
+          await onProductRequestAction(request._id, action, `Bulk ${action} by admin`);
+        }
+      }
+      onRefresh?.();
+    }
+  };
+
+  const pendingCount = allRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
+  const authPendingCount = authorizationRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
+  const productPendingCount = parentProductRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
+
+  const totalQuantity = allRequests
+    .filter(r => r.status?.toLowerCase() === 'pending')
+    .reduce((sum, r) => sum + (r.quantity || 0), 0);
 
   return (
     <div>
+      {/* Enhanced Filters and Stats */}
       <Card className="mb-3">
         <Card.Body>
-          <Row>
-            <Col md={6}>
+          <Row className="g-3">
+            <Col md={3}>
               <Form.Group>
-                <Form.Label>Filter by Source</Form.Label>
+                <Form.Label>Filter by Status</Form.Label>
                 <Form.Select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
                 >
-                  {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label} ({cat.count})
-                    </option>
-                  ))}
+                  <option value="all">All Status ({allRequests.length})</option>
+                  <option value="pending">Pending ({pendingCount})</option>
+                  <option value="approved">Approved ({allRequests.filter(r => r.status?.toLowerCase() === 'approved').length})</option>
+                  <option value="rejected">Rejected ({allRequests.filter(r => r.status?.toLowerCase() === 'rejected').length})</option>
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={6} className="d-flex align-items-end">
-              <Badge bg="primary" className="fs-6">
-                Total Accessible: {allProducts.length} products
-              </Badge>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>Filter by Type</Form.Label>
+                <Form.Select
+                  value={requestType}
+                  onChange={(e) => setRequestType(e.target.value)}
+                >
+                  <option value="all">All Types ({allRequests.length})</option>
+                  <option value="authorization">Authorization ({authorizationRequests.length})</option>
+                  <option value="product">Product Requests ({parentProductRequests.length})</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>Sort By</Form.Label>
+                <Form.Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="quantity">Quantity (High to Low)</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>Search</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Search requests..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          
+          {/* Statistics Row */}
+          <Row className="mt-3">
+            <Col>
+              <div className="d-flex flex-wrap gap-3">
+                <Badge bg="primary" className="fs-6 p-2">
+                  📊 Total: {allRequests.length}
+                </Badge>
+                <Badge bg="warning" className="fs-6 p-2">
+                  ⏳ Pending: {pendingCount}
+                </Badge>
+                <Badge bg="info" className="fs-6 p-2">
+                  🔐 Auth: {authPendingCount}
+                </Badge>
+                <Badge bg="success" className="fs-6 p-2">
+                  📦 Product: {productPendingCount}
+                </Badge>
+                <Badge bg="secondary" className="fs-6 p-2">
+                  📋 Total Quantity: {totalQuantity}
+                </Badge>
+              </div>
             </Col>
           </Row>
         </Card.Body>
       </Card>
 
-      {filteredProducts.length === 0 ? (
+      {/* Bulk Actions */}
+      {filteredRequests.filter(r => r.type === 'product' && r.status === 'pending').length > 0 && (
+        <Card className="mb-3">
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center">
+              <h6 className="mb-0">Bulk Actions</h6>
+              <div className="d-flex gap-2">
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={() => handleBulkAction('APPROVE', filteredRequests.filter(r => r.type === 'product' && r.status === 'pending'))}
+                >
+                  ✅ Approve All Product Requests
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => handleBulkAction('REJECT', filteredRequests.filter(r => r.type === 'product' && r.status === 'pending'))}
+                >
+                  ❌ Reject All Product Requests
+                </Button>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Requests Table */}
+      {filteredRequests.length === 0 ? (
         <Alert variant="info" className="text-center">
-          <h5>No accessible products found</h5>
-          <p>Products shared by parent organizations will appear here.</p>
+          <h5>No requests found</h5>
+          <p>Try adjusting your filters or check back later for new requests.</p>
+          <Button variant="primary" onClick={onRefresh}>
+            🔄 Refresh
+          </Button>
         </Alert>
       ) : (
         <div className="table-responsive">
           <Table striped hover>
             <thead className="table-dark">
               <tr>
+                <th>Request Details</th>
                 <th>Product</th>
-                <th>Source Organization</th>
-                <th>Relationship</th>
-                <th>Available Stock</th>
-                <th>Access Level</th>
+                <th>From Organization</th>
+                <th>Quantity</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Date</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product, index) => (
-                <tr key={index}>
+              {filteredRequests.map((request, index) => (
+                <tr key={request._id || index} className={request.status === 'pending' ? 'table-warning' : ''}>
                   <td>
                     <div>
-                      <strong>{product.name}</strong>
+                      <Badge bg={getTypeVariant(request.type)} className="mb-1">
+                        {getTypeText(request.type)}
+                      </Badge>
                       <br />
                       <small className="text-muted">
-                        {product.brand} • {product.category}
+                        By: {request.requestedBy?.name || request.requestedBy || 'Unknown'}
+                      </small>
+                      {request.reason && (
+                        <>
+                          <br />
+                          <small title={request.reason}>
+                            {request.reason.length > 50 ? 
+                              `${request.reason.substring(0, 50)}...` : request.reason}
+                          </small>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <strong>{request.product?.name || request.productName}</strong>
+                    <br />
+                    <small className="text-muted">
+                      {request.product?.brand || request.productBrand} • {request.product?.category || request.productCategory}
+                    </small>
+                  </td>
+                  <td>
+                    <div>
+                      <strong>{request.requestingOrganizationName || request.sourceOrganizationName}</strong>
+                      <br />
+                      <small className="text-muted">
+                        {request.requestingOrganization || request.sourceOrganization}
                       </small>
                     </div>
                   </td>
                   <td>
-                    {product.sourceOrgName}
-                    <br />
-                    <small className="text-muted">{product.sourceOrg}</small>
-                  </td>
-                  <td>
-                    <Badge 
-                      bg={
-                        product.relationship === 'DIRECT_PARENT' ? 'info' :
-                        product.relationship === 'ANCESTOR' ? 'warning' : 'secondary'
-                      }
-                    >
-                      {product.relationship}
+                    <Badge bg="info" className="fs-6">
+                      {request.quantity || 1}
                     </Badge>
                   </td>
                   <td>
-                    <Badge 
-                      bg={product.availableStock > 0 ? 'success' : 'danger'}
-                    >
-                      {product.availableStock}
+                    <Badge bg={getTypeVariant(request.type)}>
+                      {getTypeText(request.type)}
                     </Badge>
                   </td>
                   <td>
-                    <Badge bg="outline-primary">
-                      {product.accessLevel}
+                    <Badge bg={getStatusVariant(request.status)}>
+                      {request.status?.toUpperCase() || 'PENDING'}
                     </Badge>
                   </td>
                   <td>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={!product.canRequest || product.availableStock === 0}
-                      onClick={() => onRequest(product, product.sourceOrg)}
-                    >
-                      📥 Request
-                    </Button>
+                    <div>
+                      {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'N/A'}
+                      <br />
+                      <small className="text-muted">
+                        {request.requestedAt ? new Date(request.requestedAt).toLocaleTimeString() : ''}
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    {request.status?.toLowerCase() === 'pending' ? (
+                      <div className="d-flex flex-column gap-1">
+                        <div className="d-flex gap-1">
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => handleQuickAction(request, 'APPROVE')}
+                            title={`Approve ${getTypeText(request.type)}`}
+                          >
+                            ✓
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleQuickAction(request, 'REJECT')}
+                            title={`Reject ${getTypeText(request.type)}`}
+                          >
+                            ✗
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => setSelectedRequest(request)}
+                          title="Review Details"
+                        >
+                          👁️ Details
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <Badge bg="secondary" className="p-2">
+                          Completed
+                        </Badge>
+                        <br />
+                        <small className="text-muted">
+                          {request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : 
+                           request.rejectedAt ? new Date(request.rejectedAt).toLocaleDateString() : ''}
+                        </small>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -864,163 +1138,308 @@ const AccessibleProducts = ({ accessibleProducts, onRequest }) => {
         </div>
       )}
 
-      {/* Own Products Section */}
-      {accessibleProducts.ownProducts.length > 0 && (
-        <Card className="mt-4">
-          <Card.Header>
-            <h5 className="mb-0">My Products ({accessibleProducts.ownProducts.length})</h5>
-          </Card.Header>
-          <Card.Body>
-            <Row>
-              {accessibleProducts.ownProducts.slice(0, 6).map((product, index) => (
-                <Col md={4} key={product._id} className="mb-3">
-                  <Card>
-                    <Card.Body>
-                      <h6>{product.name}</h6>
-                      <p className="text-muted mb-1">{product.brand}</p>
-                      <Badge bg="success">{product.currentQuantity} in stock</Badge>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card.Body>
-        </Card>
+      {/* Enhanced Request Detail Modal */}
+      {selectedRequest && (
+        <EnhancedRequestDetailModal
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onAuthorization={onAuthorize}
+          onProductRequestAction={onProductRequestAction}
+          getStatusVariant={getStatusVariant}
+          getTypeText={getTypeText}
+        />
       )}
     </div>
   );
 };
 
-// Product List Component
-const ProductList = ({ products, onDelete, onShare }) => {
-  const [filter, setFilter] = useState({
-    category: '',
-    assignmentType: ''
-  });
+// ENHANCED REQUEST DETAIL MODAL
+const EnhancedRequestDetailModal = ({ 
+  request, 
+  onClose, 
+  onAuthorization, 
+  onProductRequestAction,
+  getStatusVariant,
+  getTypeText 
+}) => {
+  const [action, setAction] = useState('');
+  const [notes, setNotes] = useState('');
+  const [approvedQuantity, setApprovedQuantity] = useState(request.quantity || 1);
 
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = !filter.category || product.category === filter.category;
-    const matchesAssignment = !filter.assignmentType || product.assignmentType === filter.assignmentType;
-    return matchesCategory && matchesAssignment;
-  });
+  const handleSubmit = async () => {
+    if (!action) {
+      alert('Please select an action');
+      return;
+    }
+    
+    if (request.type === 'authorization') {
+      await onAuthorization(request._id, action, notes);
+    } else if (request.type === 'product') {
+      await onProductRequestAction(request._id, action, notes, approvedQuantity);
+    }
+    
+    onClose();
+  };
 
-  const categories = [...new Set(products.map(p => p.category))];
-  const assignmentTypes = [...new Set(products.map(p => p.assignmentType))];
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
 
   return (
-    <div>
-      {/* Filters */}
-      <Row className="mb-3">
-        <Col md={4}>
-          <Form.Select
-            value={filter.category}
-            onChange={(e) => setFilter({ ...filter, category: e.target.value })}
-          >
-            <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={4}>
-          <Form.Select
-            value={filter.assignmentType}
-            onChange={(e) => setFilter({ ...filter, assignmentType: e.target.value })}
-          >
-            <option value="">All Assignment Types</option>
-            {assignmentTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={4}>
-          <Badge bg="primary" className="fs-6">
-            Total: {filteredProducts.length} products
+    <Modal show={true} onHide={onClose} size="lg">
+      <Modal.Header closeButton className="bg-light">
+        <Modal.Title className="d-flex align-items-center">
+          <Badge bg={getStatusVariant(request.status)} className="me-2">
+            {request.status?.toUpperCase()}
           </Badge>
-        </Col>
-      </Row>
+          {getTypeText(request.type)} Details
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Row>
+          <Col md={6}>
+            <Card className="h-100">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">📦 Product Information</h6>
+              </Card.Header>
+              <Card.Body>
+                <table className="table table-sm table-borderless">
+                  <tbody>
+                    <tr>
+                      <td><strong>Name:</strong></td>
+                      <td>{request.product?.name || request.productName}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Brand:</strong></td>
+                      <td>{request.product?.brand || request.productBrand}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Category:</strong></td>
+                      <td>{request.product?.category || request.productCategory}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Type:</strong></td>
+                      <td>{request.product?.type || 'N/A'}</td>
+                    </tr>
+                    {request.product?.currentQuantity && (
+                      <tr>
+                        <td><strong>Available Stock:</strong></td>
+                        <td>
+                          <Badge bg={request.product.currentQuantity > 0 ? 'success' : 'danger'}>
+                            {request.product.currentQuantity}
+                          </Badge>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={6}>
+            <Card className="h-100">
+              <Card.Header className="bg-info text-white">
+                <h6 className="mb-0">🏢 Request Information</h6>
+              </Card.Header>
+              <Card.Body>
+                <table className="table table-sm table-borderless">
+                  <tbody>
+                    <tr>
+                      <td><strong>Type:</strong></td>
+                      <td>
+                        <Badge bg={request.type === 'authorization' ? 'primary' : 'info'}>
+                          {getTypeText(request.type)}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Requested By:</strong></td>
+                      <td>{request.requestedBy?.name || request.requestedBy || 'Unknown'}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Organization:</strong></td>
+                      <td>{request.requestingOrganizationName || request.sourceOrganizationName}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Quantity:</strong></td>
+                      <td>
+                        <Badge bg="info" className="fs-6">
+                          {request.quantity || 1}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Status:</strong></td>
+                      <td>
+                        <Badge bg={getStatusVariant(request.status)}>
+                          {request.status?.toUpperCase()}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Requested:</strong></td>
+                      <td>
+                        {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : 'N/A'}
+                        <br />
+                        <small className="text-muted">
+                          {request.requestedAt && getTimeAgo(request.requestedAt)}
+                        </small>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Products Table */}
-      <Table responsive striped>
-        <thead>
-          <tr>
-            <th>Product Name</th>
-            <th>Brand</th>
-            <th>Category</th>
-            <th>Stock</th>
-            <th>Min Stock</th>
-            <th>Assignment</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredProducts.map(product => (
-            <tr key={product._id}>
-              <td>
-                <strong>{product.name}</strong>
-                <br />
-                <small className="text-muted">{product.type}</small>
-              </td>
-              <td>{product.brand}</td>
-              <td>{product.category}</td>
-              <td>
-                <Badge 
-                  bg={
-                    product.currentQuantity <= product.minimumStock ? 'danger' :
-                    product.currentQuantity <= product.minimumStock * 2 ? 'warning' : 'success'
-                  }
-                >
-                  {product.currentQuantity}
-                </Badge>
-              </td>
-              <td>{product.minimumStock}</td>
-              <td>
-                <Badge 
-                  bg={
-                    product.assignmentType === 'Authorized Inventory' ? 'warning' :
-                    product.assignmentType === 'First Aid Kit' ? 'info' :
-                    product.assignmentType === 'Regular' ? 'success' : 'secondary'
-                  }
-                >
-                  {product.assignmentType}
-                </Badge>
-              </td>
-              <td>
-                <Badge bg={product.isActive ? 'success' : 'danger'}>
-                  {product.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </td>
-              <td>
-                <div className="d-flex gap-1">
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => onShare(product)}
-                  >
-                    Share
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => onDelete(product._id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+        {request.reason && (
+          <Row className="mt-3">
+            <Col>
+              <Card>
+                <Card.Header className="bg-warning text-dark">
+                  <h6 className="mb-0">📝 Reason for Request</h6>
+                </Card.Header>
+                <Card.Body>
+                  <p className="mb-0">{request.reason}</p>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
 
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-5 text-muted">
-          <h5>No products found</h5>
-          <p>Create your first product or adjust your filters.</p>
-        </div>
-      )}
-    </div>
+        {request.status?.toLowerCase() === 'pending' && (
+          <Row className="mt-3">
+            <Col>
+              <Card>
+                <Card.Header className={action === 'APPROVE' ? 'bg-success text-white' : action === 'REJECT' ? 'bg-danger text-white' : 'bg-secondary text-white'}>
+                  <h6 className="mb-0">⚡ Authorization Action</h6>
+                </Card.Header>
+                <Card.Body>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Action *</Form.Label>
+                    <Form.Select
+                      value={action}
+                      onChange={(e) => setAction(e.target.value)}
+                      required
+                    >
+                      <option value="">Select Action</option>
+                      <option value="APPROVE">✅ Approve Request</option>
+                      <option value="REJECT">❌ Reject Request</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {request.type === 'product' && action === 'APPROVE' && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Approved Quantity *</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        max={request.quantity}
+                        value={approvedQuantity}
+                        onChange={(e) => setApprovedQuantity(parseInt(e.target.value) || 1)}
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        Maximum available: {request.quantity} units
+                      </Form.Text>
+                    </Form.Group>
+                  )}
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>
+                      {action === 'APPROVE' ? '📋 Approval Notes' : '📋 Rejection Reason'} *
+                    </Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder={
+                        action === 'APPROVE' 
+                          ? 'Add any notes for this approval...' 
+                          : 'Explain why this request is being rejected...'
+                      }
+                      required
+                    />
+                  </Form.Group>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
+        {/* Request History */}
+        {(request.approvedAt || request.rejectedAt) && (
+          <Row className="mt-3">
+            <Col>
+              <Card>
+                <Card.Header className="bg-dark text-white">
+                  <h6 className="mb-0">📋 Decision History</h6>
+                </Card.Header>
+                <Card.Body>
+                  {request.approvedAt && (
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>✅ Approved</strong>
+                        <br />
+                        <small className="text-muted">
+                          By: {request.approvedBy?.name || 'Admin'} • {new Date(request.approvedAt).toLocaleString()}
+                        </small>
+                        {request.approvalReason && (
+                          <div className="mt-1">
+                            <small><strong>Reason:</strong> {request.approvalReason}</small>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {request.rejectedAt && (
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>❌ Rejected</strong>
+                        <br />
+                        <small className="text-muted">
+                          By: {request.rejectedBy?.name || 'Admin'} • {new Date(request.rejectedAt).toLocaleString()}
+                        </small>
+                        {request.rejectionReason && (
+                          <div className="mt-1">
+                            <small><strong>Reason:</strong> {request.rejectionReason}</small>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+        {request.status?.toLowerCase() === 'pending' && (
+          <Button 
+            variant={action === 'APPROVE' ? 'success' : 'danger'}
+            onClick={handleSubmit}
+            disabled={!action || !notes || (request.type === 'product' && action === 'APPROVE' && !approvedQuantity)}
+            className="d-flex align-items-center gap-2"
+          >
+            {action === 'APPROVE' ? '✅' : '❌'}
+            {action === 'APPROVE' ? 'Approve' : 'Reject'} {getTypeText(request.type)}
+          </Button>
+        )}
+      </Modal.Footer>
+    </Modal>
   );
 };
 
@@ -1057,14 +1476,8 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
   };
 
   const handleModuleCreate = async () => {
-    if (!moduleData.name || !moduleData.logo || moduleData.fields.length === 0) {
+    if (!moduleData.name || moduleData.fields.length === 0) {
       alert('Please fill all module fields');
-      return;
-    }
-
-    const invalidFields = moduleData.fields.filter(field => !field.fieldName.trim());
-    if (invalidFields.length > 0) {
-      alert('Please provide names for all fields');
       return;
     }
 
@@ -1119,23 +1532,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
     setModuleData(prev => ({ ...prev, fields: newFields }));
   };
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setModuleData(prev => ({
-          ...prev,
-          logo: {
-            file: file,
-            preview: e.target.result
-          }
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleClose = () => {
     resetModuleData();
     setShowModuleOptions(false);
@@ -1154,7 +1550,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {/* Initial Assignment Options */}
         {!showModuleOptions && !showModuleCreation && !showExistingModules && (
           <div className="text-center">
             <h5>Assign Product to Category</h5>
@@ -1189,7 +1584,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
           </div>
         )}
 
-        {/* Module Creation Choice */}
         {showModuleOptions && (
           <div className="text-center">
             <h5>Create New Module or Use Existing?</h5>
@@ -1215,7 +1609,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
           </div>
         )}
 
-        {/* New Module Creation Form */}
         {showModuleCreation && (
           <div>
             <h6>Create New Module for {product?.name}</h6>
@@ -1230,26 +1623,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Module Logo *</Form.Label>
-              <Form.Control
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                required
-              />
-              {moduleData.logo?.preview && (
-                <div className="mt-2">
-                  <img 
-                    src={moduleData.logo.preview} 
-                    alt="Logo preview" 
-                    style={{ maxWidth: '100px', maxHeight: '100px' }}
-                    className="img-thumbnail"
-                  />
-                </div>
-              )}
-            </Form.Group>
-
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <h6>Checklist Fields *</h6>
@@ -1261,7 +1634,7 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
               {moduleData.fields.map((field, index) => (
                 <div key={index} className="border p-3 mb-2 rounded">
                   <Row className="align-items-center">
-                    <Col md={4}>
+                    <Col md={5}>
                       <Form.Control
                         placeholder="Field Name (e.g., Torch, Bandage)"
                         value={field.fieldName}
@@ -1272,7 +1645,7 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
                         required
                       />
                     </Col>
-                    <Col md={3}>
+                    <Col md={4}>
                       <Form.Select
                         value={field.fieldType}
                         onChange={(e) => updateField(index, {
@@ -1286,7 +1659,7 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
                         <option value="Image">Image</option>
                       </Form.Select>
                     </Col>
-                    <Col md={3}>
+                    <Col md={2}>
                       <Form.Check
                         type="switch"
                         label="Mandatory"
@@ -1297,7 +1670,7 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
                         })}
                       />
                     </Col>
-                    <Col md={2}>
+                    <Col md={1}>
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -1322,7 +1695,7 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
               <Button 
                 variant="primary" 
                 onClick={handleModuleCreate}
-                disabled={creatingModule || !moduleData.name || !moduleData.logo || moduleData.fields.length === 0}
+                disabled={creatingModule || !moduleData.name || moduleData.fields.length === 0}
               >
                 {creatingModule ? (
                   <>
@@ -1344,7 +1717,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
           </div>
         )}
 
-        {/* Existing Modules Selection */}
         {showExistingModules && (
           <div>
             <h6>Select Existing Module</h6>
@@ -1365,36 +1737,6 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
                 ))}
               </Form.Select>
             </Form.Group>
-
-            {selectedModuleId && (
-              <div className="border p-3 rounded mb-3">
-                <h6>Module Preview:</h6>
-                {(() => {
-                  const selectedModule = existingModules.find(m => m._id === selectedModuleId);
-                  return selectedModule ? (
-                    <div>
-                      <p><strong>Name:</strong> {selectedModule.name}</p>
-                      <p><strong>Fields:</strong> {selectedModule.fields?.length || 0}</p>
-                      {selectedModule.fields && selectedModule.fields.length > 0 && (
-                        <div>
-                          <strong>Field List:</strong>
-                          <ul className="mt-2">
-                            {selectedModule.fields.slice(0, 5).map((field, idx) => (
-                              <li key={idx}>
-                                {field.fieldName} ({field.fieldType}) {field.isMandatory && ' *'}
-                              </li>
-                            ))}
-                            {selectedModule.fields.length > 5 && (
-                              <li>... and {selectedModule.fields.length - 5} more fields</li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-            )}
 
             <div className="d-flex gap-2">
               <Button 
@@ -1435,126 +1777,1098 @@ const EnhancedAssignmentModal = ({ show, onHide, onAssign, product, existingModu
   );
 };
 
-// Product Sharing Modal Component
-const ProductSharingModal = ({ show, onHide, onShare, product, childOrganizations }) => {
-  const [shareData, setShareData] = useState({
-    childOrganizations: [],
-    accessLevel: 'REQUEST_ACCESS',
-    shareWithAllChildren: false
-  });
+// Suggestion Dropdown Component
+const SuggestionDropdown = ({ field, suggestions, onSelect, show, onMouseDown }) => {
+  if (!show || !suggestions.length) return null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await onShare(product._id, shareData);
+  return (
+    <div 
+      className="position-absolute w-100 bg-white border rounded shadow-sm mt-1 z-3"
+      style={{ maxHeight: '200px', overflowY: 'auto' }}
+    >
+      {suggestions.map((suggestion, index) => (
+        <div
+          key={index}
+          className="suggestion-item p-2 border-bottom"
+          onClick={() => onSelect(field, suggestion)}
+          onMouseDown={onMouseDown}
+          style={{ 
+            cursor: 'pointer',
+            backgroundColor: '#fff'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+        >
+          {suggestion}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Create Product Modal Component
+const ProductCreateModal = ({ 
+  show, 
+  onHide, 
+  onSubmit, 
+  formData, 
+  loading,
+  suggestions,
+  fieldValues,
+  onInputChange,
+  onSuggestionSelect,
+  onImageUpload,
+  onRemoveImage,
+  imagePreview,
+  uploadingImages,
+  showDropdown,
+  onFieldFocus,
+  onFieldBlur
+}) => {
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      onImageUpload(files);
+    }
   };
 
-  const toggleOrganization = (orgId) => {
-    setShareData(prev => {
-      const isSelected = prev.childOrganizations.includes(orgId);
-      return {
-        ...prev,
-        childOrganizations: isSelected
-          ? prev.childOrganizations.filter(id => id !== orgId)
-          : [...prev.childOrganizations, orgId]
-      };
-    });
+  const handleMouseDown = (e) => {
+    e.preventDefault();
   };
 
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>Share Product with Child Organizations</Modal.Title>
+        <Modal.Title>Create New Product</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Product to Share</Form.Label>
-            <Card>
-              <Card.Body>
-                <strong>{product.name}</strong> - {product.brand}
-                <br />
-                <small className="text-muted">Category: {product.category}</small>
-              </Card.Body>
-            </Card>
-          </Form.Group>
+      <Form onSubmit={onSubmit}>
+        <Modal.Body>
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Product Name *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => onInputChange('name', e.target.value)}
+                  required
+                  placeholder="Enter product name"
+                />
+              </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="switch"
-              label="Share with all child organizations"
-              checked={shareData.shareWithAllChildren}
-              onChange={(e) => setShareData(prev => ({
-                ...prev,
-                shareWithAllChildren: e.target.checked,
-                childOrganizations: e.target.checked ? childOrganizations.map(org => org.OrganizationId) : []
-              }))}
-            />
-          </Form.Group>
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Category *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.category}
+                  onChange={(e) => onInputChange('category', e.target.value)}
+                  onFocus={() => onFieldFocus('category', formData.category)}
+                  onBlur={() => onFieldBlur('category')}
+                  required
+                  placeholder="Enter category"
+                />
+                <SuggestionDropdown
+                  field="category"
+                  suggestions={suggestions.category}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.category}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
 
-          {!shareData.shareWithAllChildren && (
-            <Form.Group className="mb-3">
-              <Form.Label>Select Child Organizations</Form.Label>
-              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {childOrganizations.map(org => (
-                  <Form.Check
-                    key={org.OrganizationId}
-                    type="checkbox"
-                    label={`${org.companyName || org.name} (${org.domain})`}
-                    checked={shareData.childOrganizations.includes(org.OrganizationId)}
-                    onChange={() => toggleOrganization(org.OrganizationId)}
-                    className="mb-2"
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Type *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.type}
+                  onChange={(e) => onInputChange('type', e.target.value)}
+                  onFocus={() => onFieldFocus('type', formData.type)}
+                  onBlur={() => onFieldBlur('type')}
+                  required
+                  placeholder="Enter type"
+                />
+                <SuggestionDropdown
+                  field="type"
+                  suggestions={suggestions.type}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.type}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Brand *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.brand}
+                  onChange={(e) => onInputChange('brand', e.target.value)}
+                  onFocus={() => onFieldFocus('brand', formData.brand)}
+                  onBlur={() => onFieldBlur('brand')}
+                  required
+                  placeholder="Enter brand name"
+                />
+                <SuggestionDropdown
+                  field="brand"
+                  suggestions={suggestions.brand}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.brand}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => onInputChange('description', e.target.value)}
+                  placeholder="Enter product description"
+                />
+              </Form.Group>
+
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Initial Quantity *</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={formData.currentQuantity}
+                      onChange={(e) => onInputChange('currentQuantity', parseInt(e.target.value) || 0)}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Minimum Stock *</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={formData.minimumStock}
+                      onChange={(e) => onInputChange('minimumStock', parseInt(e.target.value) || 0)}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Price</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price.amount}
+                    onChange={(e) => onInputChange('price.amount', parseFloat(e.target.value) || 0)}
                   />
-                ))}
-              </div>
-            </Form.Group>
-          )}
+                  <Form.Select
+                    value={formData.price.currency}
+                    onChange={(e) => onInputChange('price.currency', e.target.value)}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="INR">INR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </Form.Select>
+                </InputGroup>
+              </Form.Group>
+            </Col>
+          </Row>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Access Level</Form.Label>
-            <Form.Select
-              value={shareData.accessLevel}
-              onChange={(e) => setShareData(prev => ({ ...prev, accessLevel: e.target.value }))}
-            >
-              <option value="VIEW_ONLY">View Only</option>
-              <option value="REQUEST_ACCESS">Request Access</option>
-              <option value="DIRECT_ACCESS">Direct Access</option>
-            </Form.Select>
-          </Form.Group>
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="switch"
+                  label="Has Expiry Date"
+                  checked={formData.hasExpiry}
+                  onChange={(e) => onInputChange('hasExpiry', e.target.checked)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              {formData.hasExpiry && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Expiry Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => onInputChange('expiryDate', e.target.value)}
+                  />
+                </Form.Group>
+              )}
+            </Col>
+          </Row>
 
-          <div className="d-flex justify-content-end gap-2">
-            <Button variant="secondary" onClick={onHide}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              type="submit"
-              disabled={!shareData.shareWithAllChildren && shareData.childOrganizations.length === 0}
-            >
-              Share Product
-            </Button>
-          </div>
-        </Form>
-      </Modal.Body>
+          {/* Image Upload Section */}
+          <Row>
+            <Col>
+              <Form.Group className="mb-3">
+                <Form.Label>Product Images</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  disabled={uploadingImages}
+                />
+                <Form.Text className="text-muted">
+                  Upload product images (multiple images supported)
+                </Form.Text>
+              </Form.Group>
+
+              {imagePreview.length > 0 && (
+                <div className="mb-3">
+                  <h6>Image Previews:</h6>
+                  <div className="d-flex flex-wrap gap-2">
+                    {imagePreview.map((preview, index) => (
+                      <div key={index} className="position-relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          style={{ 
+                            width: '100px', 
+                            height: '100px', 
+                            objectFit: 'cover',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px'
+                          }}
+                        />
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="position-absolute top-0 end-0"
+                          style={{ transform: 'translate(50%, -50%)' }}
+                          onClick={() => onRemoveImage(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uploadingImages && (
+                <div className="text-center">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Uploading images...
+                </div>
+              )}
+            </Col>
+          </Row>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onHide}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Creating...
+              </>
+            ) : (
+              'Create Product'
+            )}
+          </Button>
+        </Modal.Footer>
+      </Form>
     </Modal>
   );
 };
 
-// Product Request Modal Component
-const ProductRequestModal = ({ show, onHide, onRequest, productData }) => {
-  const [requestData, setRequestData] = useState({
-    quantity: 1,
-    reason: ''
+// Edit Product Modal Component
+const ProductEditModal = ({ 
+  show, 
+  onHide, 
+  onSubmit, 
+  formData, 
+  product, 
+  loading,
+  suggestions,
+  fieldValues,
+  onInputChange,
+  onSuggestionSelect,
+  onImageUpload,
+  onRemoveImage,
+  imagePreview,
+  uploadingImages,
+  showDropdown,
+  onFieldFocus,
+  onFieldBlur
+}) => {
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      onImageUpload(files);
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+  };
+
+  if (!product) return null;
+
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Edit Product</Modal.Title>
+      </Modal.Header>
+      <Form onSubmit={onSubmit}>
+        <Modal.Body>
+          <Alert variant="info" className="mb-3">
+            Editing: <strong>{product.name}</strong> (ID: {product._id})
+          </Alert>
+
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Product Name *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => onInputChange('name', e.target.value)}
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Category *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.category}
+                  onChange={(e) => onInputChange('category', e.target.value)}
+                  onFocus={() => onFieldFocus('category', formData.category)}
+                  onBlur={() => onFieldBlur('category')}
+                  required
+                />
+                <SuggestionDropdown
+                  field="category"
+                  suggestions={suggestions.category}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.category}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Type *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.type}
+                  onChange={(e) => onInputChange('type', e.target.value)}
+                  onFocus={() => onFieldFocus('type', formData.type)}
+                  onBlur={() => onFieldBlur('type')}
+                  required
+                />
+                <SuggestionDropdown
+                  field="type"
+                  suggestions={suggestions.type}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.type}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3 position-relative">
+                <Form.Label>Brand *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.brand}
+                  onChange={(e) => onInputChange('brand', e.target.value)}
+                  onFocus={() => onFieldFocus('brand', formData.brand)}
+                  onBlur={() => onFieldBlur('brand')}
+                  required
+                />
+                <SuggestionDropdown
+                  field="brand"
+                  suggestions={suggestions.brand}
+                  onSelect={onSuggestionSelect}
+                  show={showDropdown.brand}
+                  onMouseDown={handleMouseDown}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => onInputChange('description', e.target.value)}
+                />
+              </Form.Group>
+
+              <Row>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Current Quantity *</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={formData.currentQuantity}
+                      onChange={(e) => onInputChange('currentQuantity', parseInt(e.target.value) || 0)}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+                <Col>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Minimum Stock *</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={formData.minimumStock}
+                      onChange={(e) => onInputChange('minimumStock', parseInt(e.target.value) || 0)}
+                      required
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Price</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price.amount}
+                    onChange={(e) => onInputChange('price.amount', parseFloat(e.target.value) || 0)}
+                  />
+                  <Form.Select
+                    value={formData.price.currency}
+                    onChange={(e) => onInputChange('price.currency', e.target.value)}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="INR">INR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </Form.Select>
+                </InputGroup>
+              </Form.Group>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="switch"
+                  label="Has Expiry Date"
+                  checked={formData.hasExpiry}
+                  onChange={(e) => onInputChange('hasExpiry', e.target.checked)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              {formData.hasExpiry && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Expiry Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => onInputChange('expiryDate', e.target.value)}
+                  />
+                </Form.Group>
+              )}
+            </Col>
+          </Row>
+
+          {/* Image Upload Section */}
+          <Row>
+            <Col>
+              <Form.Group className="mb-3">
+                <Form.Label>Product Images</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  disabled={uploadingImages}
+                />
+                <Form.Text className="text-muted">
+                  Add more product images (multiple images supported)
+                </Form.Text>
+              </Form.Group>
+
+              {imagePreview.length > 0 && (
+                <div className="mb-3">
+                  <h6>Image Previews:</h6>
+                  <div className="d-flex flex-wrap gap-2">
+                    {imagePreview.map((preview, index) => (
+                      <div key={index} className="position-relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          style={{ 
+                            width: '100px', 
+                            height: '100px', 
+                            objectFit: 'cover',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px'
+                          }}
+                        />
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="position-absolute top-0 end-0"
+                          style={{ transform: 'translate(50%, -50%)' }}
+                          onClick={() => onRemoveImage(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uploadingImages && (
+                <div className="text-center">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Uploading images...
+                </div>
+              )}
+            </Col>
+          </Row>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onHide}>
+            Cancel
+          </Button>
+          <Button 
+            variant="warning" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Updating...
+              </>
+            ) : (
+              'Update Product'
+            )}
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
+  );
+};
+
+// View Product Modal Component
+const ProductViewModal = ({ show, onHide, product, onEdit }) => {
+  if (!product) return null;
+
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Product Details</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Row>
+          <Col md={6}>
+            <Card className="mb-3">
+              <Card.Header className="bg-primary text-white">
+                <h6 className="mb-0">Basic Information</h6>
+              </Card.Header>
+              <Card.Body>
+                <table className="table table-borderless">
+                  <tbody>
+                    <tr>
+                      <td><strong>Name:</strong></td>
+                      <td>{product.name}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Category:</strong></td>
+                      <td>{product.category}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Type:</strong></td>
+                      <td>{product.type || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Brand:</strong></td>
+                      <td>{product.brand}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Product ID:</strong></td>
+                      <td><code>{product._id}</code></td>
+                    </tr>
+                    {product.description && (
+                      <tr>
+                        <td><strong>Description:</strong></td>
+                        <td>{product.description}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col md={6}>
+            <Card className="mb-3">
+              <Card.Header className="bg-success text-white">
+                <h6 className="mb-0">Stock Information</h6>
+              </Card.Header>
+              <Card.Body>
+                <table className="table table-borderless">
+                  <tbody>
+                    <tr>
+                      <td><strong>Initial Quantity:</strong></td>
+                      <td>
+                        <Badge bg="info">
+                          {product.initialQuantity || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Current Quantity:</strong></td>
+                      <td>
+                        <Badge bg={product.currentQuantity > 0 ? 'success' : 'danger'}>
+                          {product.currentQuantity}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Minimum Stock:</strong></td>
+                      <td>
+                        <Badge bg="warning">
+                          {product.minimumStock || 0}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Status:</strong></td>
+                      <td>
+                        <Badge bg={product.isActive !== false ? 'success' : 'danger'}>
+                          {product.isActive !== false ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {product.images && product.images.length > 0 && (
+          <Row>
+            <Col>
+              <Card>
+                <Card.Header className="bg-secondary text-white">
+                  <h6 className="mb-0">Product Images</h6>
+                </Card.Header>
+                <Card.Body>
+                  <div className="d-flex flex-wrap gap-2">
+                    {product.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={typeof image === 'string' ? image : image.url || image.preview}
+                        alt={`${product.name} ${index + 1}`}
+                        style={{ 
+                          width: '100px', 
+                          height: '100px', 
+                          objectFit: 'cover',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px'
+                        }}
+                        className="border rounded"
+                      />
+                    ))}
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
+        <Button variant="warning" onClick={onEdit}>
+          Edit Product
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+// My Products Component
+const MyProducts = ({ products, onEdit, onDelete, onView, loading }) => {
+  const [filter, setFilter] = useState({
+    category: '',
+    assignmentType: ''
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await onRequest({
-      productId: productData.product.productId,
-      targetOrganizationId: productData.targetOrg,
-      quantity: requestData.quantity,
-      reason: requestData.reason
-    });
+  const filteredProducts = products.filter(product => {
+    const matchesCategory = !filter.category || product.category === filter.category;
+    const matchesAssignment = !filter.assignmentType || product.assignmentType === filter.assignmentType;
+    return matchesCategory && matchesAssignment;
+  });
+
+  const categories = [...new Set(products.map(p => p.category))];
+  const assignmentTypes = [...new Set(products.map(p => p.assignmentType))];
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading products...</p>
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <Alert variant="info" className="text-center">
+        <h5>No products found</h5>
+        <p>You haven't created any products yet. Click "Create Product" to get started.</p>
+      </Alert>
+    );
+  }
+
+  return (
+    <div>
+      {/* Filters */}
+      <Card className="mb-3">
+        <Card.Body>
+          <Row>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Filter by Category</Form.Label>
+                <Form.Select
+                  value={filter.category}
+                  onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Filter by Assignment Type</Form.Label>
+                <Form.Select
+                  value={filter.assignmentType}
+                  onChange={(e) => setFilter({ ...filter, assignmentType: e.target.value })}
+                >
+                  <option value="">All Assignment Types</option>
+                  {assignmentTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4} className="d-flex align-items-end">
+              <Badge bg="primary" className="fs-6">
+                Showing: {filteredProducts.length} of {products.length} products
+              </Badge>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Products Table */}
+      <div className="table-responsive">
+        <Table >
+          <thead className="">
+            <tr>
+              <th>Product Details</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th>Brand</th>
+              <th>Stock Info</th>
+              <th>Assignment Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((product) => (
+              <tr key={product._id}>
+                <td>
+                  <div>
+                    <strong 
+                      className="text-primary "
+                      onClick={() => onView(product)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {product.name}
+                    </strong>
+                    <br />
+                    <small className="text-muted">
+                      {/* ID: {product._id} */}
+                      {product.images && product.images.length > 0 && (
+                        <Badge bg="info" className="ms-2">📷 {product.images.length}</Badge>
+                      )}
+                    </small>
+                  </div>
+                </td>
+                <td>{product.category}</td>
+                <td>{product.type || 'N/A'}</td>
+                <td>{product.brand}</td>
+                <td>
+                  <div>
+                    <Badge 
+                      bg={product.currentQuantity > 0 ? 'success' : 'danger'}
+                    >
+                      Stock: {product.currentQuantity}
+                    </Badge>
+                    <br />
+                    <small className="text-muted">
+                      Min: {product.minimumStock || 0}
+                    </small>
+                  </div>
+                </td>
+                <td>
+                  <Badge 
+                    bg={
+                      product.assignmentType === 'Regular' ? 'success' :
+                      product.assignmentType === 'Pending Authorization' ? 'warning' :
+                      'secondary'
+                    }
+                  >
+                    {product.assignmentType}
+                  </Badge>
+                </td>
+                <td>
+                  <Badge bg={product.isActive !== false ? 'success' : 'danger'}>
+                    {product.isActive !== false ? 'Active' : 'Inactive'}
+                  </Badge>
+                </td>
+                <td>
+  <ButtonGroup size="sm" className="gap-2">
+    <Button
+      variant="outline-primary"
+      onClick={() => onView(product)}
+      title="View Details"
+    >
+      View
+    </Button>
+    <Button
+      variant="outline-warning"
+      onClick={() => onEdit(product)}
+      title="Edit Product"
+    >
+      Edit
+    </Button>
+    <Button
+      variant="outline-danger"
+      onClick={() => onDelete(product._id)}
+      title="Delete Product"
+    >
+      Delete
+    </Button>
+  </ButtonGroup>
+</td>
+
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+// All Organization Products Component
+const AllOrganizationProducts = ({ 
+  hierarchyData, 
+  onRequest, 
+  getProductBadgeVariant, 
+  getProductSourceText 
+}) => {
+  const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const allProducts = [
+    ...(hierarchyData.ownProducts || []).map(p => ({ ...p, sourceType: 'OWN' })),
+    ...(hierarchyData.fromParents || []).map(p => ({ ...p, sourceType: 'PARENT' })),
+    ...(hierarchyData.fromChildren || []).map(p => ({ ...p, sourceType: 'CHILD' })),
+    ...(hierarchyData.fromSubChildren || []).map(p => ({ ...p, sourceType: 'SUBCHILD' }))
+  ];
+
+  const filteredProducts = allProducts.filter(product => {
+    const matchesFilter = filter === 'all' || product.sourceType === filter;
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (product.type && product.type.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
+
+  const getRequestButtonVariant = (product) => {
+    if (product.sourceType === 'OWN') return 'outline-secondary';
+    if (!product.canRequest) return 'outline-danger';
+    return 'primary';
   };
+
+  const getRequestButtonText = (product) => {
+    if (product.sourceType === 'OWN') return 'Own Product';
+    if (!product.canRequest) return 'Cannot Request';
+    return 'Request Product';
+  };
+
+  return (
+    <div>
+      {/* Filters and Search */}
+      <Card className="mb-3">
+        <Card.Body>
+          <Row>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Filter by Source</Form.Label>
+                <Form.Select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                >
+                  <option value="all">All Sources ({allProducts.length})</option>
+                  <option value="OWN">My Products ({hierarchyData.ownProducts?.length || 0})</option>
+                  <option value="PARENT">From Parent ({hierarchyData.fromParents?.length || 0})</option>
+                  <option value="CHILD">From Children ({hierarchyData.fromChildren?.length || 0})</option>
+                  <option value="SUBCHILD">From Sub-Children ({hierarchyData.fromSubChildren?.length || 0})</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Search Products</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Search by name, category, type, or brand..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4} className="d-flex align-items-end">
+              <Badge bg="primary" className="fs-6">
+                Showing: {filteredProducts.length} products
+              </Badge>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Products Table */}
+      {filteredProducts.length === 0 ? (
+        <Alert variant="info" className="text-center">
+          <h5>No products found</h5>
+          <p>Try adjusting your filters or search terms.</p>
+        </Alert>
+      ) : (
+        <div className="table-responsive">
+          <Table>
+            <thead className="">
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Type</th>
+                <th>Brand</th>
+                <th>Source</th>
+                <th>Organization</th>
+                <th>Available Stock</th>
+                <th>Assignment Type</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((product, index) => (
+                <tr key={product._id || product.productId || index}>
+                  <td>
+                    <div>
+                      <strong>{product.name}</strong>
+                      {product.images && product.images.length > 0 && (
+                        <Badge bg="info" className="ms-2">📷 {product.images.length}</Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td>{product.category}</td>
+                  <td>{product.type || 'N/A'}</td>
+                  <td>{product.brand}</td>
+                  <td>
+                    <Badge bg={getProductBadgeVariant(product.sourceType)}>
+                      {getProductSourceText(product.sourceType)}
+                    </Badge>
+                  </td>
+                  <td>
+                    <small>
+                      {product.sourceOrgName || 'Unknown'}
+                      <br />
+                      <code className="text-muted">{product.sourceOrg}</code>
+                    </small>
+                  </td>
+                  <td>
+                    <Badge 
+                      bg={product.availableStock > 0 ? 'success' : 'danger'}
+                    >
+                      {product.availableStock}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge 
+                      bg={
+                        product.assignmentType === 'Regular' ? 'success' :
+                        product.assignmentType === 'Pending Authorization' ? 'warning' :
+                        'secondary'
+                      }
+                    >
+                      {product.assignmentType || 'Unassigned'}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Button
+                      variant={getRequestButtonVariant(product)}
+                      size="sm"
+                      disabled={product.sourceType === 'OWN' || !product.canRequest}
+                      onClick={() => onRequest(product)}
+                    >
+                      {getRequestButtonText(product)}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Product Request Modal Component
+const ProductRequestModal = ({ show, onHide, onRequest, product, requestData, setRequestData }) => {
+  if (!product) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onRequest();
+  };
+
+  const isOwnProduct = product.sourceType === 'OWN';
+  const canRequest = product.canRequest !== false;
 
   return (
     <Modal show={show} onHide={onHide}>
@@ -1562,109 +2876,103 @@ const ProductRequestModal = ({ show, onHide, onRequest, productData }) => {
         <Modal.Title>Request Product</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Product</Form.Label>
-            <Card>
-              <Card.Body>
-                <strong>{productData.product.name}</strong>
-                <br />
-                <small className="text-muted">
-                  From: {productData.product.sourceOrgName}
+        {isOwnProduct ? (
+          <Alert variant="info" className="text-center">
+            <h5>This is your own product</h5>
+            <p>You cannot request products from your own organization.</p>
+          </Alert>
+        ) : !canRequest ? (
+          <Alert variant="warning" className="text-center">
+            <h5>Request Not Available</h5>
+            <p>This product cannot be requested at the moment.</p>
+          </Alert>
+        ) : (
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Product Details</Form.Label>
+              <Card>
+                <Card.Body>
+                  <strong>{product.name}</strong>
                   <br />
-                  Available: {productData.product.availableStock}
-                </small>
-              </Card.Body>
-            </Card>
-          </Form.Group>
+                  <small className="text-muted">
+                    Brand: {product.brand} | Category: {product.category} | Type: {product.type || 'N/A'}
+                    <br />
+                    From: {product.sourceOrgName}
+                    <br />
+                    Available Stock: {product.availableStock}
+                  </small>
+                </Card.Body>
+              </Card>
+            </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Quantity *</Form.Label>
-            <Form.Control
-              type="number"
-              min="1"
-              max={productData.product.availableStock}
-              value={requestData.quantity}
-              onChange={(e) => setRequestData(prev => ({ 
-                ...prev, 
-                quantity: parseInt(e.target.value) || 1 
-              }))}
-              required
-            />
-            <Form.Text className="text-muted">
-              Maximum available: {productData.product.availableStock}
-            </Form.Text>
-          </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max={product.availableStock}
+                value={requestData.quantity}
+                onChange={(e) => setRequestData(prev => ({ 
+                  ...prev, 
+                  quantity: parseInt(e.target.value) || 1 
+                }))}
+                required
+              />
+              <Form.Text className="text-muted">
+                Maximum available: {product.availableStock}
+              </Form.Text>
+            </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Reason for Request *</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={requestData.reason}
-              onChange={(e) => setRequestData(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="Explain why you need this product..."
-              required
-            />
-          </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Reason for Request *</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={requestData.reason}
+                onChange={(e) => setRequestData(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Please explain why you need this product..."
+                required
+              />
+            </Form.Group>
 
-          <div className="d-flex justify-content-end gap-2">
-            <Button variant="secondary" onClick={onHide}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              type="submit"
-              disabled={requestData.quantity > productData.product.availableStock || !requestData.reason}
-            >
-              Submit Request
-            </Button>
-          </div>
-        </Form>
+            <div className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={onHide}>
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                type="submit"
+                disabled={requestData.quantity > product.availableStock || !requestData.reason}
+              >
+                Submit Request
+              </Button>
+            </div>
+          </Form>
+        )}
       </Modal.Body>
     </Modal>
   );
 };
 
-// Confirmation Modals
-const NewCategoryModal = ({ show, onHide, category, onConfirm, onCancel }) => (
-  <Modal show={show} onHide={onHide}>
-    <Modal.Header closeButton>
-      <Modal.Title>New Category</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-      <p>"{category}" doesn't exist in our database.</p>
-      <p>Do you want to create this as a new category?</p>
-    </Modal.Body>
-    <Modal.Footer>
-      <Button variant="secondary" onClick={onCancel}>
-        No, Choose Different
-      </Button>
-      <Button variant="primary" onClick={onConfirm}>
-        Yes, Create New
-      </Button>
-    </Modal.Footer>
-  </Modal>
-);
+// Authorization Modal Component
+const AuthorizationModal = ({ show, onHide, requests, onAuthorization }) => {
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Authorization Requests</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p>Use the "Authorization Requests" tab to manage all pending requests.</p>
+        <p>You can quickly approve or reject requests directly from the table, or click the eye icon to view detailed information.</p>
+        
+        <div className="text-center">
+          <Button variant="primary" onClick={onHide}>
+            Open Authorization Tab
+          </Button>
+        </div>
+      </Modal.Body>
+    </Modal>
+  );
+};
 
-const NewTypeModal = ({ show, onHide, type, onConfirm, onCancel }) => (
-  <Modal show={show} onHide={onHide}>
-    <Modal.Header closeButton>
-      <Modal.Title>New Type</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-      <p>"{type}" doesn't exist in our database.</p>
-      <p>Do you want to create this as a new type?</p>
-    </Modal.Body>
-    <Modal.Footer>
-      <Button variant="secondary" onClick={onCancel}>
-        No, Choose Different
-      </Button>
-      <Button variant="primary" onClick={onConfirm}>
-        Yes, Create New
-      </Button>
-    </Modal.Footer>
-  </Modal>
-);
-
-export default ProductCreation;
+export default ProductManagement;
