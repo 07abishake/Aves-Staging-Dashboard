@@ -477,7 +477,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://codeaves.avessecurity.com/ReportGenrate/data/${selectedModule.value}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {

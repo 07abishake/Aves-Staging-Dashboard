@@ -1,3 +1,4 @@
+// src/components/ProductManagement.js
 import React, { useState, useEffect } from 'react';
 import {
   Container,
@@ -145,10 +146,13 @@ const ProductManagement = () => {
     }
   };
 
-  // NEW: Fetch parent product requests
+  // Fetch parent product requests - UPDATED
   const fetchParentProductRequests = async () => {
     try {
-      const response = await productAPI.getParentProductRequests();
+      const response = await productAPI.getProductRequests({
+        status: 'pending',
+        limit: 100
+      });
       if (response.data.success) {
         setParentProductRequests(response.data.data || []);
         console.log('📋 Parent product requests:', response.data.data);
@@ -474,26 +478,29 @@ const ProductManagement = () => {
     });
   };
 
+  // UPDATED: Handle product request
   const handleRequestProduct = async () => {
     if (!selectedProduct) return;
 
     try {
       const requestPayload = {
         productId: selectedProduct.productId || selectedProduct._id,
-        sourceOrg: selectedProduct.sourceOrg,
+        sourceOrganization: selectedProduct.sourceOrganization || selectedProduct.sourceOrg || selectedProduct.organizationId,
         quantity: parseInt(requestData.quantity) || 1,
         reason: requestData.reason || 'No reason provided'
       };
 
       console.log('🔄 Sending product request with payload:', requestPayload);
 
-      const response = await productSharingAPI.requestProduct(requestPayload);
+      const response = await productAPI.requestProduct(requestPayload);
       
       if (response.data.success) {
         setSuccess('Product request submitted successfully!');
         setShowRequestModal(false);
         setSelectedProduct(null);
         setRequestData({ quantity: 1, reason: '' });
+        
+        // Refresh both types of requests
         fetchAuthorizationRequests();
         fetchParentProductRequests();
         
@@ -509,13 +516,36 @@ const ProductManagement = () => {
     }
   };
 
-  // NEW: Handle product request actions (Approve/Reject)
-  const handleProductRequestAction = async (requestId, action, notes = '') => {
+  // UPDATED: Handle product request actions (Approve/Reject)
+  const handleProductRequestAction = async (requestId, action, notes = '', approvedQuantity = null) => {
     try {
-      const response = await productAPI.handleProductRequest(requestId, {
-        action,
-        notes
-      });
+      // Find the product ID from the request
+      const request = parentProductRequests.find(req => req._id === requestId);
+      if (!request) {
+        setError('Request not found');
+        return;
+      }
+
+      const productId = request.productId;
+      
+      if (!productId) {
+        setError('Product ID not found for this request');
+        return;
+      }
+
+      const requestData = {
+        action: action,
+        notes: notes
+      };
+
+      // Add approved quantity if provided and action is APPROVE
+      if (action === 'APPROVE' && approvedQuantity) {
+        requestData.approvedQuantity = approvedQuantity;
+      }
+
+      console.log(`🔄 Processing product request: ${requestId}, Action: ${action}`, requestData);
+
+      const response = await productAPI.approveProductRequest(productId, requestId, requestData);
       
       if (response.data.success) {
         setSuccess(`Product request ${action.toLowerCase()}d successfully!`);
@@ -533,6 +563,7 @@ const ProductManagement = () => {
         }
       }
     } catch (error) {
+      console.error('❌ Product request action error:', error);
       setError('Failed to process product request: ' + (error.response?.data?.message || error.message));
     }
   };
@@ -682,20 +713,20 @@ const ProductManagement = () => {
                   <span>
                     Requests 
                     {(authorizationRequests.filter(r => r.status === 'pending').length + 
-                      parentProductRequests.filter(r => r.status === 'pending').length) > 0 && (
+                      parentProductRequests.filter(r => r.status === 'PENDING').length) > 0 && (
                       <Badge bg="danger" className="ms-2">
                         {authorizationRequests.filter(r => r.status === 'pending').length + 
-                         parentProductRequests.filter(r => r.status === 'pending').length}
+                         parentProductRequests.filter(r => r.status === 'PENDING').length}
                       </Badge>
                     )}
                   </span>
                 }>
-                  <EnhancedAuthorizationRequests 
+                  <RequestsTab
                     authorizationRequests={authorizationRequests}
                     parentProductRequests={parentProductRequests}
-                    onAuthorize={handleAuthorization}
+                    onAuthorization={handleAuthorization}
                     onProductRequestAction={handleProductRequestAction}
-                    onRefresh={fetchParentProductRequests}
+                    loading={loading}
                   />
                 </Tab>
               </Tabs>
@@ -788,658 +819,6 @@ const ProductManagement = () => {
         onAuthorization={handleAuthorization}
       />
     </Container>
-  );
-};
-
-// ENHANCED AUTHORIZATION REQUESTS COMPONENT
-const EnhancedAuthorizationRequests = ({ 
-  authorizationRequests, 
-  parentProductRequests, 
-  onAuthorize, 
-  onProductRequestAction,
-  onRefresh 
-}) => {
-  const [filter, setFilter] = useState('all');
-  const [requestType, setRequestType] = useState('all');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-
-  // Combine both types of requests
-  const allRequests = [
-    ...authorizationRequests.map(req => ({ ...req, type: 'authorization' })),
-    ...parentProductRequests.map(req => ({ ...req, type: 'product' }))
-  ];
-
-  // Filter and sort requests
-  const filteredRequests = allRequests
-    .filter(request => {
-      const matchesFilter = filter === 'all' || request.status === filter;
-      const matchesType = requestType === 'all' || request.type === requestType;
-      const matchesSearch = searchTerm === '' || 
-        (request.productName && request.productName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (request.requestingOrganizationName && request.requestingOrganizationName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (request.reason && request.reason.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      return matchesFilter && matchesType && matchesSearch;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.requestedAt || b.createdAt) - new Date(a.requestedAt || a.createdAt);
-        case 'oldest':
-          return new Date(a.requestedAt || a.createdAt) - new Date(b.requestedAt || b.createdAt);
-        case 'quantity':
-          return (b.quantity || 0) - (a.quantity || 0);
-        default:
-          return 0;
-      }
-    });
-
-  const getStatusVariant = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending': return 'warning';
-      case 'approved': return 'success';
-      case 'rejected': return 'danger';
-      default: return 'secondary';
-    }
-  };
-
-  const getTypeVariant = (type) => {
-    switch (type) {
-      case 'authorization': return 'primary';
-      case 'product': return 'info';
-      default: return 'secondary';
-    }
-  };
-
-  const getTypeText = (type) => {
-    switch (type) {
-      case 'authorization': return 'Auth Request';
-      case 'product': return 'Product Request';
-      default: return type;
-    }
-  };
-
-  const handleQuickAction = async (request, action) => {
-    if (window.confirm(`Are you sure you want to ${action.toLowerCase()} this ${request.type} request?`)) {
-      if (request.type === 'authorization') {
-        await onAuthorize(request._id, action, `Quick ${action} by admin`);
-      } else if (request.type === 'product') {
-        await onProductRequestAction(request._id, action, `Quick ${action} by admin`);
-      }
-    }
-  };
-
-  const handleBulkAction = async (action, selectedRequests) => {
-    if (window.confirm(`Are you sure you want to ${action.toLowerCase()} ${selectedRequests.length} requests?`)) {
-      for (const request of selectedRequests) {
-        if (request.type === 'product' && request.status === 'pending') {
-          await onProductRequestAction(request._id, action, `Bulk ${action} by admin`);
-        }
-      }
-      onRefresh?.();
-    }
-  };
-
-  const pendingCount = allRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
-  const authPendingCount = authorizationRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
-  const productPendingCount = parentProductRequests.filter(r => r.status?.toLowerCase() === 'pending').length;
-
-  const totalQuantity = allRequests
-    .filter(r => r.status?.toLowerCase() === 'pending')
-    .reduce((sum, r) => sum + (r.quantity || 0), 0);
-
-  return (
-    <div>
-      {/* Enhanced Filters and Stats */}
-      <Card className="mb-3">
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Filter by Status</Form.Label>
-                <Form.Select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <option value="all">All Status ({allRequests.length})</option>
-                  <option value="pending">Pending ({pendingCount})</option>
-                  <option value="approved">Approved ({allRequests.filter(r => r.status?.toLowerCase() === 'approved').length})</option>
-                  <option value="rejected">Rejected ({allRequests.filter(r => r.status?.toLowerCase() === 'rejected').length})</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Filter by Type</Form.Label>
-                <Form.Select
-                  value={requestType}
-                  onChange={(e) => setRequestType(e.target.value)}
-                >
-                  <option value="all">All Types ({allRequests.length})</option>
-                  <option value="authorization">Authorization ({authorizationRequests.length})</option>
-                  <option value="product">Product Requests ({parentProductRequests.length})</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Sort By</Form.Label>
-                <Form.Select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="quantity">Quantity (High to Low)</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Search</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Search requests..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-          
-          {/* Statistics Row */}
-          <Row className="mt-3">
-            <Col>
-              <div className="d-flex flex-wrap gap-3">
-                <Badge bg="primary" className="fs-6 p-2">
-                  📊 Total: {allRequests.length}
-                </Badge>
-                <Badge bg="warning" className="fs-6 p-2">
-                  ⏳ Pending: {pendingCount}
-                </Badge>
-                <Badge bg="info" className="fs-6 p-2">
-                  🔐 Auth: {authPendingCount}
-                </Badge>
-                <Badge bg="success" className="fs-6 p-2">
-                  📦 Product: {productPendingCount}
-                </Badge>
-                <Badge bg="secondary" className="fs-6 p-2">
-                  📋 Total Quantity: {totalQuantity}
-                </Badge>
-              </div>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-
-      {/* Bulk Actions */}
-      {filteredRequests.filter(r => r.type === 'product' && r.status === 'pending').length > 0 && (
-        <Card className="mb-3">
-          <Card.Body>
-            <div className="d-flex justify-content-between align-items-center">
-              <h6 className="mb-0">Bulk Actions</h6>
-              <div className="d-flex gap-2">
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={() => handleBulkAction('APPROVE', filteredRequests.filter(r => r.type === 'product' && r.status === 'pending'))}
-                >
-                  ✅ Approve All Product Requests
-                </Button>
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={() => handleBulkAction('REJECT', filteredRequests.filter(r => r.type === 'product' && r.status === 'pending'))}
-                >
-                  ❌ Reject All Product Requests
-                </Button>
-              </div>
-            </div>
-          </Card.Body>
-        </Card>
-      )}
-
-      {/* Requests Table */}
-      {filteredRequests.length === 0 ? (
-        <Alert variant="info" className="text-center">
-          <h5>No requests found</h5>
-          <p>Try adjusting your filters or check back later for new requests.</p>
-          <Button variant="primary" onClick={onRefresh}>
-            🔄 Refresh
-          </Button>
-        </Alert>
-      ) : (
-        <div className="table-responsive">
-          <Table striped hover>
-            <thead className="table-dark">
-              <tr>
-                <th>Request Details</th>
-                <th>Product</th>
-                <th>From Organization</th>
-                <th>Quantity</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.map((request, index) => (
-                <tr key={request._id || index} className={request.status === 'pending' ? 'table-warning' : ''}>
-                  <td>
-                    <div>
-                      <Badge bg={getTypeVariant(request.type)} className="mb-1">
-                        {getTypeText(request.type)}
-                      </Badge>
-                      <br />
-                      <small className="text-muted">
-                        By: {request.requestedBy?.name || request.requestedBy || 'Unknown'}
-                      </small>
-                      {request.reason && (
-                        <>
-                          <br />
-                          <small title={request.reason}>
-                            {request.reason.length > 50 ? 
-                              `${request.reason.substring(0, 50)}...` : request.reason}
-                          </small>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <strong>{request.product?.name || request.productName}</strong>
-                    <br />
-                    <small className="text-muted">
-                      {request.product?.brand || request.productBrand} • {request.product?.category || request.productCategory}
-                    </small>
-                  </td>
-                  <td>
-                    <div>
-                      <strong>{request.requestingOrganizationName || request.sourceOrganizationName}</strong>
-                      <br />
-                      <small className="text-muted">
-                        {request.requestingOrganization || request.sourceOrganization}
-                      </small>
-                    </div>
-                  </td>
-                  <td>
-                    <Badge bg="info" className="fs-6">
-                      {request.quantity || 1}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge bg={getTypeVariant(request.type)}>
-                      {getTypeText(request.type)}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge bg={getStatusVariant(request.status)}>
-                      {request.status?.toUpperCase() || 'PENDING'}
-                    </Badge>
-                  </td>
-                  <td>
-                    <div>
-                      {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'N/A'}
-                      <br />
-                      <small className="text-muted">
-                        {request.requestedAt ? new Date(request.requestedAt).toLocaleTimeString() : ''}
-                      </small>
-                    </div>
-                  </td>
-                  <td>
-                    {request.status?.toLowerCase() === 'pending' ? (
-                      <div className="d-flex flex-column gap-1">
-                        <div className="d-flex gap-1">
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            onClick={() => handleQuickAction(request, 'APPROVE')}
-                            title={`Approve ${getTypeText(request.type)}`}
-                          >
-                            ✓
-                          </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleQuickAction(request, 'REJECT')}
-                            title={`Reject ${getTypeText(request.type)}`}
-                          >
-                            ✗
-                          </Button>
-                        </div>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => setSelectedRequest(request)}
-                          title="Review Details"
-                        >
-                          👁️ Details
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <Badge bg="secondary" className="p-2">
-                          Completed
-                        </Badge>
-                        <br />
-                        <small className="text-muted">
-                          {request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : 
-                           request.rejectedAt ? new Date(request.rejectedAt).toLocaleDateString() : ''}
-                        </small>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-      )}
-
-      {/* Enhanced Request Detail Modal */}
-      {selectedRequest && (
-        <EnhancedRequestDetailModal
-          request={selectedRequest}
-          onClose={() => setSelectedRequest(null)}
-          onAuthorization={onAuthorize}
-          onProductRequestAction={onProductRequestAction}
-          getStatusVariant={getStatusVariant}
-          getTypeText={getTypeText}
-        />
-      )}
-    </div>
-  );
-};
-
-// ENHANCED REQUEST DETAIL MODAL
-const EnhancedRequestDetailModal = ({ 
-  request, 
-  onClose, 
-  onAuthorization, 
-  onProductRequestAction,
-  getStatusVariant,
-  getTypeText 
-}) => {
-  const [action, setAction] = useState('');
-  const [notes, setNotes] = useState('');
-  const [approvedQuantity, setApprovedQuantity] = useState(request.quantity || 1);
-
-  const handleSubmit = async () => {
-    if (!action) {
-      alert('Please select an action');
-      return;
-    }
-    
-    if (request.type === 'authorization') {
-      await onAuthorization(request._id, action, notes);
-    } else if (request.type === 'product') {
-      await onProductRequestAction(request._id, action, notes, approvedQuantity);
-    }
-    
-    onClose();
-  };
-
-  const getTimeAgo = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return `${Math.floor(diffInMinutes / 1440)}d ago`;
-  };
-
-  return (
-    <Modal show={true} onHide={onClose} size="lg">
-      <Modal.Header closeButton className="bg-light">
-        <Modal.Title className="d-flex align-items-center">
-          <Badge bg={getStatusVariant(request.status)} className="me-2">
-            {request.status?.toUpperCase()}
-          </Badge>
-          {getTypeText(request.type)} Details
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Row>
-          <Col md={6}>
-            <Card className="h-100">
-              <Card.Header className="bg-primary text-white">
-                <h6 className="mb-0">📦 Product Information</h6>
-              </Card.Header>
-              <Card.Body>
-                <table className="table table-sm table-borderless">
-                  <tbody>
-                    <tr>
-                      <td><strong>Name:</strong></td>
-                      <td>{request.product?.name || request.productName}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Brand:</strong></td>
-                      <td>{request.product?.brand || request.productBrand}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Category:</strong></td>
-                      <td>{request.product?.category || request.productCategory}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Type:</strong></td>
-                      <td>{request.product?.type || 'N/A'}</td>
-                    </tr>
-                    {request.product?.currentQuantity && (
-                      <tr>
-                        <td><strong>Available Stock:</strong></td>
-                        <td>
-                          <Badge bg={request.product.currentQuantity > 0 ? 'success' : 'danger'}>
-                            {request.product.currentQuantity}
-                          </Badge>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={6}>
-            <Card className="h-100">
-              <Card.Header className="bg-info text-white">
-                <h6 className="mb-0">🏢 Request Information</h6>
-              </Card.Header>
-              <Card.Body>
-                <table className="table table-sm table-borderless">
-                  <tbody>
-                    <tr>
-                      <td><strong>Type:</strong></td>
-                      <td>
-                        <Badge bg={request.type === 'authorization' ? 'primary' : 'info'}>
-                          {getTypeText(request.type)}
-                        </Badge>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Requested By:</strong></td>
-                      <td>{request.requestedBy?.name || request.requestedBy || 'Unknown'}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Organization:</strong></td>
-                      <td>{request.requestingOrganizationName || request.sourceOrganizationName}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Quantity:</strong></td>
-                      <td>
-                        <Badge bg="info" className="fs-6">
-                          {request.quantity || 1}
-                        </Badge>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Status:</strong></td>
-                      <td>
-                        <Badge bg={getStatusVariant(request.status)}>
-                          {request.status?.toUpperCase()}
-                        </Badge>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><strong>Requested:</strong></td>
-                      <td>
-                        {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : 'N/A'}
-                        <br />
-                        <small className="text-muted">
-                          {request.requestedAt && getTimeAgo(request.requestedAt)}
-                        </small>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {request.reason && (
-          <Row className="mt-3">
-            <Col>
-              <Card>
-                <Card.Header className="bg-warning text-dark">
-                  <h6 className="mb-0">📝 Reason for Request</h6>
-                </Card.Header>
-                <Card.Body>
-                  <p className="mb-0">{request.reason}</p>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-
-        {request.status?.toLowerCase() === 'pending' && (
-          <Row className="mt-3">
-            <Col>
-              <Card>
-                <Card.Header className={action === 'APPROVE' ? 'bg-success text-white' : action === 'REJECT' ? 'bg-danger text-white' : 'bg-secondary text-white'}>
-                  <h6 className="mb-0">⚡ Authorization Action</h6>
-                </Card.Header>
-                <Card.Body>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Action *</Form.Label>
-                    <Form.Select
-                      value={action}
-                      onChange={(e) => setAction(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Action</option>
-                      <option value="APPROVE">✅ Approve Request</option>
-                      <option value="REJECT">❌ Reject Request</option>
-                    </Form.Select>
-                  </Form.Group>
-
-                  {request.type === 'product' && action === 'APPROVE' && (
-                    <Form.Group className="mb-3">
-                      <Form.Label>Approved Quantity *</Form.Label>
-                      <Form.Control
-                        type="number"
-                        min="1"
-                        max={request.quantity}
-                        value={approvedQuantity}
-                        onChange={(e) => setApprovedQuantity(parseInt(e.target.value) || 1)}
-                        required
-                      />
-                      <Form.Text className="text-muted">
-                        Maximum available: {request.quantity} units
-                      </Form.Text>
-                    </Form.Group>
-                  )}
-
-                  <Form.Group className="mb-3">
-                    <Form.Label>
-                      {action === 'APPROVE' ? '📋 Approval Notes' : '📋 Rejection Reason'} *
-                    </Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder={
-                        action === 'APPROVE' 
-                          ? 'Add any notes for this approval...' 
-                          : 'Explain why this request is being rejected...'
-                      }
-                      required
-                    />
-                  </Form.Group>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-
-        {/* Request History */}
-        {(request.approvedAt || request.rejectedAt) && (
-          <Row className="mt-3">
-            <Col>
-              <Card>
-                <Card.Header className="bg-dark text-white">
-                  <h6 className="mb-0">📋 Decision History</h6>
-                </Card.Header>
-                <Card.Body>
-                  {request.approvedAt && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <strong>✅ Approved</strong>
-                        <br />
-                        <small className="text-muted">
-                          By: {request.approvedBy?.name || 'Admin'} • {new Date(request.approvedAt).toLocaleString()}
-                        </small>
-                        {request.approvalReason && (
-                          <div className="mt-1">
-                            <small><strong>Reason:</strong> {request.approvalReason}</small>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {request.rejectedAt && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <strong>❌ Rejected</strong>
-                        <br />
-                        <small className="text-muted">
-                          By: {request.rejectedBy?.name || 'Admin'} • {new Date(request.rejectedAt).toLocaleString()}
-                        </small>
-                        {request.rejectionReason && (
-                          <div className="mt-1">
-                            <small><strong>Reason:</strong> {request.rejectionReason}</small>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-        {request.status?.toLowerCase() === 'pending' && (
-          <Button 
-            variant={action === 'APPROVE' ? 'success' : 'danger'}
-            onClick={handleSubmit}
-            disabled={!action || !notes || (request.type === 'product' && action === 'APPROVE' && !approvedQuantity)}
-            className="d-flex align-items-center gap-2"
-          >
-            {action === 'APPROVE' ? '✅' : '❌'}
-            {action === 'APPROVE' ? 'Approve' : 'Reject'} {getTypeText(request.type)}
-          </Button>
-        )}
-      </Modal.Footer>
-    </Modal>
   );
 };
 
@@ -2619,7 +1998,6 @@ const MyProducts = ({ products, onEdit, onDelete, onView, loading }) => {
                     </strong>
                     <br />
                     <small className="text-muted">
-                      {/* ID: {product._id} */}
                       {product.images && product.images.length > 0 && (
                         <Badge bg="info" className="ms-2">📷 {product.images.length}</Badge>
                       )}
@@ -2854,6 +2232,368 @@ const AllOrganizationProducts = ({
           </Table>
         </div>
       )}
+    </div>
+  );
+};
+
+// Parent Product Requests Component
+const ParentProductRequests = ({ 
+  requests, 
+  onApprove, 
+  onReject,
+  loading 
+}) => {
+  const [actionModal, setActionModal] = useState({
+    show: false,
+    request: null,
+    action: '',
+    notes: '',
+    approvedQuantity: 0
+  });
+
+  const handleActionClick = (request, action) => {
+    setActionModal({
+      show: true,
+      request,
+      action,
+      notes: '',
+      approvedQuantity: action === 'APPROVE' ? request.quantity : 0
+    });
+  };
+
+  const handleActionSubmit = () => {
+    const { request, action, notes, approvedQuantity } = actionModal;
+    
+    if (action === 'APPROVE') {
+      onApprove(request._id, action, notes, approvedQuantity);
+    } else {
+      onReject(request._id, action, notes);
+    }
+    
+    setActionModal({ show: false, request: null, action: '', notes: '', approvedQuantity: 0 });
+  };
+
+  const handleCloseModal = () => {
+    setActionModal({ show: false, request: null, action: '', notes: '', approvedQuantity: 0 });
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'PENDING': return <Badge bg="warning">Pending</Badge>;
+      case 'APPROVED': return <Badge bg="success">Approved</Badge>;
+      case 'REJECTED': return <Badge bg="danger">Rejected</Badge>;
+      default: return <Badge bg="secondary">{status}</Badge>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading requests...</p>
+      </div>
+    );
+  }
+
+  if (!requests || requests.length === 0) {
+    return (
+      <Alert variant="info" className="text-center">
+        <h5>No pending requests</h5>
+        <p>There are no product requests waiting for your approval.</p>
+      </Alert>
+    );
+  }
+
+  return (
+    <div>
+      {/* Action Confirmation Modal */}
+      <Modal show={actionModal.show} onHide={handleCloseModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {actionModal.action === 'APPROVE' ? 'Approve' : 'Reject'} Request
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {actionModal.request && (
+            <div className="mb-3">
+              <h6>Request Details:</h6>
+              <Card className="bg-light">
+                <Card.Body className="py-2">
+                  <strong>{actionModal.request.productName}</strong>
+                  <br />
+                  <small>
+                    Requested by: {actionModal.request.requestingOrganizationName}
+                    <br />
+                    Quantity: {actionModal.request.quantity}
+                    <br />
+                    Reason: {actionModal.request.reason}
+                  </small>
+                </Card.Body>
+              </Card>
+            </div>
+          )}
+
+          {actionModal.action === 'APPROVE' && (
+            <Form.Group className="mb-3">
+              <Form.Label>Approved Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max={actionModal.request?.quantity || 1}
+                value={actionModal.approvedQuantity}
+                onChange={(e) => setActionModal(prev => ({
+                  ...prev,
+                  approvedQuantity: parseInt(e.target.value) || 0
+                }))}
+                required
+              />
+              <Form.Text className="text-muted">
+                Maximum requested: {actionModal.request?.quantity}
+              </Form.Text>
+            </Form.Group>
+          )}
+
+          <Form.Group className="mb-3">
+            <Form.Label>
+              {actionModal.action === 'APPROVE' ? 'Approval Notes' : 'Rejection Reason'}
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={actionModal.notes}
+              onChange={(e) => setActionModal(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder={
+                actionModal.action === 'APPROVE' 
+                  ? 'Add any notes about this approval...' 
+                  : 'Please provide reason for rejection...'
+              }
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModal}>
+            Cancel
+          </Button>
+          <Button 
+            variant={actionModal.action === 'APPROVE' ? 'success' : 'danger'}
+            onClick={handleActionSubmit}
+            disabled={actionModal.action === 'APPROVE' && actionModal.approvedQuantity <= 0}
+          >
+            Confirm {actionModal.action === 'APPROVE' ? 'Approve' : 'Reject'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Requests Table */}
+      <div className="table-responsive">
+        <Table striped hover>
+          <thead className="table-dark">
+            <tr>
+              <th>Product Details</th>
+              <th>Requesting Organization</th>
+              <th>Quantity</th>
+              <th>Reason</th>
+              <th>Requested At</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map((request) => (
+              <tr key={request._id}>
+                <td>
+                  <div>
+                    <strong className="text-primary">{request.productName}</strong>
+                    <br />
+                    <small className="text-muted">
+                      Brand: {request.productBrand} | Category: {request.productCategory}
+                      <br />
+                      Current Stock: {request.currentStock}
+                    </small>
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <strong>{request.requestingOrganizationName}</strong>
+                    <br />
+                    <small className="text-muted">
+                      {request.requestingOrganization}
+                    </small>
+                  </div>
+                </td>
+                <td>
+                  <Badge bg="info" className="fs-6">
+                    {request.quantity}
+                  </Badge>
+                </td>
+                <td>
+                  <div style={{ maxWidth: '200px' }}>
+                    {request.reason}
+                  </div>
+                </td>
+                <td>
+                  <small>
+                    {new Date(request.requestedAt).toLocaleDateString()}
+                    <br />
+                    {new Date(request.requestedAt).toLocaleTimeString()}
+                  </small>
+                </td>
+                <td>
+                  {getStatusBadge(request.status)}
+                </td>
+                <td>
+                  {request.status === 'PENDING' && (
+                    <ButtonGroup size="sm">
+                      <Button
+                        variant="outline-success"
+                        onClick={() => handleActionClick(request, 'APPROVE')}
+                        title="Approve Request"
+                      >
+                        ✓ Approve
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        onClick={() => handleActionClick(request, 'REJECT')}
+                        title="Reject Request"
+                      >
+                        ✗ Reject
+                      </Button>
+                    </ButtonGroup>
+                  )}
+                  {request.status !== 'PENDING' && (
+                    <small className="text-muted">
+                      Processed
+                    </small>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+// Combined Requests Tab Component
+const RequestsTab = ({ 
+  authorizationRequests, 
+  parentProductRequests, 
+  onAuthorization, 
+  onProductRequestAction,
+  loading 
+}) => {
+  const [activeRequestTab, setActiveRequestTab] = useState('parentRequests');
+
+  const pendingAuthorizationCount = authorizationRequests.filter(r => r.status === 'pending').length;
+  const pendingParentRequestsCount = parentProductRequests.filter(r => r.status === 'PENDING').length;
+
+  return (
+    <div>
+      <Tabs
+        activeKey={activeRequestTab}
+        onSelect={(tab) => setActiveRequestTab(tab)}
+        className="mb-3"
+      >
+        <Tab 
+          eventKey="parentRequests" 
+          title={
+            <span>
+              Product Requests 
+              {pendingParentRequestsCount > 0 && (
+                <Badge bg="danger" className="ms-2">
+                  {pendingParentRequestsCount}
+                </Badge>
+              )}
+            </span>
+          }
+        >
+          <ParentProductRequests
+            requests={parentProductRequests}
+            onApprove={(requestId, action, notes, approvedQuantity) => 
+              onProductRequestAction(requestId, action, notes, approvedQuantity)
+            }
+            onReject={(requestId, action, notes) => 
+              onProductRequestAction(requestId, action, notes)
+            }
+            loading={loading}
+          />
+        </Tab>
+        
+        <Tab 
+          eventKey="authorizationRequests" 
+          title={
+            <span>
+              Authorization Requests 
+              {pendingAuthorizationCount > 0 && (
+                <Badge bg="warning" className="ms-2">
+                  {pendingAuthorizationCount}
+                </Badge>
+              )}
+            </span>
+          }
+        >
+          <Alert variant="info">
+            <h6>Authorization Requests</h6>
+            <p>This section handles product authorization requests from your organization hierarchy.</p>
+            <p>Use the table below to manage these requests.</p>
+          </Alert>
+          
+          {/* You can add your authorization requests table here */}
+          {authorizationRequests.length === 0 ? (
+            <Alert variant="success" className="text-center">
+              No pending authorization requests
+            </Alert>
+          ) : (
+            <div className="table-responsive">
+              <Table striped hover>
+                <thead className="table-dark">
+                  <tr>
+                    <th>Product</th>
+                    <th>Requested By</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {authorizationRequests.map((request) => (
+                    <tr key={request._id}>
+                      <td>{request.productName}</td>
+                      <td>{request.requestedBy}</td>
+                      <td>
+                        <Badge bg={
+                          request.status === 'pending' ? 'warning' :
+                          request.status === 'approved' ? 'success' : 'danger'
+                        }>
+                          {request.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        {request.status === 'pending' && (
+                          <ButtonGroup size="sm">
+                            <Button
+                              variant="outline-success"
+                              onClick={() => onAuthorization(request._id, 'approve', '')}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              onClick={() => onAuthorization(request._id, 'reject', '')}
+                            >
+                              Reject
+                            </Button>
+                          </ButtonGroup>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </Tab>
+      </Tabs>
     </div>
   );
 };
