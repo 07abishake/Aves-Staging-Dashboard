@@ -38,7 +38,7 @@ function OrganizationSettings() {
 
         // Fetch organization data
         setLoading(prev => ({...prev, org: true}));
-        const orgResponse = await axios.get('https://codeaves.avessecurity.com/oraganisation/dashboard', {
+        const orgResponse = await axios.get('https://codeaves.avessecurity.com/api/oraganisation/dashboard', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setOrganization(orgResponse.data);
