@@ -41,6 +41,7 @@ import {
   ExclamationTriangle
 } from "react-bootstrap-icons";
 
+// const API_BASE_URL = "https://codeaves.avessecurity.com/api";
 const API_BASE_URL = "https://codeaves.avessecurity.com/api";
 
 const CreateSubOrganization = () => {
@@ -422,7 +423,7 @@ const CreateSubOrganization = () => {
       const payload = buildPayload();
       
       const res = await axios.post(
-        "http://localhost:3393/api/oraganisation/create-Sub",
+        "https://codeaves.avessecurity.com/api/oraganisation/create-Sub",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
