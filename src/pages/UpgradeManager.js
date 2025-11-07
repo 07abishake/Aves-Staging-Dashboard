@@ -342,7 +342,7 @@ const handleSubmit = async (e) => {
 
     if (editMode) {
       await axios.put(
-        `http://localhost:6378/api/upgrade/update/${currentId}`,
+        `https://codeaves.avessecurity.com/api/upgrade/update/${currentId}`,
         formDataToSend,
         {
           headers: { 

@@ -122,7 +122,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Set image preview if exists
     if (user.UserImage) {
-      setPreviewImage(`https://codeaves.avessecurity.com/${user.UserImage}`);
+      setPreviewImage(`https://codeaves.avessecurity.com/uploads/${user.UserImage}`);
     } else {
       setPreviewImage(null);
     }

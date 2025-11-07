@@ -37,12 +37,11 @@ function Departments() {
     // window.location.href = "/login";
   }
 
-
   const filteredDepts = allDepts.filter(dept => 
-  dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  (dept.leadName && dept.leadName.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-  (dept.parentDepartment && dept.parentDepartment.name.toLowerCase().includes(searchTerm.toLowerCase()))
-);
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (dept.leadName && dept.leadName.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (dept.parentDepartment && dept.parentDepartment.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleDesignationClick = (department) => {
     setSelectedDepartmentData(department);
@@ -72,7 +71,7 @@ function Departments() {
     };
 
     fetchDepartments();
-  }, [reloadTrigger]);
+  }, [reloadTrigger, token]);
 
   // Fetch leads for Lead Name dropdown
   useEffect(() => {
@@ -105,7 +104,7 @@ function Departments() {
     };
 
     fetchLeads();
-  }, []);
+  }, [token]);
 
   // Debounced function to fetch users
   const fetchUsers = debounce(async (query) => {
@@ -133,7 +132,7 @@ function Departments() {
 
   useEffect(() => {
     fetchUsers(inputValue);
-  }, [inputValue]);
+  }, [inputValue, fetchUsers]);
 
   const fetchDepartments = async () => {
     try {
@@ -176,7 +175,7 @@ function Departments() {
 
   useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -209,9 +208,8 @@ function Departments() {
         setSelectedLead(null);
         setSelectedDepartment("");
         setSelectedUsers([]);
-        // Trigger page reload by toggling the reloadTrigger state
+        // Only trigger state update, remove window.location.reload()
         setReloadTrigger((prev) => !prev);
-        window.location.reload(); // Full page reload
       } else {
         const errorData = await response.json();
         alert(errorData.message || "Failed to create department");
@@ -240,9 +238,8 @@ function Departments() {
       );
       if (response.status === 200) {
         alert("Department deleted successfully");
-        // Trigger page reload by toggling the reloadTrigger state
+        // Only trigger state update, remove window.location.reload()
         setReloadTrigger((prev) => !prev);
-        window.location.reload(); // Full page reload
       }
     } catch (error) {
       console.error("Error deleting department:", error);
@@ -277,9 +274,8 @@ function Departments() {
       if (response.ok) {
         alert("Department updated successfully!");
         setShowEditCanvas(false);
-        // Trigger page reload by toggling the reloadTrigger state
+        // Only trigger state update, remove window.location.reload()
         setReloadTrigger((prev) => !prev);
-        window.location.reload(); // Full page reload
       } else {
         const errorData = await response.json();
         alert(errorData.message || "Failed to update department");
@@ -328,15 +324,15 @@ function Departments() {
         </div>
       ) : (
         <div>
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex justify-content-between align-items-center mt-3 mb-3">
             <div className="d-flex">
-           <input
-  type="text"
-  className="form-control me-2"
-  placeholder="Search..."
-  value={searchTerm}
-  onChange={(e) => setSearchTerm(e.target.value)}
-/>
+              <input
+                type="text"
+                className="form-control me-2"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <button
               className="btn btn-primary h-50"
@@ -359,8 +355,7 @@ function Departments() {
                         </tr>
                       </thead>
                       <tbody>
-                   {filteredDepts.map((dept) => (
-
+                        {filteredDepts.map((dept) => (
                           <tr key={dept._id}>
                             <td>
                               <strong>{dept.name}</strong>
@@ -507,92 +502,93 @@ function Departments() {
             </div>
           </div>
 
-        {/* View Department Canvas */}
-<div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`}>
-    <div className="offcanvas-header mb-3">
-        <h5 className="offcanvas-title">
-            {selectedDepartmentData ? selectedDepartmentData.name : ""}
-        </h5>
-        <button
-            type="button"
-            className="btn-close"
-            onClick={() => setShowViewCanvas(false)}
-            style={{ position: "absolute", right: "30px" }}
-        ></button>
-    </div>
-    <div className="offcanvas-body p-2 overflow-hidden">
-        {/* Department Details Section */}
-        <div className="mb-4">
-            <h6 className="border-bottom pb-2">Department Details</h6>
-            <div className="row mb-2">
-                <div className="col-4 fw-bold">Name:</div>
-                <div className="col-8">{selectedDepartmentData?.name || "-"}</div>
+          {/* View Department Canvas */}
+          <div className={`p-4 offcanvas-custom ${showViewCanvas ? "show" : ""}`}>
+            <div className="offcanvas-header mb-3">
+              <h5 className="offcanvas-title">
+                {selectedDepartmentData ? selectedDepartmentData.name : ""}
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowViewCanvas(false)}
+                style={{ position: "absolute", right: "30px" }}
+              ></button>
             </div>
-            <div className="row mb-2">
-                <div className="col-4 fw-bold">Parent Department:</div>
-                <div className="col-8">
+            <div className="offcanvas-body p-2 overflow-hidden">
+              {/* Department Details Section */}
+              <div className="mb-4">
+                <h6 className="border-bottom pb-2">Department Details</h6>
+                <div className="row mb-2">
+                  <div className="col-4 fw-bold">Name:</div>
+                  <div className="col-8">{selectedDepartmentData?.name || "-"}</div>
+                </div>
+                <div className="row mb-2">
+                  <div className="col-4 fw-bold">Parent Department:</div>
+                  <div className="col-8">
                     {selectedDepartmentData?.parentDepartment?.name || "None"}
+                  </div>
                 </div>
-            </div>
-            <div className="row mb-2">
-                <div className="col-4 fw-bold">Lead Name:</div>
-                <div className="col-8">
+                <div className="row mb-2">
+                  <div className="col-4 fw-bold">Lead Name:</div>
+                  <div className="col-8">
                     {selectedDepartmentData?.leadName ? (
-                        <div>
-                            <div>{selectedDepartmentData.leadName.username}</div>
-                            <small className="text-muted">
-                                {selectedDepartmentData.leadName.EmailId}
-                            </small>
-                        </div>
+                      <div>
+                        <div>{selectedDepartmentData.leadName.username}</div>
+                        <small className="text-muted">
+                          {selectedDepartmentData.leadName.EmailId}
+                        </small>
+                      </div>
                     ) : (
-                        "-"
+                      "-"
                     )}
+                  </div>
                 </div>
-            </div>
-        </div>
+              </div>
 
-        {/* Assigned Users Section */}
-        <div>
-            <h6 className="border-bottom pb-2">Assigned Users</h6>
+              {/* Assigned Users Section */}
+              <div>
+                <h6 className="border-bottom pb-2">Assigned Users</h6>
 
-            {selectedDepartmentData && selectedDepartmentData.assignUsers ? (
-                <ul className="list-group">
+                {selectedDepartmentData && selectedDepartmentData.assignUsers ? (
+                  <ul className="list-group">
                     {selectedDepartmentData.assignUsers
-                        .filter(user =>
-                            user.username.toLowerCase().includes(searchUser.toLowerCase()) ||
-                            user.EmailId.toLowerCase().includes(searchUser.toLowerCase())
-                        )
-                        .map((user) => (
-                            <li key={user._id} className="list-group-item">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{user.username}</strong>
-                                        <br />
-                                        <small className="text-muted">{user.EmailId}</small>
-                                    </div>
-                                    <span className="badge bg-primary rounded-pill">
-                                        {user.designation?.[0]?.Name  || "No designation"}
-                                    </span>
-                                </div>
-                            </li>
-                        ))}
-                    {selectedDepartmentData.assignUsers.filter(user =>
+                      .filter(user =>
                         user.username.toLowerCase().includes(searchUser.toLowerCase()) ||
                         user.EmailId.toLowerCase().includes(searchUser.toLowerCase())
-                    ).length === 0 && (
-                        <li className="list-group-item text-center text-muted">
-                            No users found
+                      )
+                      .map((user) => (
+                        <li key={user._id} className="list-group-item">
+                          <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                              <strong>{user.username}</strong>
+                              <br />
+                              <small className="text-muted">{user.EmailId}</small>
+                            </div>
+                            <span className="badge bg-primary rounded-pill">
+                              {user.designation?.[0]?.Name  || "No designation"}
+                            </span>
+                          </div>
                         </li>
+                      ))}
+                    {selectedDepartmentData.assignUsers.filter(user =>
+                      user.username.toLowerCase().includes(searchUser.toLowerCase()) ||
+                      user.EmailId.toLowerCase().includes(searchUser.toLowerCase())
+                    ).length === 0 && (
+                      <li className="list-group-item text-center text-muted">
+                        No users found
+                      </li>
                     )}
-                </ul>
-            ) : (
-                <div className="alert alert-info">
+                  </ul>
+                ) : (
+                  <div className="alert alert-info">
                     No users assigned to this department
-                </div>
-            )}
-        </div>
-    </div>
-</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Edit Department Canvas */}
           <div
             className={`p-4 offcanvas-custom ${showEditCanvas ? "show" : ""}`}

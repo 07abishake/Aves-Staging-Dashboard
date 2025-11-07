@@ -1633,7 +1633,7 @@ function Reports() {
   // Fetch organization hierarchy
   const fetchOrganizations = async () => {
     try {
-      const response = await axios.get('http://localhost:3393/api/oraganisation/OrgDropDown', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/oraganisation/OrgDropDown', {
         headers: {
           Authorization: `Bearer ${token}`
         }

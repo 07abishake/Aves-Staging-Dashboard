@@ -67,7 +67,9 @@ function Dashboard() {
           headers: {
             'Authorization': `Bearer ${token}`
           }
+        
         });
+       
         const statusData = await statusRes.json();
 
         setUserStats({

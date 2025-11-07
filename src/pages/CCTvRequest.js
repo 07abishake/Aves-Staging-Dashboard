@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
@@ -44,6 +46,17 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
 
+// Date formatting utility functions
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return moment(dateString).format('YYYY-MM-DD');
+};
+
+const formatDisplayDate = (dateString) => {
+  if (!dateString) return '';
+  return moment(dateString).format('DD MMM YYYY');
+};
+
 const CCTvRequest = () => {
   // Main state
   const [requests, setRequests] = useState([]);
@@ -72,14 +85,16 @@ const CCTvRequest = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'ascending' });
 
-  // Calendar events
+  // Calendar events with proper date formatting
   const calendarEvents = requests.map(request => {
     const requestDate = request.ForMySelf ? request.MySelfDate : request.ForOthersDate;
+    const formattedDate = moment(requestDate).toDate();
+    
     return {
       id: request._id,
       title: request.Title,
-      start: new Date(requestDate),
-      end: new Date(requestDate),
+      start: formattedDate,
+      end: formattedDate,
       allDay: true,
       status: request.Status
     };
@@ -103,19 +118,19 @@ const CCTvRequest = () => {
     };
   };
 
-  // Form state
+  // Form state with proper date initialization
   const [formData, setFormData] = useState({
     Title: '',
     ForMySelf: false,
     ForOthers: false,
-    MySelfDate: '',
-    MySelfTime: '',
+    MySelfDate: moment().format('YYYY-MM-DD'),
+    MySelfTime: moment().format('HH:mm'),
     MySelfLocationOFIncident: '',
     MyselfReasonofviewing: '',
     MySelfImmidiateHoldForView: '',
     ForOthersName: '',
-    ForOthersDate: '',
-    ForOthersTime: '',
+    ForOthersDate: moment().format('YYYY-MM-DD'),
+    ForOthersTime: moment().format('HH:mm'),
     ForOthersLocationOFIncident: '',
     ForOthersReasonofviewing: '',
     ForOthersImmidiateHoldForView: '',
@@ -193,14 +208,14 @@ const CCTvRequest = () => {
       Title: '',
       ForMySelf: false,
       ForOthers: false,
-      MySelfDate: '',
-      MySelfTime: '',
+      MySelfDate: moment().format('YYYY-MM-DD'),
+      MySelfTime: moment().format('HH:mm'),
       MySelfLocationOFIncident: '',
       MyselfReasonofviewing: '',
       MySelfImmidiateHoldForView: '',
       ForOthersName: '',
-      ForOthersDate: '',
-      ForOthersTime: '',
+      ForOthersDate: moment().format('YYYY-MM-DD'),
+      ForOthersTime: moment().format('HH:mm'),
       ForOthersLocationOFIncident: '',
       ForOthersReasonofviewing: '',
       ForOthersImmidiateHoldForView: '',
@@ -582,7 +597,7 @@ const CCTvRequest = () => {
                 <Accordion.Body>
                   <Row>
                     <Col md={6}>
-                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {request.MySelfDate}</p>
+                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {formatDisplayDate(request.MySelfDate)}</p>
                     </Col>
                     <Col md={6}>
                       <p><strong><Clock className="me-2 text-primary" />Time:</strong> {request.MySelfTime}</p>
@@ -607,7 +622,7 @@ const CCTvRequest = () => {
                   <p><strong>Name:</strong> {request.ForOthersName}</p>
                   <Row>
                     <Col md={6}>
-                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {request.ForOthersDate}</p>
+                      <p><strong><CalendarIcon className="me-2 text-primary" />Date:</strong> {formatDisplayDate(request.ForOthersDate)}</p>
                     </Col>
                     <Col md={6}>
                       <p><strong><Clock className="me-2 text-primary" />Time:</strong> {request.ForOthersTime}</p>
@@ -772,8 +787,8 @@ const CCTvRequest = () => {
                     {request.ForOthers && request.ForOthersLocationOFIncident}
                   </td>
                   <td>
-                    {request.ForMySelf && request.MySelfDate}
-                    {request.ForOthers && request.ForOthersDate}
+                    {request.ForMySelf && formatDisplayDate(request.MySelfDate)}
+                    {request.ForOthers && formatDisplayDate(request.ForOthersDate)}
                   </td>
                   <td>{renderStatusBadge(request.Status)}</td>
                   <td>
@@ -1176,7 +1191,7 @@ const CCTvRequest = () => {
                     <h6 className="text-primary">My Request Details</h6>
                     <Row>
                       <Col md={6}>
-                        <p><strong>Date:</strong> {requestToUpdate.MySelfDate}</p>
+                        <p><strong>Date:</strong> {formatDisplayDate(requestToUpdate.MySelfDate)}</p>
                       </Col>
                       <Col md={6}>
                         <p><strong>Time:</strong> {requestToUpdate.MySelfTime}</p>
@@ -1195,7 +1210,7 @@ const CCTvRequest = () => {
                     <p><strong>Name:</strong> {requestToUpdate.ForOthersName}</p>
                     <Row>
                       <Col md={6}>
-                        <p><strong>Date:</strong> {requestToUpdate.ForOthersDate}</p>
+                        <p><strong>Date:</strong> {formatDisplayDate(requestToUpdate.ForOthersDate)}</p>
                       </Col>
                       <Col md={6}>
                         <p><strong>Time:</strong> {requestToUpdate.ForOthersTime}</p>

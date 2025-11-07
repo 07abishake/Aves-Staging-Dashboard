@@ -803,7 +803,7 @@ const OccurrenceManager = () => {
           <Offcanvas.Body>
             <Form>
               {/* Don't show RecordingDate, RecordingTime, and OccurringTime in the form as they're auto-generated */}
-              {["NatureOfIncident", "Description", "ActionTaken", "SupervisorNameRemark"].map((field) => (
+              {["NatureOfIncident", "Description", "ActionTaken"].map((field) => (
                 <Form.Group key={field} className="mb-3">
                   <Form.Label>{field.replace(/([A-Z])/g, ' $1')}</Form.Label>
                   <Form.Control
@@ -816,6 +816,15 @@ const OccurrenceManager = () => {
                   />
                 </Form.Group>
               ))}
+
+                  <Form.Group className="mb-3">
+                <Form.Label>Supervisor Name Remark</Form.Label>
+                <UserDropdown 
+                  value={form.SupervisorNameRemark || ''}
+                  onChange={(e) => setForm({ ...form, SupervisorNameRemark: e.target.value })}
+                  showLabel={false}
+                />
+              </Form.Group>
               
               {/* Location Dropdown */}
               <Form.Group className="mb-3">

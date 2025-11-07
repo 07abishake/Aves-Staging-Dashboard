@@ -178,9 +178,9 @@ function OrganizationSettings() {
                     </Col>
                     <Col>
                       <h4 className="mb-1">{organization.domain}</h4>
-                      <Badge bg={organization.status ? 'success' : 'danger'}>
+                      {/* <Badge bg={organization.status ? 'success' : 'danger'}>
                         {organization.status ? 'Active' : 'Inactive'}
-                      </Badge>
+                      </Badge> */}
                     </Col>
                   </Row>
 
@@ -226,7 +226,7 @@ function OrganizationSettings() {
                       <ListGroup variant="flush">
                         <ListGroup.Item className="d-flex justify-content-between px-0">
                           <span className="text-muted">Company Name</span>
-                          <span className="fw-bold">{organization.domain}</span>
+                          <span className="fw-bold">{organization.companyName}</span>
                         </ListGroup.Item>
                         <ListGroup.Item className="d-flex justify-content-between px-0">
                           <span className="text-muted">Domain</span>
@@ -256,12 +256,12 @@ function OrganizationSettings() {
                           <span className="text-muted">Valid Until</span>
                           <span className="fw-bold">{new Date(organization.validUntil).toLocaleDateString()}</span>
                         </ListGroup.Item>
-                        <ListGroup.Item className="d-flex justify-content-between px-0">
+                        {/* <ListGroup.Item className="d-flex justify-content-between px-0">
                           <span className="text-muted">Status</span>
                           <Badge bg={organization.status ? 'success' : 'danger'}>
                             {organization.status ? 'Active' : 'Inactive'}
                           </Badge>
-                        </ListGroup.Item>
+                        </ListGroup.Item> */}
                       </ListGroup>
                       <div className="d-grid gap-2 mt-3">
                         {/* <Button variant="outline-primary">Upgrade Plan</Button>
