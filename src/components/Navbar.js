@@ -23,7 +23,7 @@ function AppNavbar() {
       const decoded = jwtDecode(token);
       const userId = decoded.userId;
 
-      const response = await fetch('https://codeaves.avessecurity.com/api/auth/log-out', {
+      const response = await fetch('https://api.avessecurity.com/api/auth/log-out', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,15 +110,13 @@ function AppNavbar() {
             </Dropdown.Toggle>
 
             <Dropdown.Menu className="shadow border-0">
-              <Dropdown.Header>
-                <div className="fw-bold">{username}</div>
-                <small className="text-muted">{userRole}</small>
-              </Dropdown.Header>
+                {/* <div className="fw-bold">{username}</div>
+                <small className="text-muted">{userRole}</small> */}
               <Dropdown.Divider />
-              <Dropdown.Item onClick={() => navigate('/profile')}>
+              {/* <Dropdown.Item onClick={() => navigate('/profile')}>
                 <PersonCircle className="me-2" />
                 My Profile
-              </Dropdown.Item>
+              </Dropdown.Item> */}
               <Dropdown.Divider />
               <Dropdown.Item onClick={handleLogout} className="text-danger">
                 <BoxArrowRight className="me-2" />

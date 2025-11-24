@@ -745,16 +745,40 @@ export const organizationAPI = {
   getOrg: () => api.get('/oraganisation/OrgDropDown'),
   getOrganizationDetails: (orgId) => api.get(`/oraganisation/${orgId}`),
   createOrganization: (data) => api.post('/oraganisation/create', data),
+    checkLimits: (domain) => api.get(`/oraganisation/${domain}/limits`),
+  getUsage: (orgId) => api.get(`/oraganisation/${orgId}/usage`),
+  debugCounts: (domain) => api.get(`/oraganisation/${domain}/debug`),
+  syncCounts: (domain) => api.post(`/oraganisation/${domain}/sync-counts`),
 };
 
 // Module API
+// export const moduleAPI = {
+//   create: (data) => api.post('/modules/create', data),
+//   getAll: () => api.get('/modules'),
+//   getById: (id) => api.get(`/modules/${id}`),
+//   update: (id, data) => api.put(`/modules/${id}`, data),
+//   delete: (id) => api.delete(`/modules/${id}`),
+//   getAvailableModules: () => api.get('/modules/available'),
+// };
+
+
 export const moduleAPI = {
   create: (data) => api.post('/modules/create', data),
-  getAll: () => api.get('/modules'),
+  getAll: (params) => api.get('/modules', { params }),
   getById: (id) => api.get(`/modules/${id}`),
   update: (id, data) => api.put(`/modules/${id}`, data),
   delete: (id) => api.delete(`/modules/${id}`),
   getAvailableModules: () => api.get('/modules/available'),
+  
+  // ADD THESE NEW ENDPOINTS:
+  addModuleData: (moduleId, data) => api.post(`/modules/${moduleId}/data`, data),
+  getModuleData: (moduleId, params) => api.get(`/modules/${moduleId}/data`, { params }),
+  getModuleDataById: (moduleId, entryId) => api.get(`/modules/${moduleId}/data/${entryId}`),
+  getModulesForApp: () => api.get('/modules/app/modules'),
+  handleModuleUsage: (data) => api.post('/modules/usage/handle', data),
+  getModuleUsageHistory: (moduleId, params) => api.get(`/modules/${moduleId}/usage/history`, { params }),
+  duplicateModule: (moduleId, data) => api.post(`/modules/${moduleId}/duplicate`, data),
+  getModuleStatistics: (moduleId) => api.get(`/modules/${moduleId}/statistics`)
 };
 
 // Product Sharing API - Consolidated to avoid duplicates

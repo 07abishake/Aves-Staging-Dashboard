@@ -99,7 +99,7 @@
 
 //   const fetchModules = async () => {
 //     try {
-//       const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
+//       const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
 //         headers: {
 //           Authorization: `Bearer ${token}`
 //         }
@@ -119,7 +119,7 @@
 //   const fetchDepartments = async () => {
 //     try {
 //       const response = await axios.get(
-//         'https://codeaves.avessecurity.com/api/Department/getAll',
+//         'http://localhost:6378/api/Department/getAll',
 //         {
 //           headers: {
 //             'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@
 //   const fetchLocations = async () => {
 //     try {
 //       const response = await axios.get(
-//         'https://codeaves.avessecurity.com/api/Location/getLocations',
+//         'http://localhost:6378/api/Location/getLocations',
 //         {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
@@ -255,7 +255,7 @@
     
 //     try {
 //       const response = await axios.get(
-//         'https://codeaves.avessecurity.com/api/Location/getLocations',
+//         'http://localhost:6378/api/Location/getLocations',
 //         {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
@@ -337,7 +337,7 @@
 //   const fetchAllUsers = async () => {
 //     try {
 //       const response = await axios.get(
-//         "https://codeaves.avessecurity.com/api/Designation/getDropdown",
+//         "http://localhost:6378/api/Designation/getDropdown",
 //         {
 //           headers: {
 //             'Authorization': `Bearer ${token}`
@@ -385,7 +385,7 @@
 //     try {
 //       console.log('Fetching users with query:', query);
 //       const response = await axios.get(
-//         `https://codeaves.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
+//         `http://localhost:6378/api/Designation/getDropdown/${encodeURIComponent(query)}`,
 //         {
 //           headers: {
 //             'Authorization': `Bearer ${token}`
@@ -477,7 +477,7 @@
 
 //     try {
 //       const response = await axios.post(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
+//         `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
 //         formData,
 //         {
 //           headers: {
@@ -527,7 +527,7 @@
 //       console.log('Sending preview request with filters:', requestData);
       
 //       const response = await axios.post(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/preview`,
+//         `http://localhost:6378/api/ReportGenrate/preview`,
 //         requestData,
 //         {
 //           headers: {
@@ -558,7 +558,7 @@
     
 //     try {
 //       const response = await axios.get(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
+//         `http://localhost:6378/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
 //         {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
@@ -615,7 +615,7 @@
     
 //     try {
 //       const response = await axios.get(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${recordId}?module=${module}`,
+//         `http://localhost:6378/api/ReportGenrate/preview/${recordId}?module=${module}`,
 //         {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
@@ -651,7 +651,7 @@
 //       console.log('Fetching record details for:', recordId, module);
       
 //       const response = await axios.get(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/preview-single/${module}/${recordId}`,
+//         `http://localhost:6378/api/ReportGenrate/preview-single/${module}/${recordId}`,
 //         {
 //           headers: {
 //             Authorization: `Bearer ${token}`,
@@ -696,7 +696,7 @@
 
 //     try {
 //       const response = await axios.post(
-//         `https://codeaves.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
+//         `http://localhost:6378/api/ReportGenrate/Pdf/${selectedModule.value}`,
 //         formData,
 //         {
 //           responseType: "blob",
@@ -821,7 +821,7 @@
 //             return (
 //               <div className="d-flex flex-wrap gap-2">
 //                 {imageValue.map((img, index) => {
-//                   const imageUrl = img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img.replace(/^uploads\//, '')}`;
+//                   const imageUrl = img.startsWith('http') ? img : `http://localhost:6378/uploads/${img.replace(/^uploads\//, '')}`;
 //                   return (
 //                     <div key={index} className="position-relative">
 //                       <img 
@@ -845,7 +845,7 @@
 //           }
 //           // Handle single image URL
 //           else if (typeof imageValue === 'string' && imageValue !== 'N/A' && imageValue.trim() !== '') {
-//             const imageUrl = imageValue.startsWith('http') ? imageValue : `https://codeaves.avessecurity.com/uploads/${imageValue.replace(/^uploads\//, '')}`;
+//             const imageUrl = imageValue.startsWith('http') ? imageValue : `http://localhost:6378/uploads/${imageValue.replace(/^uploads\//, '')}`;
 //             return (
 //               <div>
 //                 <div className="d-flex align-items-center gap-2 mb-2">
@@ -1633,7 +1633,7 @@ function Reports() {
   // Fetch organization hierarchy
   const fetchOrganizations = async () => {
     try {
-      const response = await axios.get('https://codeaves.avessecurity.com/api/oraganisation/OrgDropDown', {
+      const response = await axios.get('http://localhost:6378/api/oraganisation/OrgDropDown', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -1684,7 +1684,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
+      const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -1704,7 +1704,7 @@ function Reports() {
   const fetchDepartments = async () => {
     try {
       const response = await axios.get(
-        'https://codeaves.avessecurity.com/api/Department/getAll',
+        'http://localhost:6378/api/Department/getAll',
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1740,7 +1740,7 @@ function Reports() {
   const fetchLocations = async () => {
     try {
       const response = await axios.get(
-        'https://codeaves.avessecurity.com/api/Location/getLocations',
+        'http://localhost:6378/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1840,7 +1840,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        'https://codeaves.avessecurity.com/api/Location/getLocations',
+        'http://localhost:6378/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1922,7 +1922,7 @@ function Reports() {
   const fetchAllUsers = async () => {
     try {
       const response = await axios.get(
-        "https://codeaves.avessecurity.com/api/Designation/getDropdown",
+        "http://localhost:6378/api/Designation/getDropdown",
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1970,7 +1970,7 @@ function Reports() {
     try {
       console.log('Fetching users with query:', query);
       const response = await axios.get(
-        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
+        `http://localhost:6378/api/Designation/getDropdown/${encodeURIComponent(query)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -2068,7 +2068,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://codeaves.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
@@ -2119,7 +2119,7 @@ function Reports() {
       console.log('Sending preview request with filters:', requestData);
       
       const response = await axios.post(
-        `https://codeaves.avessecurity.com/apiReportGenrate/preview`,
+        `http://localhost:6378/apiReportGenrate/preview`,
         requestData,
         {
           headers: {
@@ -2150,7 +2150,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
+        `http://localhost:6378/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2215,7 +2215,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${recordId}?module=${module}`,
+        `http://localhost:6378/api/ReportGenrate/preview/${recordId}?module=${module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2251,7 +2251,7 @@ function Reports() {
       console.log('Fetching record details for:', recordId, module);
       
       const response = await axios.get(
-        `https://codeaves.avessecurity.com/api/ReportGenrate/preview-single/${module}/${recordId}`,
+        `http://localhost:6378/api/ReportGenrate/preview-single/${module}/${recordId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2297,7 +2297,7 @@ function Reports() {
 
     try {
       const response = await axios.post(
-        `https://codeaves.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
+        `http://localhost:6378/api/ReportGenrate/Pdf/${selectedModule.value}`,
         formData,
         {
           responseType: "blob",
@@ -2422,7 +2422,7 @@ function Reports() {
             return (
               <div className="d-flex flex-wrap gap-2">
                 {imageValue.map((img, index) => {
-                  const imageUrl = img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img.replace(/^uploads\//, '')}`;
+                  const imageUrl = img.startsWith('http') ? img : `http://localhost:6378/uploads/${img.replace(/^uploads\//, '')}`;
                   return (
                     <div key={index} className="position-relative">
                       <img 
@@ -2446,7 +2446,7 @@ function Reports() {
           }
           // Handle single image URL
           else if (typeof imageValue === 'string' && imageValue !== 'N/A' && imageValue.trim() !== '') {
-            const imageUrl = imageValue.startsWith('http') ? imageValue : `https://codeaves.avessecurity.com/uploads/${imageValue.replace(/^uploads\//, '')}`;
+            const imageUrl = imageValue.startsWith('http') ? imageValue : `http://localhost:6378/uploads/${imageValue.replace(/^uploads\//, '')}`;
             return (
               <div>
                 <div className="d-flex align-items-center gap-2 mb-2">

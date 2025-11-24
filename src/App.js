@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './Utils/ProtectedRoute';
+import SuperAdminRoute from './Utils/SuperAdminRoute'
 
 // Import all your pages
 import Dashboard from './pages/Dashboard';
@@ -46,12 +47,13 @@ import PageNotFound from './pages/PageNotFound';
 import OrganizationManagement from './pages/OrganisationManagement';
 import NotificationCenter from './pages/NotificationBell';
 import { SocketProvider } from './Utils/SocketContext';
+import UserAllocation from './pages/UserAllocation';
 
 function App() {
   const location = useLocation();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  // ✅ Added '/Management' to valid routes
+  // ✅ Added '/user-allocation' to valid routes
   const validRoutes = [
     '/', '/dashboard', '/users', '/organization', '/organisation-chart', 
     '/permissions', '/department', '/teams', '/patrol', '/location/add-location', 
@@ -60,7 +62,8 @@ function App() {
     '/inventory-status', '/OccurrenceManager', '/ShiftCreate', '/assign',
     '/upgrade', '/event-management', '/terms-condition', '/inventory-manager',
     '/product', '/cctv-request', '/FirstAidReport', '/EmergencyCodeManager',
-    '/PassSetup', '/Property', '/SustainablityManager', '/osha-invite', '/Training' // ✅ Added here
+    '/PassSetup', '/Property', '/SustainablityManager', '/osha-invite', '/Training',
+    '/user-allocation' // ✅ Added this line
   ];
   
   // Check if current path is valid or should show 404 page
@@ -84,69 +87,69 @@ function App() {
   }, []);
 
   return (
-        <SocketProvider>
-    <div className="container-fluid">
-      <div className="row">
-        {!shouldHideLayout && <Sidebar />}
-        <main className={shouldHideLayout ? 'w-100' : 'col-md-9 ms-sm-auto col-lg-10 px-md-4'}>
-          {!shouldHideLayout && <Navbar />}
-          <Routes>
-            {/* Public Route */}
-            <Route path="/" element={<Login />} />
-            
-            {/* Show 404 page when offline */}
-            {!isOnline && <Route path="*" element={<PageNotFound />} />}
-            
-            {/* Protected Routes - only show when online */}
-            {isOnline && (
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/users" element={<UserManagement />} />
-                <Route path="/organization" element={<OrganizationSettings />} />
-                <Route path="/organisation-chart" element={<OrganizationView />} />
-                <Route path="/permissions" element={<Permissions />} />
-                <Route path="/department" element={<Departments />} />
-                <Route path="/teams" element={<Teams />} />
-                <Route path="/patrol" element={<Patrol />} />
-                <Route path="/location/add-location" element={<AddLocation />} />
-                <Route path="/sop" element={<SopManager />} />
-                <Route path='/loaction-info' element={<LocationInfo />} />
-                <Route path='/items-details' element={<ItemDetails />} />
-                <Route path="/designation" element={<Designation />} />
-                <Route path="/resources" element={<ResourceManagement />} />
-                <Route path="/customization" element={<Customization />} />
-                <Route path="/integrations" element={<Integrations />} />
-                <Route path="/data-admin" element={<DataAdministration />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/location" element={<LocationForm />} />
-                <Route path='/inventory-status' element={<InventoryStatus />} />
-                <Route path='/OccurrenceManager' element={<OccurrenceManager />} />
-                <Route path='/ShiftCreate' element={<ShiftManager />} />
-                <Route path="/assign" element={<ShiftAssignmentManager />} />
-                <Route path="/upgrade" element={<UpgradeManager />} />
-                <Route path='/event-management' element={<EventManagement />} />
-                <Route path='/terms-condition' element={<TermManagement />} />
-                <Route path='/inventory-manager' element={<InventoryManager />} />
-                <Route path='/product' element={<ProductManager />} />
-                <Route path='/cctv-request' element={<CCTvRequest />} />
-                <Route path='/FirstAidReport' element={<FirstAidReport />} />
-                <Route path='/EmergencyCodeManager' element={<EmergencyCodeManager />} />
-                <Route path='/PassSetup' element={<PassSetup />} />
-                <Route path='/Property' element={<PropertyPolices />} />
-                <Route path='/SustainablityManager' element={<SustainabilityManagement />} />
-                <Route path='/osha-invite' element={<OshaInvite />} />
-                <Route path='/Training' element={<Training />} />
-                <Route path='/notifications' element={<NotificationCenter />} />
-             
-                
-                {/* Catch all unknown routes - show 404 page */}
-                <Route path="*" element={<PageNotFound />} />
-              </Route>
-            )}
-          </Routes>
-        </main>
+    <SocketProvider>
+      <div className="container-fluid">
+        <div className="row">
+          {!shouldHideLayout && <Sidebar />}
+          <main className={shouldHideLayout ? 'w-100' : 'col-md-9 ms-sm-auto col-lg-10 px-md-4'}>
+            {!shouldHideLayout && <Navbar />}
+            <Routes>
+              {/* Public Route */}
+              <Route path="/" element={<Login />} />
+              
+              {/* Show 404 page when offline */}
+              {!isOnline && <Route path="*" element={<PageNotFound />} />}
+              
+              {/* Protected Routes - only show when online */}
+              {isOnline && (
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/users" element={<UserManagement />} />
+                  <Route path="/organization" element={<OrganizationSettings />} />
+                  <Route path="/organisation-chart" element={<OrganizationView />} />
+                  <Route path="/permissions" element={<Permissions />} />
+                  <Route path="/department" element={<Departments />} />
+                  <Route path="/teams" element={<Teams />} />
+                  <Route path="/patrol" element={<Patrol />} />
+                  <Route path="/location/add-location" element={<AddLocation />} />
+                  <Route path="/sop" element={<SopManager />} />
+                  <Route path='/loaction-info' element={<LocationInfo />} />
+                  <Route path='/items-details' element={<ItemDetails />} />
+                  <Route path="/designation" element={<Designation />} />
+                  <Route path="/resources" element={<ResourceManagement />} />
+                  <Route path="/customization" element={<Customization />} />
+                  <Route path="/integrations" element={<Integrations />} />
+                  <Route path="/data-admin" element={<DataAdministration />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/location" element={<LocationForm />} />
+                  <Route path='/inventory-status' element={<InventoryStatus />} />
+                  <Route path='/OccurrenceManager' element={<OccurrenceManager />} />
+                  <Route path='/ShiftCreate' element={<ShiftManager />} />
+                  <Route path="/assign" element={<ShiftAssignmentManager />} />
+                  <Route path="/upgrade" element={<UpgradeManager />} />
+                  <Route path='/event-management' element={<EventManagement />} />
+                  <Route path='/terms-condition' element={<TermManagement />} />
+                  <Route path='/inventory-manager' element={<InventoryManager />} />
+                  <Route path='/product' element={<ProductManager />} />
+                  <Route path='/cctv-request' element={<CCTvRequest />} />
+                  <Route path='/FirstAidReport' element={<FirstAidReport />} />
+                  <Route path='/EmergencyCodeManager' element={<EmergencyCodeManager />} />
+                  <Route path='/PassSetup' element={<PassSetup />} />
+                  <Route path='/Property' element={<PropertyPolices />} />
+                  <Route path='/SustainablityManager' element={<SustainabilityManagement />} />
+                  <Route path='/osha-invite' element={<OshaInvite />} />
+                  <Route path='/Training' element={<Training />} />
+                  <Route path='/notifications' element={<NotificationCenter />} />
+                  <Route path="/user-allocation" element={<UserAllocation />} />
+                  
+                  {/* Catch all unknown routes - show 404 page */}
+                  <Route path="*" element={<PageNotFound />} />
+                </Route>
+              )}
+            </Routes>
+          </main>
+        </div>
       </div>
-    </div>
     </SocketProvider>
   );
 }

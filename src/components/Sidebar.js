@@ -1,25 +1,380 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+// import { NavLink } from 'react-router-dom';
+// import logo from '../components/Images/Logo.png';
+
+// function Sidebar() {
+//     const [userMenuOpen, setUserMenuOpen] = useState(false);
+//     const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+//     const [inventoryMenuOpen, setInventoryMenuOpen] = useState(false);
+//     const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+    
+   
+
+//     return (
+//         <nav className="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse">
+//             <div className="position-sticky pt-3">
+//                 <div className="text-center mb-4">
+//                     <img src={logo} alt="Logo" style={{ width: '180px', height: 'auto' }} />
+//                     <div className="mt-2">
+//                         <small className="text-muted"></small>
+//                     </div>
+//                 </div>
+//                 <ul className="nav flex-column">
+//                     <li className="nav-item">
+//                         <NavLink to="/dashboard" className="nav-link" end>
+//                             <i className="bi bi-house-door me-2"></i>
+//                             Dashboard
+//                         </NavLink>
+//                     </li>
+
+//                         <li className="nav-item">
+//                             <div 
+//                                 className="nav-link d-flex justify-content-between align-items-center" 
+//                                 onClick={() => setUserMenuOpen(!userMenuOpen)}
+//                                 style={{ cursor: 'pointer' }}
+//                             >
+//                                 <span>
+//                                     <i className="bi bi-people me-2"></i>
+//                                     User & Profiles
+//                                 </span>
+//                                 <i className={`bi ${userMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+//                             </div>
+//                             {userMenuOpen && (
+//                                 <ul className="nav flex-column ms-4">
+//                                          <li className="nav-item">
+//                                         <NavLink to="/designation" className="nav-link">Designation</NavLink>
+//                                     </li>
+//                                        <li className="nav-item">
+//                                         <NavLink to="/department" className="nav-link">Department</NavLink>
+//                                     </li>
+//                                       <li className="nav-item">
+//                                         <NavLink to="/teams" className="nav-link">Teams</NavLink>
+//                                     </li>
+//                                      <li className="nav-item">
+//                                         <NavLink to="/location" className="nav-link">Location</NavLink>
+//                                     </li>
+//                                       <li className="nav-item">
+//                                         <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/users" className="nav-link">Users</NavLink>
+//                                     </li>
+//                                       <li className="nav-item">
+//                             <NavLink to="/permissions" className="nav-link">
+//                                 {/* <i className="bi bi-shield-lock me-2"></i> */}
+//                                 Permissions
+//                             </NavLink>
+//                         </li>
+//                                 </ul>
+//                             )}
+//                         </li>
+//                               <li className="nav-item">
+//                             <NavLink to="/patrol" className="nav-link">
+//                                 <i className="bi-person-fill-gear me-2"></i>
+//                                 User Allocation
+//                             </NavLink>
+//                         </li>
+//                     {/* Inventory Menu */}
+//                         <li className="nav-item">
+//                             <div 
+//                                 className="nav-link d-flex justify-content-between align-items-center" 
+//                                 onClick={() => setInventoryMenuOpen(!inventoryMenuOpen)}
+//                                 style={{ cursor: 'pointer' }}
+//                             >
+//                                 <span>
+//                                     <i className="bi bi-box-seam me-2"></i>
+//                                     Inventory
+//                                 </span>
+//                                 <i className={`bi ${inventoryMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+//                             </div>
+//                             {inventoryMenuOpen && (
+//                                 <ul className="nav flex-column ms-4">
+//                                     <li className="nav-item">
+//                                         <NavLink to="/product" className="nav-link">Add Product</NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/inventory-manager" className="nav-link">Inventory Status</NavLink>
+//                                     </li>
+//                                 </ul>
+//                             )}
+//                         </li>
+
+//                     {/* Organization Menu */}
+               
+//                         <li className="nav-item">
+//                             <div 
+//                                 className="nav-link d-flex justify-content-between align-items-center" 
+//                                 onClick={() => setOrgMenuOpen(!orgMenuOpen)}
+//                                 style={{ cursor: 'pointer' }}
+//                             >
+//                                 <span>
+//                                     <i className="bi bi-building me-2"></i>
+//                                     Organization
+//                                 </span>
+//                                 <i className={`bi ${orgMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+//                             </div>
+//                             {orgMenuOpen && (
+//                                 <ul className="nav flex-column ms-4">
+//                                     <li className="nav-item">
+//                                         <NavLink to="/organization" className="nav-link">Company Info</NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/organisation-chart" className="nav-link">Sub-Organization</NavLink>
+//                                     </li>
+//                                 </ul>
+//                             )}
+//                         </li>
+
+//                     {/* Location Menu */}
+
+//                     {/* Admin Menu */}
+                 
+//                         <li className="nav-item">
+//                             <div 
+//                                 className="nav-link d-flex justify-content-between align-items-center" 
+//                                 onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+//                                 style={{ cursor: 'pointer' }}
+//                             >
+//                                 <span>
+//                                     <i className="bi bi-gear me-2"></i>
+//                                     Admin
+//                                 </span>
+//                                 <i className={`bi ${adminMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+//                             </div>
+//                             {adminMenuOpen && (
+//                                 <ul className="nav flex-column ms-4">
+                                 
+//                                         <>
+//                                             <li className="nav-item">
+//                                                 <NavLink to="/ShiftCreate" className="nav-link">
+//                                                     <i className="bi bi-calendar-check me-2"></i>  Create Shift
+//                                                 </NavLink>
+//                                             </li>
+//                                             <li className="nav-item">
+//                                                 <NavLink to="/assign" className="nav-link">
+//                                                     <i className="bi bi-calendar-check me-2"></i>  Assign Shift
+//                                                 </NavLink>
+//                                             </li>
+//                                         </>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/cctv-request" className="nav-link">
+//                                             <i className="bi bi-camera-video me-2"></i> CCTV
+//                                         </NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/PassSetup" className="nav-link">
+//                                             <i className="bi bi-person-badge me-2"></i> Pass Setup
+//                                         </NavLink>
+//                                     </li>
+                                 
+//                                         <li className="nav-item">
+//                                             <NavLink to="/EmergencyCodeManager" className="nav-link">
+//                                                 <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
+//                                             </NavLink>
+//                                         </li>
+                                 
+//                                     <li className="nav-item">
+//                                         <NavLink to="/event-management" className="nav-link">
+//                                             <i className="bi bi-calendar-event me-2"></i> Events
+//                                         </NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/FirstAidReport" className="nav-link">
+//                                             <i className="bi bi-clipboard2-pulse me-2"></i> First Aid
+//                                         </NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/osha-invite" className="nav-link">
+//                                             <i className="bi bi-envelope-open me-2"></i> OSH Invite
+//                                         </NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/Property" className="nav-link">
+//                                             <i className="bi bi-file-earmark-text me-2"></i> Policy
+//                                         </NavLink>
+//                                     </li>
+//                                     <li className="nav-item">
+//                                         <NavLink to="/SustainablityManager" className="nav-link">
+//                                             <i className="bi bi-tree me-2"></i> Sustainability
+//                                         </NavLink>
+//                                     </li>
+//                                         <li className="nav-item">
+//                                             <NavLink to="/Training" className="nav-link">
+//                                                 <i className="bi bi-mortarboard me-2"></i> Training
+//                                             </NavLink>
+//                                         </li>
+                               
+//                                     <li className="nav-item">
+//                                         <NavLink to="/terms-condition" className="nav-link">
+//                                             <i className="bi bi-card-checklist me-2"></i> Terms & Conditions
+//                                         </NavLink>
+//                                     </li>
+//                                         <li className="nav-item">
+//                                             <NavLink to="/upgrade" className="nav-link">
+//                                                 <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
+//                                             </NavLink>
+//                                         </li>
+                                    
+//                                 </ul>
+//                             )}
+//                         </li>
+//                     {/* Other Menu Items */}
+                 
+                      
+                    
+//                         <li className="nav-item">
+//                             <NavLink to="/reports" className="nav-link">
+//                                 <i className="bi bi-graph-up me-2"></i>
+//                                 Reports & Analytics
+//                             </NavLink>
+//                         </li>
+                    
+
+//                     <li className="nav-item">
+//                         <NavLink to="/OccurrenceManager" className="nav-link">
+//                             <i className="bi bi-exclamation-triangle me-2 text-orange"></i>
+//                             Occurrence
+//                         </NavLink>
+//                     </li>
+
+                 
+//                         <li className="nav-item">
+//                             <NavLink to="/patrol" className="nav-link">
+//                                 <i className="bi bi-geo-alt me-2"></i>
+//                                 Patrol
+//                             </NavLink>
+//                         </li>
+                
+
+//                     <li className="nav-item">
+//                         <NavLink to="/sop" className="nav-link">
+//                             <i className="bi bi-folder me-2"></i>
+//                             SOP
+//                         </NavLink>
+//                     </li>
+//                 </ul>
+//             </div>
+//         </nav>
+//     );
+// }
+
+// export default Sidebar;
+
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import logo from '../components/Images/Logo.png';
+import { jwtDecode } from 'jwt-decode';
 
 function Sidebar() {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [orgMenuOpen, setOrgMenuOpen] = useState(false);
     const [inventoryMenuOpen, setInventoryMenuOpen] = useState(false);
     const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-    
-   
+    const [logoUrl, setLogoUrl] = useState(null);
+    const [loadingLogo, setLoadingLogo] = useState(true);
+
+    // Function to load organization logo
+    const loadOrganizationLogo = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                setLoadingLogo(false);
+                return;
+            }
+
+            const decoded = jwtDecode(token);
+            const OrganizationId = decoded.OrganizationId;
+            const hasLogo = decoded.hasLogo;
+
+            if (hasLogo && OrganizationId) {
+                const response = await fetch(`https://codeaves.avessecurity.com/api/oraganisation/logo`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'OrganizationId': OrganizationId
+                    }
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    setLogoUrl(url);
+                } else {
+                    console.log('No logo found for organization');
+                    setLogoUrl(null);
+                }
+            } else {
+                setLogoUrl(null);
+            }
+        } catch (error) {
+            console.error('Error loading organization logo:', error);
+            setLogoUrl(null);
+        } finally {
+            setLoadingLogo(false);
+        }
+    };
+
+    // Listen for logo updates
+    useEffect(() => {
+        loadOrganizationLogo();
+
+        // Set up storage event listener for logo updates
+        const handleStorageChange = (e) => {
+            if (e.key === 'hasLogo' || e.key === 'access_token') {
+                loadOrganizationLogo();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Custom event for logo updates within same tab
+        const handleLogoUpdate = () => {
+            loadOrganizationLogo();
+        };
+
+        window.addEventListener('logoUpdated', handleLogoUpdate);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('logoUpdated', handleLogoUpdate);
+        };
+    }, []);
 
     return (
         <nav className="col-md-3 col-lg-2 d-md-block bg-white sidebar collapse">
             <div className="position-sticky pt-3">
+                {/* Organization Logo Section */}
                 <div className="text-center mb-4">
-                    <img src={logo} alt="Logo" style={{ width: '180px', height: 'auto' }} />
+                    {loadingLogo ? (
+                        <div className="logo-loading-placeholder">
+                            <div className="spinner-border spinner-border-sm me-2" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                            Loading logo...
+                        </div>
+                    ) : logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt="Organization Logo" 
+                            style={{ width: '180px', height: 'auto',
+                                borderRadius: '12px'
+                             }} 
+                            onError={(e) => {
+                                console.error('Logo failed to load');
+                                setLogoUrl(null);
+                            }}
+                        />
+                    ) : (
+                        <div className="logo-placeholder">
+                            No Logo Set
+                        </div>
+                    )}
                     <div className="mt-2">
                         <small className="text-muted"></small>
                     </div>
                 </div>
+
+                {/* Navigation Menu */}
                 <ul className="nav flex-column">
+                    {/* Dashboard */}
                     <li className="nav-item">
                         <NavLink to="/dashboard" className="nav-link" end>
                             <i className="bi bi-house-door me-2"></i>
@@ -27,203 +382,197 @@ function Sidebar() {
                         </NavLink>
                     </li>
 
-                        <li className="nav-item">
-                            <div 
-                                className="nav-link d-flex justify-content-between align-items-center" 
-                                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <span>
-                                    <i className="bi bi-people me-2"></i>
-                                    User & Profiles
-                                </span>
-                                <i className={`bi ${userMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
-                            </div>
-                            {userMenuOpen && (
-                                <ul className="nav flex-column ms-4">
-                                         <li className="nav-item">
-                                        <NavLink to="/designation" className="nav-link">Designation</NavLink>
-                                    </li>
-                                       <li className="nav-item">
-                                        <NavLink to="/department" className="nav-link">Department</NavLink>
-                                    </li>
-                                      <li className="nav-item">
-                                        <NavLink to="/teams" className="nav-link">Teams</NavLink>
-                                    </li>
-                                     <li className="nav-item">
-                                        <NavLink to="/location" className="nav-link">Location</NavLink>
-                                    </li>
-                                      <li className="nav-item">
-                                        <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/users" className="nav-link">Users</NavLink>
-                                    </li>
-                                      <li className="nav-item">
-                            <NavLink to="/permissions" className="nav-link">
-                                {/* <i className="bi bi-shield-lock me-2"></i> */}
-                                Permissions
-                            </NavLink>
-                        </li>
-                                </ul>
-                            )}
-                        </li>
+                    {/* User & Profiles Menu */}
+                    <li className="nav-item">
+                        <div 
+                            className="nav-link d-flex justify-content-between align-items-center" 
+                            onClick={() => setUserMenuOpen(!userMenuOpen)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <span>
+                                <i className="bi bi-people me-2"></i>
+                                User & Profiles
+                            </span>
+                            <i className={`bi ${userMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+                        </div>
+                        {userMenuOpen && (
+                            <ul className="nav flex-column ms-4">
+                                <li className="nav-item">
+                                    <NavLink to="/designation" className="nav-link">Designation</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/department" className="nav-link">Department</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/teams" className="nav-link">Teams</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/location" className="nav-link">Location</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/location/add-location" className="nav-link">Geo Location</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/users" className="nav-link">Users</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/permissions" className="nav-link">Permissions</NavLink>
+                                </li>
+                            </ul>
+                        )}
+                    </li>
+
+                    {/* User Allocation */}
+                    <li className="nav-item">
+                        <NavLink to="/patrol" className="nav-link">
+                            <i className="bi-person-fill-gear me-2"></i>
+                            User Allocation
+                        </NavLink>
+                    </li>
+
                     {/* Inventory Menu */}
-                        <li className="nav-item">
-                            <div 
-                                className="nav-link d-flex justify-content-between align-items-center" 
-                                onClick={() => setInventoryMenuOpen(!inventoryMenuOpen)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <span>
-                                    <i className="bi bi-box-seam me-2"></i>
-                                    Inventory
-                                </span>
-                                <i className={`bi ${inventoryMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
-                            </div>
-                            {inventoryMenuOpen && (
-                                <ul className="nav flex-column ms-4">
-                                    <li className="nav-item">
-                                        <NavLink to="/product" className="nav-link">Add Product</NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/inventory-manager" className="nav-link">Inventory Status</NavLink>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
+                    <li className="nav-item">
+                        <div 
+                            className="nav-link d-flex justify-content-between align-items-center" 
+                            onClick={() => setInventoryMenuOpen(!inventoryMenuOpen)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <span>
+                                <i className="bi bi-box-seam me-2"></i>
+                                Inventory
+                            </span>
+                            <i className={`bi ${inventoryMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+                        </div>
+                        {inventoryMenuOpen && (
+                            <ul className="nav flex-column ms-4">
+                                <li className="nav-item">
+                                    <NavLink to="/product" className="nav-link">Add Product</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/inventory-manager" className="nav-link">Inventory Status</NavLink>
+                                </li>
+                            </ul>
+                        )}
+                    </li>
 
                     {/* Organization Menu */}
-               
-                        <li className="nav-item">
-                            <div 
-                                className="nav-link d-flex justify-content-between align-items-center" 
-                                onClick={() => setOrgMenuOpen(!orgMenuOpen)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <span>
-                                    <i className="bi bi-building me-2"></i>
-                                    Organization
-                                </span>
-                                <i className={`bi ${orgMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
-                            </div>
-                            {orgMenuOpen && (
-                                <ul className="nav flex-column ms-4">
-                                    <li className="nav-item">
-                                        <NavLink to="/organization" className="nav-link">Company Info</NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/organisation-chart" className="nav-link">Sub-Organisation</NavLink>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
-
-                    {/* Location Menu */}
+                    <li className="nav-item">
+                        <div 
+                            className="nav-link d-flex justify-content-between align-items-center" 
+                            onClick={() => setOrgMenuOpen(!orgMenuOpen)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <span>
+                                <i className="bi bi-building me-2"></i>
+                                Organization
+                            </span>
+                            <i className={`bi ${orgMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+                        </div>
+                        {orgMenuOpen && (
+                            <ul className="nav flex-column ms-4">
+                                <li className="nav-item">
+                                    <NavLink to="/organization" className="nav-link">Company Info</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/organisation-chart" className="nav-link">Sub-Organization</NavLink>
+                                </li>
+                            </ul>
+                        )}
+                    </li>
 
                     {/* Admin Menu */}
-                 
-                        <li className="nav-item">
-                            <div 
-                                className="nav-link d-flex justify-content-between align-items-center" 
-                                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <span>
-                                    <i className="bi bi-gear me-2"></i>
-                                    Admin
-                                </span>
-                                <i className={`bi ${adminMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
-                            </div>
-                            {adminMenuOpen && (
-                                <ul className="nav flex-column ms-4">
-                                 
-                                        <>
-                                            <li className="nav-item">
-                                                <NavLink to="/ShiftCreate" className="nav-link">
-                                                    <i className="bi bi-calendar-check me-2"></i>  Create Shift
-                                                </NavLink>
-                                            </li>
-                                            <li className="nav-item">
-                                                <NavLink to="/assign" className="nav-link">
-                                                    <i className="bi bi-calendar-check me-2"></i>  Assign Shift
-                                                </NavLink>
-                                            </li>
-                                        </>
-                                    <li className="nav-item">
-                                        <NavLink to="/cctv-request" className="nav-link">
-                                            <i className="bi bi-camera-video me-2"></i> CCTV
-                                        </NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/PassSetup" className="nav-link">
-                                            <i className="bi bi-person-badge me-2"></i> Pass Setup
-                                        </NavLink>
-                                    </li>
-                                 
-                                        <li className="nav-item">
-                                            <NavLink to="/EmergencyCodeManager" className="nav-link">
-                                                <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
-                                            </NavLink>
-                                        </li>
-                                 
-                                    <li className="nav-item">
-                                        <NavLink to="/event-management" className="nav-link">
-                                            <i className="bi bi-calendar-event me-2"></i> Events
-                                        </NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/FirstAidReport" className="nav-link">
-                                            <i className="bi bi-clipboard2-pulse me-2"></i> First Aid
-                                        </NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/osha-invite" className="nav-link">
-                                            <i className="bi bi-envelope-open me-2"></i> OSH Invite
-                                        </NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/Property" className="nav-link">
-                                            <i className="bi bi-file-earmark-text me-2"></i> Policy
-                                        </NavLink>
-                                    </li>
-                                    <li className="nav-item">
-                                        <NavLink to="/SustainablityManager" className="nav-link">
-                                            <i className="bi bi-tree me-2"></i> Sustainability
-                                        </NavLink>
-                                    </li>
-                                        <li className="nav-item">
-                                            <NavLink to="/Training" className="nav-link">
-                                                <i className="bi bi-mortarboard me-2"></i> Training
-                                            </NavLink>
-                                        </li>
-                               
-                                    <li className="nav-item">
-                                        <NavLink to="/terms-condition" className="nav-link">
-                                            <i className="bi bi-card-checklist me-2"></i> Terms & Conditions
-                                        </NavLink>
-                                    </li>
-                                        <li className="nav-item">
-                                            <NavLink to="/upgrade" className="nav-link">
-                                                <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
-                                            </NavLink>
-                                        </li>
-                                    
-                                </ul>
-                            )}
-                        </li>
-                    {/* Other Menu Items */}
-                 
-                      
-                    
-                        <li className="nav-item">
-                            <NavLink to="/reports" className="nav-link">
-                                <i className="bi bi-graph-up me-2"></i>
-                                Reports & Analytics
-                            </NavLink>
-                        </li>
-                    
+                    <li className="nav-item">
+                        <div 
+                            className="nav-link d-flex justify-content-between align-items-center" 
+                            onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <span>
+                                <i className="bi bi-gear me-2"></i>
+                                Admin
+                            </span>
+                            <i className={`bi ${adminMenuOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+                        </div>
+                        {adminMenuOpen && (
+                            <ul className="nav flex-column ms-4">
+                                <li className="nav-item">
+                                    <NavLink to="/ShiftCreate" className="nav-link">
+                                        <i className="bi bi-calendar-check me-2"></i> Create Shift
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/assign" className="nav-link">
+                                        <i className="bi bi-calendar-check me-2"></i> Assign Shift
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/cctv-request" className="nav-link">
+                                        <i className="bi bi-camera-video me-2"></i> CCTV
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/PassSetup" className="nav-link">
+                                        <i className="bi bi-person-badge me-2"></i> Pass Setup
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/EmergencyCodeManager" className="nav-link">
+                                        <i className="bi bi-exclamation-triangle me-2"></i> Emergency Code
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/event-management" className="nav-link">
+                                        <i className="bi bi-calendar-event me-2"></i> Events
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/FirstAidReport" className="nav-link">
+                                        <i className="bi bi-clipboard2-pulse me-2"></i> First Aid
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/osha-invite" className="nav-link">
+                                        <i className="bi bi-envelope-open me-2"></i> OSH Invite
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/Property" className="nav-link">
+                                        <i className="bi bi-file-earmark-text me-2"></i> Policy
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/SustainablityManager" className="nav-link">
+                                        <i className="bi bi-tree me-2"></i> Sustainability
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/Training" className="nav-link">
+                                        <i className="bi bi-mortarboard me-2"></i> Training
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/terms-condition" className="nav-link">
+                                        <i className="bi bi-card-checklist me-2"></i> Terms & Conditions
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/upgrade" className="nav-link">
+                                        <i className="bi bi-arrow-up-circle me-2"></i> Upgrade List
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        )}
+                    </li>
 
+                    {/* Reports & Analytics */}
+                    <li className="nav-item">
+                        <NavLink to="/reports" className="nav-link">
+                            <i className="bi bi-graph-up me-2"></i>
+                            Reports & Analytics
+                        </NavLink>
+                    </li>
+
+                    {/* Occurrence */}
                     <li className="nav-item">
                         <NavLink to="/OccurrenceManager" className="nav-link">
                             <i className="bi bi-exclamation-triangle me-2 text-orange"></i>
@@ -231,15 +580,15 @@ function Sidebar() {
                         </NavLink>
                     </li>
 
-                 
-                        <li className="nav-item">
-                            <NavLink to="/patrol" className="nav-link">
-                                <i className="bi bi-geo-alt me-2"></i>
-                                Patrol
-                            </NavLink>
-                        </li>
-                
+                    {/* Patrol */}
+                    <li className="nav-item">
+                        <NavLink to="/patrol" className="nav-link">
+                            <i className="bi bi-geo-alt me-2"></i>
+                            Patrol
+                        </NavLink>
+                    </li>
 
+                    {/* SOP */}
                     <li className="nav-item">
                         <NavLink to="/sop" className="nav-link">
                             <i className="bi bi-folder me-2"></i>
