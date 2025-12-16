@@ -424,7 +424,7 @@ function Sidebar() {
 
                     {/* User Allocation */}
                     <li className="nav-item">
-                        <NavLink to="/patrol" className="nav-link">
+                        <NavLink to="/user-allocation" className="nav-link">
                             <i className="bi-person-fill-gear me-2"></i>
                             User Allocation
                         </NavLink>

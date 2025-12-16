@@ -23,7 +23,7 @@ function AppNavbar() {
       const decoded = jwtDecode(token);
       const userId = decoded.userId;
 
-      const response = await fetch('https://api.avessecurity.com/api/auth/log-out', {
+      const response = await fetch('https://codeaves.avessecurity.com/api/auth/log-out', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

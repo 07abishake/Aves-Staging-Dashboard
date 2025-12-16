@@ -82,7 +82,7 @@ const Login = () => {
                     <div className="card-body">
                         <Form onSubmit={handleSubmit}>
                             <Form.Group className="mb-3 text-start" controlId="formBasicEmail">
-                                <Form.Label className="fw-bold">Email or Username</Form.Label>
+                                <Form.Label className="fw-bold">Email</Form.Label>
                                 <Form.Control
                                     type="text"
                                     placeholder="Enter email or username..."
