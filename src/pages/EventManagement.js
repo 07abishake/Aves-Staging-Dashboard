@@ -17,36 +17,42 @@ const localizer = momentLocalizer(moment);
 const API_BASE_URL = 'https://codeaves.avessecurity.com/api/event';
 const token = localStorage.getItem("access_token");
 
-// Department Dropdown Component
-const DepartmentDropdown = ({ value, onChange }) => {
-  const [departments, setDepartments] = useState([]);
+// Teams Dropdown Component
+const TeamsDropdown = ({ value, onChange }) => {
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchTeams = async () => {
       try {
-        const response = await axios.get('https://codeaves.avessecurity.com/api/Department/getAll', {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/firebase/getAllTeamName/Dashbard', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setDepartments(response.data);
+        
+        if (response.data && response.data.FireBaseTeam) {
+          setTeams(response.data.FireBaseTeam);
+        } else {
+          setTeams([]);
+        }
       } catch (err) {
-        setError(err.message || 'Failed to load departments');
+        setError(err.message || 'Failed to load teams');
+        console.error('Error fetching teams:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDepartments();
+    fetchTeams();
   }, []);
 
   if (loading) {
     return (
       <Form.Group controlId="Department">
-        <Form.Label>Department</Form.Label>
+        <Form.Label>Team <span className="text-danger">*</span></Form.Label>
         <div className="d-flex align-items-center">
           <Spinner animation="border" size="sm" className="me-2" />
-          <span>Loading departments...</span>
+          <span>Loading teams...</span>
         </div>
       </Form.Group>
     );
@@ -55,7 +61,7 @@ const DepartmentDropdown = ({ value, onChange }) => {
   if (error) {
     return (
       <Form.Group controlId="Department">
-        <Form.Label>Department</Form.Label>
+        <Form.Label>Team <span className="text-danger">*</span></Form.Label>
         <Alert variant="danger" className="py-1">{error}</Alert>
       </Form.Group>
     );
@@ -63,11 +69,18 @@ const DepartmentDropdown = ({ value, onChange }) => {
 
   return (
     <Form.Group controlId="Department">
-      <Form.Label>Department</Form.Label>
-      <Form.Select name="Department" value={value} onChange={onChange}>
-        <option value="">Select Department</option>
-        {departments.map((dept) => (
-          <option key={dept._id} value={dept._id}>{dept.name}</option>
+      <Form.Label>Team <span className="text-danger">*</span></Form.Label>
+      <Form.Select
+        name="Department"
+        value={value}
+        onChange={onChange}
+        required
+      >
+        <option value="">Select Team</option>
+        {teams.map((team) => (
+          <option key={team._id} value={team._id}>
+            {team.TeamName}
+          </option>
         ))}
       </Form.Select>
     </Form.Group>
@@ -405,6 +418,7 @@ const createEvent = async (eventData) => {
     
     const dataToSend = {
       ...eventData,
+      TeamMembers: eventData.TeamMembers || [],
       SubmittedBy: user?.name || 'Unknown',
       SubmittedByDate: now.toISOString().split('T')[0],
       SubmittedByTime: now.toTimeString().split(' ')[0],
@@ -426,6 +440,7 @@ const updateEvent = async (id, eventData) => {
     
     const dataToSend = {
       ...eventData,
+      TeamMembers: eventData.TeamMembers || [],
       UpdatedBy: user?.name || 'Unknown',
       UpdatedDate: now.toISOString().split('T')[0],
       UpdatedTime: now.toTimeString().split(' ')[0],
@@ -479,11 +494,44 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
     SafteyBriefing: '',
     SpecialRequest: '',
     Type: '',
-    Department: ''
+    Department: '',
+    TeamMembers: []
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
+
+  // Function to fetch team members
+  const fetchTeamMembers = async (teamId) => {
+    if (!teamId) {
+      setSelectedTeamMembers([]);
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://codeaves.avessecurity.com/api/firebase/getTeamNew/${teamId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data && response.data.users) {
+        const members = response.data.users.map(user => ({
+          _id: user._id,
+          username: user.username,
+          EmailId: user.EmailId
+        }));
+        setSelectedTeamMembers(members);
+        setFormData(prev => ({
+          ...prev,
+          TeamMembers: members
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching team members:', err);
+      setSelectedTeamMembers([]);
+    }
+  };
 
   useEffect(() => {
     if (event && action === 'edit') {
@@ -502,13 +550,23 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         SpecialRequest: event.SpecialRequest || '',
         Type: event.Type || '',
         Department: event.Department || '',
+        TeamMembers: event.TeamMembers || []
       });
+      
+      if (event.Department) {
+        fetchTeamMembers(event.Department);
+      }
     }
   }, [event, action]);
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'Department') {
+      await fetchTeamMembers(value);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -517,10 +575,22 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
     setError(null);
 
     try {
+      const dataToSend = {
+        ...formData,
+        TeamMembers: selectedTeamMembers.map(member => ({
+          userId: member._id,
+          username: member.username,
+          email: member.EmailId
+        })),
+        SubmittedBy: JSON.parse(localStorage.getItem('user'))?.name || 'Unknown',
+        SubmittedByDate: new Date().toISOString().split('T')[0],
+        SubmittedByTime: new Date().toTimeString().split(' ')[0],
+      };
+
       if (action === 'create') {
-        await createEvent(formData);
+        await createEvent(dataToSend);
       } else {
-        await updateEvent(event._id, formData);
+        await updateEvent(event._id, dataToSend);
       }
       onSuccess();
       onHide();
@@ -693,12 +763,38 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         </Form.Group>
 
         <Form.Group as={Col} controlId="Department">
-          <DepartmentDropdown 
+          <TeamsDropdown 
             value={formData.Department}
             onChange={handleChange}
           />
         </Form.Group>
       </Row>
+
+      {selectedTeamMembers.length > 0 && (
+        <Row className="mb-3">
+          <Form.Group as={Col} controlId="TeamMembers">
+            <Form.Label>Selected Team Members ({selectedTeamMembers.length})</Form.Label>
+            <div className="border rounded p-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              <ListGroup variant="flush">
+                {selectedTeamMembers.map(member => (
+                  <ListGroup.Item key={member._id} className="py-2">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{member.username}</strong>
+                        <div className="text-muted small">{member.EmailId}</div>
+                      </div>
+                      <Badge bg="secondary">Team Member</Badge>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            </div>
+            <Form.Text className="text-muted">
+              These team members will be associated with this event.
+            </Form.Text>
+          </Form.Group>
+        </Row>
+      )}
 
       <div className="d-grid gap-2 mt-4">
         <Button variant="primary" type="submit" disabled={loading}>
@@ -797,8 +893,24 @@ const EventDetails = ({ event, onHide }) => {
             </ListGroup.Item>
             <ListGroup.Item>
               <div className="d-flex justify-content-between">
-                <strong>Department:</strong> 
-                <span>{event.Department || 'N/A'}</span>
+                <strong>Team:</strong> 
+                <span>{event.TeamName || 'N/A'}</span>
+              </div>
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <div className="d-flex flex-column">
+                <strong>Team Members:</strong> 
+                {event.TeamMembers && event.TeamMembers.length > 0 ? (
+                  <div className="mt-2">
+                    {event.TeamMembers.map((member, index) => (
+                      <Badge key={index} bg="info" className="me-2 mb-2" pill>
+                        {member.username || member.userId}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="mt-1">No team members assigned</span>
+                )}
               </div>
             </ListGroup.Item>
             <ListGroup.Item>
@@ -1022,6 +1134,7 @@ const EventManagement = () => {
                     <th>Date</th>
                     <th>Client</th>
                     <th>Type</th>
+                    <th>Team</th>
                     <th>Submitted By</th>
                     <th className="text-center">Actions</th>
                   </tr>
@@ -1043,6 +1156,14 @@ const EventManagement = () => {
                           <Badge bg={event.Type === 'VIP' ? 'danger' : 'primary'} pill>
                             {event.Type || 'Regular'}
                           </Badge>
+                        </td>
+                        <td>
+                          {event.TeamName || 'No Team'}
+                          {event.TeamMembers && (
+                            <div className="text-muted small">
+                              {event.TeamMembers.length} member(s)
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div>{event.SubmittedBy}</div>
@@ -1068,7 +1189,7 @@ const EventManagement = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="text-center py-4">
+                      <td colSpan="7" className="text-center py-4">
                         {events.length === 0 ? 'No events available.' : 'No events match your search criteria.'}
                       </td>
                     </tr>

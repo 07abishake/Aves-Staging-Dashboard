@@ -598,7 +598,7 @@ const PropertyPolices = () => {
               </Form.Select>
             </Form.Group>
 
-            <Form.Group className="mb-3">
+            {/* <Form.Group className="mb-3">
               <Form.Check
                 type="checkbox"
                 label="Approved"
@@ -606,7 +606,7 @@ const PropertyPolices = () => {
                 checked={formData.Accept}
                 onChange={(e) => setFormData(prev => ({ ...prev, Accept: e.target.checked }))}
               />
-            </Form.Group>
+            </Form.Group> */}
 
             <div className="d-grid gap-2">
               <Button 
