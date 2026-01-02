@@ -39,6 +39,11 @@
 //   const [locationInput, setLocationInput] = useState('');
 //   const [logoPreview, setLogoPreview] = useState('');
   
+//   // Organization filter state
+//   const [organizations, setOrganizations] = useState([]);
+//   const [selectedOrganization, setSelectedOrganization] = useState(null);
+//   const [organizationFilter, setOrganizationFilter] = useState('all'); // 'all' or specific org ID
+
 //   const statusOptions = [
 //     { value: '', label: 'All Statuses' },
 //     { value: 'Good', label: 'Good' },
@@ -71,6 +76,7 @@
 //     fetchDepartments();
 //     fetchLocations();
 //     fetchAllUsers();
+//     fetchOrganizations(); // Fetch organization hierarchy
 
 //     // Add message listener for iframe communication
 //     const handleMessage = (event) => {
@@ -96,6 +102,58 @@
 //       window.removeEventListener('message', handleMessage);
 //     };
 //   }, [token]);
+
+//   // Fetch organization hierarchy
+//   const fetchOrganizations = async () => {
+//     try {
+//       const response = await axios.get('http://localhost:6378/api/oraganisation/OrgDropDown', {
+//         headers: {
+//           Authorization: `Bearer ${token}`
+//         }
+//       });
+
+//       if (response.data.success) {
+//         const orgOptions = [];
+        
+//         // Function to recursively add organizations
+//         const addOrganization = (org, level = 0) => {
+//           const prefix = '─ '.repeat(level);
+//           orgOptions.push({
+//             value: org.OrganizationId,
+//             label: `${prefix}${org.domain}`,
+//             domain: org.domain,
+//             level: level
+//           });
+
+//           // Add children recursively
+//           if (org.children && org.children.length > 0) {
+//             org.children.forEach(child => {
+//               addOrganization(child, level + 1);
+//             });
+//           }
+//         };
+
+//         // Start with root organization
+//         addOrganization(response.data.data);
+
+//         // Add "All Organizations" option
+//         orgOptions.unshift({
+//           value: 'all',
+//           label: '🌐 All Organizations (Current + Child)',
+//           domain: 'all'
+//         });
+
+//         setOrganizations(orgOptions);
+//         console.log('Organization options:', orgOptions);
+//       }
+//     } catch (error) {
+//       console.error("Error fetching organizations:", error);
+//       // Fallback: create a basic organization option
+//       setOrganizations([
+//         { value: 'all', label: '🌐 All Organizations', domain: 'all' }
+//       ]);
+//     }
+//   };
 
 //   const fetchModules = async () => {
 //     try {
@@ -449,6 +507,11 @@
 //     }
 //   };
 
+//   const handleOrganizationChange = (selectedOption) => {
+//     setSelectedOrganization(selectedOption);
+//     setOrganizationFilter(selectedOption ? selectedOption.value : 'all');
+//   };
+
 //   const handlePreview = async () => {         
 //     if (!validateDates()) return;
 //     if (!selectedModule) {
@@ -469,7 +532,8 @@
 //     formData.append('Department', Department?.value || '');
 //     formData.append('companyName', companyName);
 //     formData.append('Location', LocationId?.label || '');
-//     formData.append('module', selectedModule.value); // Add module to filters
+//     formData.append('module', selectedModule.value);
+//     formData.append('organizationFilter', organizationFilter); // Add organization filter
     
 //     if (companyLogo) {
 //       formData.append('companyLogo', companyLogo);
@@ -515,19 +579,20 @@
 //         endDate: endDate,
 //         selectedModule: selectedModule.value,
 //         // Include all filter parameters
-//         username: username?.value || null, // Username for text-based search
-//         userId: username?.id || null, // User ID for ObjectId-based search
+//         username: username?.value || null,
+//         userId: username?.id || null,
 //         Location: LocationId?.label || null,
 //         LocationId: LocationId?.value || null,
 //         Department: Department?.label || null,
 //         DepartmentId: Department?.value || null,
-//         Status: Status?.value || null
+//         Status: Status?.value || null,
+//         organizationFilter: organizationFilter // Add organization filter
 //       };
       
 //       console.log('Sending preview request with filters:', requestData);
       
 //       const response = await axios.post(
-//         `http://localhost:6378/api/ReportGenrate/preview`,
+//         `http://localhost:6378/apiReportGenrate/preview`,
 //         requestData,
 //         {
 //           headers: {
@@ -595,6 +660,8 @@
 //     setLocationId(null);
 //     setDepartment(null);
 //     setStatus(null);
+//     setSelectedOrganization(null);
+//     setOrganizationFilter('all');
 //     console.log('All filters cleared');
 //   };
 
@@ -605,6 +672,12 @@
 //     if (LocationId) filters.push(`Location: ${LocationId.label}`);
 //     if (Department) filters.push(`Department: ${Department.label}`);
 //     if (Status) filters.push(`Status: ${Status.label}`);
+//     if (selectedOrganization) {
+//       const orgLabel = selectedOrganization.value === 'all' 
+//         ? 'All Organizations' 
+//         : selectedOrganization.label;
+//       filters.push(`Organization: ${orgLabel}`);
+//     }
 //     return filters;
 //   };
 
@@ -689,6 +762,7 @@
 //     formData.append('Status', Status?.value || '');
 //     formData.append('Department', Department?.value || '');
 //     formData.append('companyName', companyName);
+//     formData.append('organizationFilter', organizationFilter); // Add organization filter
     
 //     if (companyLogo) {
 //       formData.append('companyLogo', companyLogo);
@@ -1099,6 +1173,38 @@
 //               />
 //             </div>
 
+//             {/* Organization Filter */}
+//             <div className="col-md-12">
+//               <label className="form-label fw-bold">
+//                 <i className="bi bi-building me-1"></i>
+//                 Organization Filter
+//               </label>
+//               <Select
+//                 options={organizations}
+//                 value={selectedOrganization}
+//                 onChange={handleOrganizationChange}
+//                 placeholder="Select organization..."
+//                 isClearable
+//                 isSearchable
+//                 formatOptionLabel={({ label, domain }) => (
+//                   <div>
+//                     {domain === 'all' ? (
+//                       <span className="text-primary fw-bold">{label}</span>
+//                     ) : (
+//                       <span>{label}</span>
+//                     )}
+//                   </div>
+//                 )}
+//               />
+//               <small className="text-muted">
+//                 {selectedOrganization?.value === 'all' 
+//                   ? '📊 Reports from current organization and all child organizations' 
+//                   : selectedOrganization 
+//                     ? `📊 Reports from ${selectedOrganization.label} only`
+//                     : 'Select an organization to filter reports'}
+//               </small>
+//             </div>
+
 //             <div className="col-md-6">
 //               <label className="form-label fw-bold">Start Date</label>
 //               <input 
@@ -1268,6 +1374,11 @@
 //           <Modal.Title>
 //             <i className="bi bi-file-earmark-text me-2"></i>
 //             {selectedModule?.label} Report Preview
+//             {selectedOrganization && (
+//               <small className="text-muted ms-2">
+//                 • {selectedOrganization.value === 'all' ? 'All Organizations' : selectedOrganization.label}
+//               </small>
+//             )}
 //           </Modal.Title>
 //         </Modal.Header>
 //         <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto", padding: 0 }}>
@@ -1359,6 +1470,14 @@
 //                           <span className="badge bg-warning text-dark">
 //                             <i className="bi bi-images me-1"></i>
 //                             Has Images
+//                           </span>
+//                         </div>
+//                       )}
+//                       {preview.organizationId && (
+//                         <div className="mt-1">
+//                           <span className="badge bg-info text-white">
+//                             <i className="bi bi-building me-1"></i>
+//                             Org: {preview.organizationId.substring(0, 8)}...
 //                           </span>
 //                         </div>
 //                       )}
@@ -1524,7 +1643,8 @@
 //   );
 // }
 
-// export default Reports;
+// export default Reports
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Select from "react-select";
@@ -1565,6 +1685,7 @@ function Reports() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
+  const [tokenData, setTokenData] = useState(null); // Store decoded token
   
   // Organization filter state
   const [organizations, setOrganizations] = useState([]);
@@ -1582,17 +1703,57 @@ function Reports() {
   console.log(token)
   
   useEffect(() => {
-    // Decode token to get company domain
+    // Decode token to get company domain and logo
     if (token) {
       try {
         const decodedToken = jwtDecode(token);
+        setTokenData(decodedToken);
+        
+        console.log('Decoded token data:', decodedToken);
+        console.log('Has logo in token?', decodedToken.hasLogo);
+        console.log('Logo info in token:', decodedToken.logoInfo);
+        console.log('Organization ID in token:', decodedToken.OrganizationId);
+        
         // Set company name from domain in token
         if (decodedToken.domain) {
           setCompanyName(decodedToken.domain);
+        } else if (decodedToken.companyName) {
+          setCompanyName(decodedToken.companyName);
         }
+        
+        // Set company logo from token if available
+        if (decodedToken.hasLogo && decodedToken.logoInfo) {
+          console.log('Token contains logo info:', decodedToken.logoInfo);
+          
+          // Create a mock File object from token data
+          const logoFile = {
+            name: decodedToken.logoInfo.fileName || 'logo.jpg',
+            type: decodedToken.logoInfo.contentType || 'image/jpeg',
+            size: decodedToken.logoInfo.fileSize || 0,
+            lastModified: new Date(decodedToken.logoInfo.uploadedAt || Date.now()).getTime(),
+            tokenData: {
+              hasLogo: true,
+              logoInfo: decodedToken.logoInfo,
+              organizationId: decodedToken.OrganizationId
+            }
+          };
+          
+          setCompanyLogo(logoFile);
+          
+          // Immediately create placeholder while fetching actual logo
+          createLogoPlaceholder(decodedToken);
+          
+          // Then try to fetch actual logo
+          fetchLogoPreview(decodedToken);
+        } else {
+          // Create default placeholder if no logo in token
+          createLogoPlaceholder(decodedToken);
+        }
+        
       } catch (error) {
         console.error("Error decoding token:", error);
         setCompanyName('Security System');
+        createLogoPlaceholder({ companyName: 'Security System' });
       }
     } else {
       // window.location.href = "/login";
@@ -1630,10 +1791,123 @@ function Reports() {
     };
   }, [token]);
 
+  // Function to fetch logo preview from backend
+  const fetchLogoPreview = async (decodedToken) => {
+    try {
+      // Check if we have OrganizationId to fetch logo
+      if (decodedToken.OrganizationId && decodedToken.logoInfo) {
+        console.log('Fetching logo preview for OrganizationId:', decodedToken.OrganizationId);
+        
+        // Try multiple possible API endpoints
+        const endpoints = [
+          `https://codeaves.avessecurity.com/api/organisation/logo`, // Fixed spelling
+          `https://codeaves.avessecurity.com/api/organization/logo`, // Alternative spelling
+          `https://codeaves.avessecurity.com/api/organisation/${decodedToken.OrganizationId}/logo`,
+          `https://codeaves.avessecurity.com/api/organization/${decodedToken.OrganizationId}/logo`
+        ];
+        
+        let success = false;
+        
+        for (const endpoint of endpoints) {
+          try {
+            console.log('Trying endpoint:', endpoint);
+            const response = await axios.get(endpoint, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              }
+            });
+            
+            if (response.data.success && response.data.logoUrl) {
+              setLogoPreview(response.data.logoUrl);
+              success = true;
+              console.log('Logo fetched successfully from:', endpoint);
+              break;
+            } else if (response.data.logoUrl) {
+              // Some endpoints might return logoUrl directly
+              setLogoPreview(response.data.logoUrl);
+              success = true;
+              console.log('Logo URL found in response from:', endpoint);
+              break;
+            }
+          } catch (err) {
+            console.log(`Endpoint ${endpoint} failed:`, err.message);
+            continue;
+          }
+        }
+        
+        if (!success) {
+          // Try to construct logo URL from filename if available
+          if (decodedToken.logoInfo.fileName) {
+            const possiblePaths = [
+              `https://codeaves.avessecurity.com/uploads/${decodedToken.logoInfo.fileName}`,
+              `https://codeaves.avessecurity.com/uploads/logos/${decodedToken.logoInfo.fileName}`,
+              `https://codeaves.avessecurity.com/static/${decodedToken.logoInfo.fileName}`,
+              `https://codeaves.avessecurity.com/public/${decodedToken.logoInfo.fileName}`
+            ];
+            
+            // Test each possible path
+            for (const path of possiblePaths) {
+              try {
+                const testResponse = await axios.head(path);
+                if (testResponse.status === 200) {
+                  setLogoPreview(path);
+                  success = true;
+                  console.log('Found logo at:', path);
+                  break;
+                }
+              } catch (err) {
+                console.log(`Path ${path} not accessible:`, err.message);
+              }
+            }
+          }
+        }
+        
+        if (!success) {
+          console.log('Could not fetch logo, using placeholder');
+          // Keep the placeholder that was already set
+        }
+      } else {
+        console.log('No organization ID or logo info in token, using placeholder');
+      }
+    } catch (error) {
+      console.error('Error fetching logo preview:', error);
+      // Keep the placeholder that was already set
+    }
+  };
+
+  // Function to create a logo placeholder
+  const createLogoPlaceholder = (decodedToken) => {
+    // Create a simple placeholder with company initials
+    const companyInitials = decodedToken.companyName 
+      ? decodedToken.companyName.substring(0, 2).toUpperCase()
+      : decodedToken.domain
+      ? decodedToken.domain.substring(0, 2).toUpperCase()
+      : 'LO';
+    
+    // Create SVG placeholder with better styling
+    const svg = `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#3498db" rx="10"/>
+      <text x="50" y="60" font-family="Arial, sans-serif" font-size="36" 
+            fill="white" text-anchor="middle" font-weight="bold">${companyInitials}</text>
+    </svg>`;
+    
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    setLogoPreview(svgUrl);
+  };
+
+  // Updated handleLogoChange to be read-only
+  const handleLogoChange = (e) => {
+    // Show message that logo is auto-populated from token
+    alert('Logo is automatically populated from your organization. It cannot be changed here.');
+    e.preventDefault();
+    return false;
+  };
+
   // Fetch organization hierarchy
   const fetchOrganizations = async () => {
     try {
-      const response = await axios.get('http://localhost:6378/api/oraganisation/OrgDropDown', {
+      const response = await axios.get('https://codeaves.avessecurity.com/api/oraganisation/OrgDropDown', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -1684,7 +1958,7 @@ function Reports() {
 
   const fetchModules = async () => {
     try {
-      const response = await axios.get(`http://localhost:6378/api/collection/getModule`, {
+      const response = await axios.get(`https://codeaves.avessecurity.com/api/collection/getModule`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -1704,7 +1978,7 @@ function Reports() {
   const fetchDepartments = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:6378/api/Department/getAll',
+        'https://codeaves.avessecurity.com/api/Department/getAll',
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1740,7 +2014,7 @@ function Reports() {
   const fetchLocations = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:6378/api/Location/getLocations',
+        'https://codeaves.avessecurity.com/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1840,7 +2114,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        'http://localhost:6378/api/Location/getLocations',
+        'https://codeaves.avessecurity.com/api/Location/getLocations',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1922,7 +2196,7 @@ function Reports() {
   const fetchAllUsers = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:6378/api/Designation/getDropdown",
+        "https://codeaves.avessecurity.com/api/Designation/getDropdown",
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1970,7 +2244,7 @@ function Reports() {
     try {
       console.log('Fetching users with query:', query);
       const response = await axios.get(
-        `http://localhost:6378/api/Designation/getDropdown/${encodeURIComponent(query)}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${encodeURIComponent(query)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -2020,20 +2294,6 @@ function Reports() {
     return true;
   };
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setCompanyLogo(file);
-      
-      // Create a preview URL for the image
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleOrganizationChange = (selectedOption) => {
     setSelectedOrganization(selectedOption);
     setOrganizationFilter(selectedOption ? selectedOption.value : 'all');
@@ -2062,13 +2322,23 @@ function Reports() {
     formData.append('module', selectedModule.value);
     formData.append('organizationFilter', organizationFilter); // Add organization filter
     
-    if (companyLogo) {
+    // Add token logo information
+    if (tokenData?.hasLogo && tokenData.logoInfo) {
+      // Pass token logo info to backend
+      formData.append('hasTokenLogo', 'true');
+      formData.append('organizationId', tokenData.OrganizationId || '');
+      formData.append('logoFileName', tokenData.logoInfo.fileName || '');
+      formData.append('logoContentType', tokenData.logoInfo.contentType || 'image/jpeg');
+      formData.append('logoFileSize', tokenData.logoInfo.fileSize || '0');
+      formData.append('tokenLogoInfo', JSON.stringify(tokenData.logoInfo || {}));
+    } else if (companyLogo) {
+      // Fallback to uploaded logo if no token logo
       formData.append('companyLogo', companyLogo);
     }
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/data/${selectedModule.value}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/data/${selectedModule.value}`,
         formData,
         {
           headers: {
@@ -2119,7 +2389,7 @@ function Reports() {
       console.log('Sending preview request with filters:', requestData);
       
       const response = await axios.post(
-        `http://localhost:6378/apiReportGenrate/preview`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview`,
         requestData,
         {
           headers: {
@@ -2150,7 +2420,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${preview.id}?module=${preview.module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2215,7 +2485,7 @@ function Reports() {
     
     try {
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview/${recordId}?module=${module}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview/${recordId}?module=${module}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2251,7 +2521,7 @@ function Reports() {
       console.log('Fetching record details for:', recordId, module);
       
       const response = await axios.get(
-        `http://localhost:6378/api/ReportGenrate/preview-single/${module}/${recordId}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/preview-single/${module}/${recordId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -2291,13 +2561,23 @@ function Reports() {
     formData.append('companyName', companyName);
     formData.append('organizationFilter', organizationFilter); // Add organization filter
     
-    if (companyLogo) {
+    // Add token logo information instead of file
+    if (tokenData?.hasLogo && tokenData.logoInfo) {
+      // Pass token logo info to backend
+      formData.append('hasTokenLogo', 'true');
+      formData.append('organizationId', tokenData.OrganizationId || '');
+      formData.append('logoFileName', tokenData.logoInfo.fileName || '');
+      formData.append('logoContentType', tokenData.logoInfo.contentType || 'image/jpeg');
+      formData.append('logoFileSize', tokenData.logoInfo.fileSize || '0');
+      formData.append('tokenLogoInfo', JSON.stringify(tokenData.logoInfo || {}));
+    } else if (companyLogo) {
+      // Fallback to uploaded logo if no token logo
       formData.append('companyLogo', companyLogo);
     }
 
     try {
       const response = await axios.post(
-        `http://localhost:6378/api/ReportGenrate/Pdf/${selectedModule.value}`,
+        `https://codeaves.avessecurity.com/api/ReportGenrate/Pdf/${selectedModule.value}`,
         formData,
         {
           responseType: "blob",
@@ -2422,7 +2702,7 @@ function Reports() {
             return (
               <div className="d-flex flex-wrap gap-2">
                 {imageValue.map((img, index) => {
-                  const imageUrl = img.startsWith('http') ? img : `http://localhost:6378/uploads/${img.replace(/^uploads\//, '')}`;
+                  const imageUrl = img.startsWith('http') ? img : `https://codeaves.avessecurity.com/uploads/${img.replace(/^uploads\//, '')}`;
                   return (
                     <div key={index} className="position-relative">
                       <img 
@@ -2446,7 +2726,7 @@ function Reports() {
           }
           // Handle single image URL
           else if (typeof imageValue === 'string' && imageValue !== 'N/A' && imageValue.trim() !== '') {
-            const imageUrl = imageValue.startsWith('http') ? imageValue : `http://localhost:6378/uploads/${imageValue.replace(/^uploads\//, '')}`;
+            const imageUrl = imageValue.startsWith('http') ? imageValue : `https://codeaves.avessecurity.com/uploads/${imageValue.replace(/^uploads\//, '')}`;
             return (
               <div>
                 <div className="d-flex align-items-center gap-2 mb-2">
@@ -2669,24 +2949,91 @@ function Reports() {
               <small className="text-muted">Company name is the WaterMark of pdf</small>
             </div>
 
+            {/* Company Logo - Auto-populated from Token */}
             <div className="col-md-6">
-              <label className="form-label fw-bold">Company Logo</label>
-              <input 
-                type="file" 
-                className="form-control" 
-                accept="image/*" 
-                onChange={handleLogoChange}
-              />
+              <label className="form-label fw-bold">
+                Company Logo 
+                {tokenData?.hasLogo && (
+                  <span className="badge bg-success ms-2">
+                    <i className="bi bi-check-circle me-1"></i>
+                    From Organization
+                  </span>
+                )}
+              </label>
+              
+              {tokenData?.hasLogo ? (
+                <div className="input-group">
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    value={`Organization Logo: ${tokenData.logoInfo?.fileName || 'Default Logo'}`}
+                    readOnly
+                    disabled
+                    style={{ cursor: 'not-allowed' }}
+                  />
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-secondary"
+                    onClick={() => alert('Logo is automatically populated from your organization token and cannot be changed.')}
+                    title="Organization logo is auto-populated"
+                  >
+                    <i className="bi bi-info-circle"></i>
+                  </button>
+                </div>
+              ) : (
+                <input 
+                  type="file" 
+                  className="form-control" 
+                  accept="image/*" 
+                  onChange={handleLogoChange}
+                />
+              )}
+              
               {logoPreview && (
                 <div className="mt-2">
-                  <img 
-                    src={logoPreview} 
-                    alt="Logo preview" 
-                    style={{ maxWidth: '100px', maxHeight: '100px' }} 
-                    className="img-thumbnail"
-                  />
+                  <div className="d-flex align-items-center">
+                    <img 
+                      src={logoPreview} 
+                      alt="Logo preview" 
+                      style={{ 
+                        maxWidth: '100px', 
+                        maxHeight: '100px',
+                        border: '1px solid #ddd',
+                        borderRadius: '5px'
+                      }} 
+                      className="img-thumbnail"
+                      onError={(e) => {
+                        console.log('Logo image failed to load, using default placeholder');
+                        // If the logo fails to load, ensure we have a placeholder
+                        createLogoPlaceholder(tokenData || { companyName: 'Company' });
+                      }}
+                    />
+                    {tokenData?.hasLogo && (
+                      <div className="ms-3">
+                        <p className="mb-1">
+                          <small className="text-success">
+                            <i className="bi bi-check-circle-fill me-1"></i>
+                            Organization logo loaded
+                          </small>
+                        </p>
+                        {tokenData.logoInfo && (
+                          <div className="text-muted small">
+                            <div>Type: {tokenData.logoInfo.contentType || 'image/jpeg'}</div>
+                            <div>Size: {Math.round((tokenData.logoInfo.fileSize || 0) / 1024)} KB</div>
+                            <div>Uploaded: {tokenData.logoInfo.uploadedAt ? new Date(tokenData.logoInfo.uploadedAt).toLocaleDateString() : 'Unknown'}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
+              
+              <small className="text-muted d-block mt-1">
+                {tokenData?.hasLogo 
+                  ? '✅ Logo is automatically populated from your organization'
+                  : 'Upload a logo if your organization doesn\'t have one'}
+              </small>
             </div>
             
             <div className="col-md-12">
@@ -3170,4 +3517,4 @@ function Reports() {
   );
 }
 
-export default Reports
+export default Reports;

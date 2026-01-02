@@ -131,7 +131,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Set image preview if exists
     if (user.UserImage) {
-      setPreviewImage(`https://codeaves.avessecurity.com.com/${user.UserImage}`);
+      setPreviewImage(`https://codeaves.avessecurity.com/${user.UserImage}`);
     } else {
       setPreviewImage(null);
     }
@@ -235,7 +235,7 @@ const getLocationOptions = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `https://codeaves.avessecurity.com.com/api/users/get-AllUserData`,
+        `https://codeaves.avessecurity.com/api/users/get-AllUserData`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -256,7 +256,7 @@ const getLocationOptions = () => {
   //   try {
   //     setLoading(true);
   //     const response = await axios.get(
-  //       'https://codeaves.avessecurity.com.com/api/Department/getAll',
+  //       'https://codeaves.avessecurity.com/api/Department/getAll',
   //       {
   //         headers: {
   //           'Authorization': `Bearer ${token}`
@@ -289,7 +289,7 @@ const getLocationOptions = () => {
   const fetchDepartments = async () => {
   try {
     const response = await axios.get(
-      'https://codeaves.avessecurity.com.com/api/Department/getAll',
+      'https://codeaves.avessecurity.com/api/Department/getAll',
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 
@@ -310,7 +310,7 @@ const getLocationOptions = () => {
   const fetchDesignations = async () => {
     try {
       const response = await axios.get(
-        "https://codeaves.avessecurity.com.com/api/Designation/getDataDesignation",
+        "https://codeaves.avessecurity.com/api/Designation/getDataDesignation",
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -329,7 +329,7 @@ const getLocationOptions = () => {
 const fetchLocations = async () => {
   try {
     const response = await axios.get(
-      "https://codeaves.avessecurity.com.com/api/Location/getLocations",
+      "https://codeaves.avessecurity.com/api/Location/getLocations",
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -350,7 +350,7 @@ const fetchLocations = async () => {
   const fetchRoles = async () => {
     try {
       const response = await axios.get(
-        "https://codeaves.avessecurity.com.com/api/Roles/getRole",
+        "https://codeaves.avessecurity.com/api/Roles/getRole",
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -370,7 +370,7 @@ const fetchLocations = async () => {
     if (!query) return;
     try {
       const response = await axios.get(
-        `https://codeaves.avessecurity.com.com/api/Designation/getDropdown/${query}`,
+        `https://codeaves.avessecurity.com/api/Designation/getDropdown/${query}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -460,7 +460,7 @@ const fetchLocations = async () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        "https://codeaves.avessecurity.com.com/api/users/register",
+        "https://codeaves.avessecurity.com/api/users/register",
         formData,
         {
           headers: {
@@ -535,7 +535,7 @@ const fetchLocations = async () => {
       setLoading(true);
       console.log(selectedUserForEdit._id)
       const response = await axios.post(
-        `https://codeaves.avessecurity.com.com/api/users/update/${selectedUserForEdit._id}`,
+        `https://codeaves.avessecurity.com/api/users/update/${selectedUserForEdit._id}`,
         formData,
         {
           headers: {
@@ -602,7 +602,7 @@ const fetchLocations = async () => {
 
     try {
       const response = await axios.delete(
-        `https://codeaves.avessecurity.com.com/api/users/delete/${userId}`,
+        `https://codeaves.avessecurity.com/api/users/delete/${userId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -627,7 +627,7 @@ const fetchLocations = async () => {
     try {
       setLoading(true);
       const deletePromises = selectedUsers.map(userId =>
-        axios.delete(`https://codeaves.avessecurity.com.com/api/users/delete/${userId}`, {
+        axios.delete(`https://codeaves.avessecurity.com/api/users/delete/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -765,7 +765,7 @@ const fetchLocations = async () => {
                             <div className="d-flex align-items-center">
                               {user.UserImage && (
                                 <img 
-                                  src={`https://codeaves.avessecurity.com.com/${user.UserImage}`} 
+                                  src={`https://codeaves.avessecurity.com/${user.UserImage}`} 
                                   alt="User" 
                                   style={{ 
                                     width: '30px', 
@@ -1158,7 +1158,7 @@ autoComplete="new-password"
                     {(previewImage || selectedUserForEdit.UserImage) && (
                       <div className="mt-2">
                         <img 
-                          src={previewImage || `https://codeaves.avessecurity.com.com/${selectedUserForEdit.UserImage}`} 
+                          src={previewImage || `https://codeaves.avessecurity.com/${selectedUserForEdit.UserImage}`} 
                           alt="User" 
                           style={{ 
                             width: '100px', 
@@ -1427,7 +1427,7 @@ autoComplete="new-password"
           <div className="position-relative d-inline-block">
             {selectedSpecUser.UserImage ? (
               <img 
-                src={`https://codeaves.avessecurity.com.com/${selectedSpecUser.UserImage}`} 
+                src={`https://codeaves.avessecurity.com/${selectedSpecUser.UserImage}`} 
                 alt="User" 
                 className="img-thumbnail rounded-circle border-primary"
                 style={{ 
