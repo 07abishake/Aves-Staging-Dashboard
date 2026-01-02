@@ -173,36 +173,76 @@ function Permissions() {
     setAllPagesSelected(newState);
   };
 
+  // const handleUpdatePermissions = async () => {
+  //   if (!selectedRoleId) {
+  //     alert('No role selected!');
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     permissions,
+  //     AssignedPage: AssignedPages,
+  //     calendarPageAuth
+  //   };
+
+  //   try {
+  //     await axios.put(
+  //       `https://codeaves.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
+  //       payload,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+
+  //     alert('Permissions updated successfully!');
+  //     setShowViewCanvas(false);
+  //   } catch (error) {
+  //     console.error('Error updating permissions', error);
+  //     alert('Failed to update permissions.');
+  //   }
+  // };
+
   const handleUpdatePermissions = async () => {
-    if (!selectedRoleId) {
-      alert('No role selected!');
-      return;
-    }
+  if (!selectedRoleId) {
+    alert('No role selected!');
+    return;
+  }
 
-    const payload = {
-      permissions,
-      AssignedPage: AssignedPages,
-      calendarPageAuth
-    };
+  // 🚫 Remove system fields before sending
+  const {
+    _id,
+    createdAt,
+    updatedAt,
+    __v,
+    ...safeCalendarPageAuth
+  } = calendarPageAuth || {};
 
-    try {
-      await axios.put(
-        `https://codeaves.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      alert('Permissions updated successfully!');
-      setShowViewCanvas(false);
-    } catch (error) {
-      console.error('Error updating permissions', error);
-      alert('Failed to update permissions.');
-    }
+  const payload = {
+    permissions,
+    AssignedPage: AssignedPages,
+    calendarPageAuth: safeCalendarPageAuth
   };
+
+  try {
+    await axios.put(
+      `https://codeaves.avessecurity.com/api/Roles/updateRole/${selectedRoleId}`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    alert('Permissions updated successfully!');
+    setShowViewCanvas(false);
+  } catch (error) {
+    console.error('Error updating permissions', error);
+    alert('Failed to update permissions.');
+  }
+};
 
 
   const handleDeleteRole = async (roleId) => {
