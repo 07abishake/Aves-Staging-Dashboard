@@ -15,6 +15,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 const localizer = momentLocalizer(moment);
 
 const API_BASE_URL = 'https://codeaves.avessecurity.com/api/event';
+const NOTIFICATION_API_URL = 'https://codeaves.avessecurity.com/api/firebase/Send-Notification-toTeam';
 const token = localStorage.getItem("access_token");
 
 // Teams Dropdown Component
@@ -393,6 +394,40 @@ const EventInchargeDropdown = ({ value, onChange }) => {
   );
 };
 
+// Send Notification Function
+const sendNotificationToTeam = async (teamId, eventData, teamName) => {
+  try {
+    const notificationData = {
+      _id: teamId,
+      title: "New Event Created",
+      body: `Event: ${eventData.EventName}`,
+      message: `A new event "${eventData.EventName}" has been created for ${teamName} team.
+                Date: ${eventData.Date} 
+                Time: ${eventData.Time}
+                Location: ${eventData.Location}
+                Client: ${eventData.Client}
+                Please check the event details for more information.`
+    };
+
+    console.log('Sending notification to team:', teamId, 'with data:', notificationData);
+
+    const response = await axios.post(NOTIFICATION_API_URL, notificationData, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Notification response:', response.data);
+    console.log('Notification sent successfully to team:', teamName);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending notification:', error.response?.data || error.message);
+    // Don't throw error here as we don't want notification failure to affect event creation
+    return null;
+  }
+};
+
 // Event Service Functions
 const fetchEvents = async () => {
   try {
@@ -416,6 +451,9 @@ const createEvent = async (eventData) => {
     const user = JSON.parse(localStorage.getItem('user'));
     const now = new Date();
     
+    // Get the selected team name
+    const teamName = eventData.TeamName || '';
+    
     const dataToSend = {
       ...eventData,
       TeamMembers: eventData.TeamMembers || [],
@@ -424,11 +462,23 @@ const createEvent = async (eventData) => {
       SubmittedByTime: now.toTimeString().split(' ')[0],
     };
 
+    console.log('Creating event with data:', dataToSend);
+
     const response = await axios.post(`${API_BASE_URL}/create`, dataToSend, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    
+    console.log('Event creation response:', response.data);
+    
+    // Send notification to team after successful creation
+    if (eventData.Department && teamName) {
+      console.log('Sending notification for team:', eventData.Department, teamName);
+      await sendNotificationToTeam(eventData.Department, eventData, teamName);
+    }
+    
     return Array.isArray(response.data.events) ? response.data.events : [response.data.events];
   } catch (error) {
+    console.error('Error creating event:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -437,6 +487,9 @@ const updateEvent = async (id, eventData) => {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
     const now = new Date();
+    
+    // Get the selected team name
+    const teamName = eventData.TeamName || '';
     
     const dataToSend = {
       ...eventData,
@@ -449,6 +502,15 @@ const updateEvent = async (id, eventData) => {
     const response = await axios.put(`${API_BASE_URL}/update/${id}`, dataToSend, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    
+    // Send notification for event update
+    if (eventData.Department && teamName) {
+      await sendNotificationToTeam(eventData.Department, {
+        ...eventData,
+        title: "Event Updated"
+      }, teamName);
+    }
+    
     return response.data || {};
   } catch (error) {
     throw error;
@@ -495,21 +557,56 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
     SpecialRequest: '',
     Type: '',
     Department: '',
+    TeamName: '', // Added TeamName field
     TeamMembers: []
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
+  const [selectedTeamName, setSelectedTeamName] = useState('');
+  const [teams, setTeams] = useState([]);
 
-  // Function to fetch team members
+  // Fetch teams on component mount
+  useEffect(() => {
+    const fetchAllTeams = async () => {
+      try {
+        const response = await axios.get('https://codeaves.avessecurity.com/api/firebase/getAllTeamName/Dashbard', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.FireBaseTeam) {
+          setTeams(response.data.FireBaseTeam);
+        }
+      } catch (err) {
+        console.error('Error fetching teams:', err);
+      }
+    };
+
+    fetchAllTeams();
+  }, []);
+
+  // Function to fetch team members and get team name
   const fetchTeamMembers = async (teamId) => {
     if (!teamId) {
       setSelectedTeamMembers([]);
+      setSelectedTeamName('');
       return;
     }
 
     try {
+      // Find team name from teams list
+      const selectedTeam = teams.find(team => team._id === teamId);
+      const teamName = selectedTeam ? selectedTeam.TeamName : '';
+      setSelectedTeamName(teamName);
+      
+      // Update form data with team name
+      setFormData(prev => ({
+        ...prev,
+        TeamName: teamName
+      }));
+
+      // Fetch team members
       const response = await axios.get(
         `https://codeaves.avessecurity.com/api/firebase/getTeamNew/${teamId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -530,6 +627,7 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
     } catch (err) {
       console.error('Error fetching team members:', err);
       setSelectedTeamMembers([]);
+      setSelectedTeamName('');
     }
   };
 
@@ -550,8 +648,11 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         SpecialRequest: event.SpecialRequest || '',
         Type: event.Type || '',
         Department: event.Department || '',
+        TeamName: event.TeamName || '', // Store TeamName
         TeamMembers: event.TeamMembers || []
       });
+      
+      setSelectedTeamName(event.TeamName || '');
       
       if (event.Department) {
         fetchTeamMembers(event.Department);
@@ -582,10 +683,13 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
           username: member.username,
           email: member.EmailId
         })),
+        TeamName: selectedTeamName, // Ensure TeamName is included
         SubmittedBy: JSON.parse(localStorage.getItem('user'))?.name || 'Unknown',
         SubmittedByDate: new Date().toISOString().split('T')[0],
         SubmittedByTime: new Date().toTimeString().split(' ')[0],
       };
+
+      console.log('Submitting event with data:', dataToSend);
 
       if (action === 'create') {
         await createEvent(dataToSend);
@@ -595,6 +699,7 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
       onSuccess();
       onHide();
     } catch (err) {
+      console.error('Form submission error:', err);
       setError(err.response?.data?.message || err.message || 'Something went wrong');
     } finally {
       setLoading(false);
@@ -770,10 +875,31 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
         </Form.Group>
       </Row>
 
+      {selectedTeamName && (
+        <Row className="mb-3">
+          <Form.Group as={Col} controlId="TeamInfo">
+            <Form.Label>Selected Team</Form.Label>
+            <Card className="border-primary">
+              <Card.Body className="py-2">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 className="mb-1">{selectedTeamName}</h6>
+                    <small className="text-muted">
+                      Team ID: {formData.Department}
+                    </small>
+                  </div>
+                  <Badge bg="primary">{selectedTeamMembers.length} members</Badge>
+                </div>
+              </Card.Body>
+            </Card>
+          </Form.Group>
+        </Row>
+      )}
+
       {selectedTeamMembers.length > 0 && (
         <Row className="mb-3">
           <Form.Group as={Col} controlId="TeamMembers">
-            <Form.Label>Selected Team Members ({selectedTeamMembers.length})</Form.Label>
+            <Form.Label>Team Members ({selectedTeamMembers.length})</Form.Label>
             <div className="border rounded p-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
               <ListGroup variant="flush">
                 {selectedTeamMembers.map(member => (
@@ -783,14 +909,14 @@ const EventForm = ({ event, onSuccess, action, onHide }) => {
                         <strong>{member.username}</strong>
                         <div className="text-muted small">{member.EmailId}</div>
                       </div>
-                      <Badge bg="secondary">Team Member</Badge>
+                      <Badge bg="secondary">Member</Badge>
                     </div>
                   </ListGroup.Item>
                 ))}
               </ListGroup>
             </div>
             <Form.Text className="text-muted">
-              These team members will be associated with this event.
+              All {selectedTeamMembers.length} members of {selectedTeamName} team will receive notifications about this event.
             </Form.Text>
           </Form.Group>
         </Row>
@@ -1024,7 +1150,8 @@ const EventManagement = () => {
     if (!event) return false;
     const matchesSearch = (
       event.EventName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      event.Client?.toLowerCase().includes(searchTerm.toLowerCase())
+      event.Client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.TeamName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     const matchesType = filterType === 'All' || event.Type === filterType;
     return matchesSearch && matchesType;
@@ -1038,7 +1165,8 @@ const EventManagement = () => {
     allDay: true,
     type: event.Type || 'Regular',
     client: event.Client,
-    location: event.Location
+    location: event.Location,
+    team: event.TeamName
   }));
 
   const eventStyleGetter = (event) => {
@@ -1077,7 +1205,7 @@ const EventManagement = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="mb-0">Event Management</h2>
         <Button variant="primary" onClick={handleCreate} className="d-flex align-items-center">
-          <i className="me-2"></i> Create New Event
+          <i className="bi bi-plus-circle me-2"></i> Create New Event
         </Button>
       </div>
 
@@ -1089,7 +1217,7 @@ const EventManagement = () => {
                 <InputGroup.Text><i className="bi bi-search"></i></InputGroup.Text>
                 <Form.Control
                   type="text"
-                  placeholder="Search by event name or client..."
+                  placeholder="Search by event name, client, or team..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -1158,7 +1286,7 @@ const EventManagement = () => {
                           </Badge>
                         </td>
                         <td>
-                          {event.TeamName || 'No Team'}
+                          <div className="fw-semibold">{event.TeamName || 'No Team'}</div>
                           {event.TeamMembers && (
                             <div className="text-muted small">
                               {event.TeamMembers.length} member(s)
@@ -1219,7 +1347,7 @@ const EventManagement = () => {
                     <div className="rbc-event-content">
                       <strong>{event.title}</strong>
                       {event.client && <div className="small">{event.client}</div>}
-                      {event.location && <div className="small">{event.location}</div>}
+                      {event.team && <div className="small">{event.team}</div>}
                     </div>
                   ),
                 }}

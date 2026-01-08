@@ -60,6 +60,29 @@ const OshaInvite = () => {
         { value: 'Pending', label: 'Pending', color: 'warning' }
     ];
 
+    // Function to send notification using the provided API
+    const sendNotificationToUser = async (userId, title, body) => {
+        try {
+            const token = localStorage.getItem("access_token");
+            await axios.post(
+                "https://codeaves.avessecurity.com/api/firebase/send-notification",
+                {
+                    userIds: [userId], // Wrap in array as per API requirement
+                    title,
+                    body,
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+            console.log("Notification sent successfully to user:", userId);
+        } catch (error) {
+            console.error("Error sending notification:", error);
+        }
+    };
+
     const fetchDepartments = async () => {
         try {
             const response = await axios.get(
@@ -106,6 +129,7 @@ const OshaInvite = () => {
                 const userOptions = response.data.Report.map((user) => ({
                     value: user._id,
                     label: user.username,
+                    userData: user // Store full user data for notification
                 }));
                 setUsers(userOptions);
             }
@@ -176,9 +200,28 @@ const OshaInvite = () => {
                 ...form,
                 Venue: selectedLocation
             };
-            await axios.post('https://codeaves.avessecurity.com/api/oshaminutes/create', payload, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            
+            // Create the meeting
+            const response = await axios.post(
+                'https://codeaves.avessecurity.com/api/oshaminutes/create', 
+                payload, 
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            // Send notification to the Chaired person if selected
+            if (form.Chaired) {
+                const selectedUser = users.find(u => u.value === form.Chaired);
+                if (selectedUser) {
+                    await sendNotificationToUser(
+                        form.Chaired,
+                        "New OSHA Meeting Assignment",
+                        `You have been assigned as Chair for the meeting: ${form.MeetingTitle || 'New Meeting'}. Date: ${form.Date} at ${form.Time}`
+                    );
+                }
+            }
+
             setShowCreate(false);
             setForm({});
             setSelectedLocation(null);
@@ -200,9 +243,32 @@ const OshaInvite = () => {
                 ...form,
                 Venue: selectedLocation
             };
-            await axios.put(`https://codeaves.avessecurity.com/api/oshaminutes/update/${editId}`, payload, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            
+            // Check if Chaired person has changed
+            const existingMeeting = data.find(d => d._id === editId);
+            const newChairedId = form.Chaired;
+            const oldChairedId = existingMeeting?.Chaired;
+            
+            await axios.put(
+                `https://codeaves.avessecurity.com/api/oshaminutes/update/${editId}`, 
+                payload, 
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            // Send notification if Chaired person has changed
+            if (newChairedId && newChairedId !== oldChairedId) {
+                const selectedUser = users.find(u => u.value === newChairedId);
+                if (selectedUser) {
+                    await sendNotificationToUser(
+                        newChairedId,
+                        "OSHA Meeting Update",
+                        `You are now assigned as Chair for the meeting: ${form.MeetingTitle || 'Meeting'}. Date: ${form.Date} at ${form.Time}`
+                    );
+                }
+            }
+
             setShowEdit(false);
             setForm({});
             setSelectedLocation(null);
@@ -376,23 +442,23 @@ const OshaInvite = () => {
         return <Badge bg={option.color}>{option.label}</Badge>;
     };
 
-const formatVenue = (venue) => {
-    if (!venue) return 'No Venue';
-    
-    // If venue is a string (like in your API response)
-    if (typeof venue === 'string') {
-        return venue;
-    }
-    
-    // If venue is an object (like your code expects)
-    let parts = [];
-    if (venue.PrimaryLocation) parts.push(venue.PrimaryLocation);
-    if (venue.SubLocation) parts.push(venue.SubLocation);
-    if (venue.SecondaryLocation) parts.push(venue.SecondaryLocation);
-    if (venue.ThirdLocation) parts.push(venue.ThirdLocation);
-    
-    return parts.join(', ');
-};
+    const formatVenue = (venue) => {
+        if (!venue) return 'No Venue';
+        
+        // If venue is a string (like in your API response)
+        if (typeof venue === 'string') {
+            return venue;
+        }
+        
+        // If venue is an object (like your code expects)
+        let parts = [];
+        if (venue.PrimaryLocation) parts.push(venue.PrimaryLocation);
+        if (venue.SubLocation) parts.push(venue.SubLocation);
+        if (venue.SecondaryLocation) parts.push(venue.SecondaryLocation);
+        if (venue.ThirdLocation) parts.push(venue.ThirdLocation);
+        
+        return parts.join(', ');
+    };
 
     return (
         <div className="container mt-5">

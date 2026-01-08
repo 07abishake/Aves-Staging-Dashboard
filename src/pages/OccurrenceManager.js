@@ -817,7 +817,7 @@ const OccurrenceManager = () => {
                 </Form.Group>
               ))}
 
-                  <Form.Group className="mb-3">
+                  {/* <Form.Group className="mb-3">
                 <Form.Label>Supervisor Name Remark</Form.Label>
                 <UserDropdown 
                   value={form.SupervisorNameRemark || ''}
@@ -825,7 +825,7 @@ const OccurrenceManager = () => {
                   showLabel={false}
                 />
               </Form.Group>
-              
+               */}
               {/* Location Dropdown */}
               <Form.Group className="mb-3">
                 <Form.Label>Location</Form.Label>
